@@ -1,0 +1,2 @@
+We are using the APP ROUTER, not pages router for NextJS.
+We are using @supabase/ssr, NOT auth-helpers-nextjs. Never use auth-helpers-nextjs in our code. See docs at https://supabase.com/docs/guides/auth/server-side/nextjs for details.
