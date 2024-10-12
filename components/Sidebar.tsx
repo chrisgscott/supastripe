@@ -15,6 +15,16 @@ export default function Sidebar() {
               Profile
             </Link>
           </li>
+          <li>
+            <Link href="/connect" className="block hover:bg-gray-200 p-2 rounded">
+              Connect
+            </Link>
+          </li>
+          <li>
+            <Link href="/create-plan" className="block hover:bg-gray-200 p-2 rounded">
+              Create Plan
+            </Link>
+          </li>
           {/* Add more menu items as needed */}
         </ul>
       </nav>

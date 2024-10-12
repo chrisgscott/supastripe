@@ -4,6 +4,7 @@ import "./globals.css";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import { createClient } from '@/utils/supabase/server';
+import { loadStripe } from '@stripe/stripe-js';
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -14,6 +15,8 @@ export const metadata = {
   title: "Your App Name",
   description: "Your app description",
 };
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 export default async function RootLayout({
   children,
