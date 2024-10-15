@@ -1,13 +1,38 @@
 // app/connect/page.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 export default function ConnectPage() {
   const [accountCreatePending, setAccountCreatePending] = useState(false);
   const [accountLinkCreatePending, setAccountLinkCreatePending] = useState(false);
   const [error, setError] = useState(false);
   const [connectedAccountId, setConnectedAccountId] = useState<string | undefined>();
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchConnectedAccount();
+  }, []);
+
+  const fetchConnectedAccount = async () => {
+    try {
+      const response = await fetch("/api/account", {
+        method: "GET",
+      });
+      const data = await response.json();
+      if (data.account) {
+        setConnectedAccountId(data.account.stripe_account_id);
+      }
+    } catch (error) {
+      console.error("Error fetching connected account:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="container">

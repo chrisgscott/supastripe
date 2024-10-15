@@ -17,6 +17,9 @@ export async function POST(request: Request) {
       type: "account_onboarding",
     });
 
+    // Sync Stripe data
+    await fetch(`${origin}/api/sync-stripe-data`, { method: 'POST' });
+
     return NextResponse.json({
       url: accountLink.url,
     });

@@ -2,47 +2,31 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useStripe } from "@stripe/react-stripe-js";
+import { Elements } from "@stripe/react-stripe-js";
+import { loadStripe } from "@stripe/stripe-js";
+import PaymentStatusInner from "./PaymentStatusInner";
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 const PaymentStatus: React.FC = () => {
-  const stripe = useStripe();
-  const [message, setMessage] = useState<string | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!stripe) return;
-
-    const clientSecret = new URLSearchParams(window.location.search).get(
+    const secret = new URLSearchParams(window.location.search).get(
       "payment_intent_client_secret"
     );
+    setClientSecret(secret);
+  }, []);
 
-    if (!clientSecret) {
-      setMessage("No payment intent found.");
-      return;
-    }
+  if (!clientSecret) {
+    return <div>Loading...</div>;
+  }
 
-    stripe.retrievePaymentIntent(clientSecret).then(({ paymentIntent }) => {
-      if (!paymentIntent) {
-        setMessage("Payment intent not found.");
-        return;
-      }
-
-      switch (paymentIntent.status) {
-        case "succeeded":
-          setMessage("Success! Payment received.");
-          break;
-        case "processing":
-          setMessage("Payment processing. We'll update you when it's complete.");
-          break;
-        case "requires_payment_method":
-          setMessage("Payment failed. Please try another payment method.");
-          break;
-        default:
-          setMessage("Something went wrong.");
-      }
-    });
-  }, [stripe]);
-
-  return <div>{message}</div>;
+  return (
+    <Elements stripe={stripePromise} options={{ clientSecret }}>
+      <PaymentStatusInner />
+    </Elements>
+  );
 };
 
 export default PaymentStatus;
