@@ -194,63 +194,83 @@ const PaymentFormInner: React.FC<{ paymentPlanId: string | null }> = ({ paymentP
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [currentTransactionId, setCurrentTransactionId] = useState<string | null>(null);
   const stripe = useStripe();
   const elements = useElements();
 
+  console.log('PaymentFormInner: Rendering, clientSecret:', clientSecret);
+
   useEffect(() => {
-    if (paymentPlanId) {
+    console.log('PaymentFormInner: useEffect triggered');
+    console.log('PaymentFormInner: paymentPlanId:', paymentPlanId);
+    console.log('PaymentFormInner: clientSecret:', clientSecret);
+
+    if (paymentPlanId && !clientSecret) {
+      console.log('PaymentFormInner: Conditions met for creating payment intent');
+      setIsLoading(true);
       fetch("/api/create-payment-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentPlanId }),
+        body: JSON.stringify({ 
+          paymentPlanId,
+          userAgent: navigator.userAgent,
+        }),
       })
-        .then((res) => res.json())
+        .then((res) => {
+          console.log('PaymentFormInner: Received response from create-payment-intent');
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.json();
+        })
         .then((data) => {
-          if (data.error) {
-            setError(data.error);
-          } else {
+          console.log('Payment intent data:', data);
+          if (data.clientSecret) {
             setClientSecret(data.clientSecret);
+            setCurrentTransactionId(data.transactionId);
+          } else {
+            throw new Error('No client secret received from the server');
           }
         })
-        .catch((err) => {
-          setError("Failed to create payment intent");
-          console.error(err);
+        .catch((error) => {
+          console.error('Error:', error);
+          setError(error.message);
+        })
+        .finally(() => {
+          setIsLoading(false);
         });
     }
-  }, [paymentPlanId]);
+  }, [paymentPlanId, clientSecret]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-
     if (!stripe || !elements || !clientSecret) {
       setError("Payment cannot be processed at this time.");
-      setIsLoading(false);
       return;
     }
 
-    try {
-      const result = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: `${window.location.origin}/payment-status`,
-        },
-      });
+    setIsLoading(true);
+    setError(null);
 
-      if (result.error) {
-        setError(result.error.message || 'An unknown error occurred');
-      }
-    } catch (error) {
-      setError("An error occurred while processing the payment. Please try again.");
-      console.error("Error processing payment:", error);
+    const result = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: `${window.location.origin}/payment-status`,
+      },
+    });
+
+    if (result.error) {
+      setError(result.error.message || "An error occurred during payment.");
     }
-    
     setIsLoading(false);
   };
 
+  if (isLoading) {
+    return <div>Processing payment...</div>;
+  }
+
   if (!clientSecret) {
-    return <div>Loading payment form...</div>;
+    return <div>Waiting for payment information...</div>;
   }
 
   return (
@@ -260,7 +280,7 @@ const PaymentFormInner: React.FC<{ paymentPlanId: string | null }> = ({ paymentP
       <button 
         type="submit" 
         className="bg-blue-500 text-white px-4 py-2 rounded"
-        disabled={isLoading || !stripe || !elements}
+        disabled={!stripe || !elements || isLoading}
       >
         {isLoading ? "Processing..." : "Pay Now"}
       </button>
@@ -273,6 +293,7 @@ const PaymentPlanForm: React.FC<{ setAmount: (amount: number) => void }> = ({ se
   const [currentStep, setCurrentStep] = useState(1);
   const [paymentPlanId, setPaymentPlanId] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [currentTransactionId, setCurrentTransactionId] = useState<string | null>(null);
   const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
   const handleTotalAmountChange = (newAmount: number) => {
@@ -281,12 +302,31 @@ const PaymentPlanForm: React.FC<{ setAmount: (amount: number) => void }> = ({ se
   };
 
   useEffect(() => {
+    console.log('PaymentPlanForm: paymentPlanId:', paymentPlanId);
+    console.log('PaymentPlanForm: clientSecret:', clientSecret);
+    console.log('PaymentPlanForm: currentStep:', currentStep);
     if (paymentPlanId) {
       fetch("/api/create-payment-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paymentPlanId }),
       })
+        .then((res) => res.json())
+        .then((data) => {
+          console.log('Received payment plan data:', data);
+          if (data.transactions && data.transactions.length > 0) {
+            const pendingTransaction = data.transactions.find((t: { status: string }) => t.status === 'pending');
+            if (pendingTransaction) {
+              setCurrentTransactionId(pendingTransaction.id);
+              return fetch("/api/create-payment-intent", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ paymentPlanId, transactionId: pendingTransaction.id }),
+              });
+            }
+          }
+          throw new Error("No pending transactions found");
+        })
         .then((res) => res.json())
         .then((data) => {
           if (data.error) {

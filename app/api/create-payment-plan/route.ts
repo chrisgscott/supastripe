@@ -61,23 +61,31 @@ export async function POST(request: Request) {
     }
 
     // Create transactions for the payment schedule
-    const transactions = paymentSchedule.map((payment: PaymentScheduleItem) => ({
+    console.log('Creating transactions for payment plan:', paymentPlan.id);
+    console.log('Payment schedule:', paymentSchedule);
+
+    const transactions = paymentSchedule.map((payment: PaymentScheduleItem, index: number) => ({
       payment_plan_id: paymentPlan.id,
       amount: payment.amount,
       due_date: payment.date,
       status: 'pending',
-      user_id: user.id  // Add this line to include the user_id
+      user_id: user.id,
+      is_downpayment: index === 0 // Mark the first payment as downpayment
     }));
 
-    const { error: transactionsError } = await supabase
+    const { data: insertedTransactions, error: transactionsError } = await supabase
       .from('transactions')
-      .insert(transactions);
+      .insert(transactions)
+      .select();
 
     if (transactionsError) {
-      throw new Error(transactionsError.message);
+      console.error('Error inserting transactions:', transactionsError);
+      throw new Error(`Failed to create transactions: ${transactionsError.message}`);
     }
 
-    return NextResponse.json({ paymentPlanId: paymentPlan.id });
+    console.log('Inserted transactions:', insertedTransactions);
+
+    return NextResponse.json({ paymentPlanId: paymentPlan.id, transactions: insertedTransactions });
   } catch (error: any) {
     console.error("Error creating payment plan:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -9,23 +9,37 @@ import PaymentStatusInner from "./PaymentStatusInner";
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 const PaymentStatus: React.FC = () => {
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [status, setStatus] = useState<'success' | 'processing' | 'error' | null>(null);
 
   useEffect(() => {
-    const secret = new URLSearchParams(window.location.search).get(
+    const clientSecret = new URLSearchParams(window.location.search).get(
       "payment_intent_client_secret"
     );
-    setClientSecret(secret);
+    const redirectStatus = new URLSearchParams(window.location.search).get(
+      "redirect_status"
+    );
+
+    if (redirectStatus === 'succeeded') {
+      setStatus('success');
+    } else if (clientSecret) {
+      setStatus('processing');
+    } else {
+      setStatus('error');
+    }
   }, []);
 
-  if (!clientSecret) {
+  if (!status) {
     return <div>Loading...</div>;
   }
 
   return (
-    <Elements stripe={stripePromise} options={{ clientSecret }}>
-      <PaymentStatusInner />
-    </Elements>
+    <div>
+      {status === 'success' && <h1>Payment Successful!</h1>}
+      {status === 'processing' && <Elements stripe={stripePromise} options={{ clientSecret: status }}>
+        <PaymentStatusInner />
+      </Elements>}
+      {status === 'error' && <h1>Payment Failed. Please try again.</h1>}
+    </div>
   );
 };
 

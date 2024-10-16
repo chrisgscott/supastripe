@@ -17,6 +17,7 @@ export type Database = {
           name: string
           updated_at: string | null
           user_id: string
+          stripe_customer_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -25,6 +26,7 @@ export type Database = {
           name: string
           updated_at?: string | null
           user_id: string
+          stripe_customer_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -33,6 +35,7 @@ export type Database = {
           name?: string
           updated_at?: string | null
           user_id?: string
+          stripe_customer_id?: string | null
         }
         Relationships: [
           {
@@ -197,6 +200,7 @@ export type Database = {
           stripe_payment_intent_id: string | null
           updated_at: string | null
           user_id: string
+          is_downpayment: boolean
         }
         Insert: {
           amount: number
@@ -208,6 +212,7 @@ export type Database = {
           stripe_payment_intent_id?: string | null
           updated_at?: string | null
           user_id: string
+          is_downpayment?: boolean
         }
         Update: {
           amount?: number
@@ -219,6 +224,7 @@ export type Database = {
           stripe_payment_intent_id?: string | null
           updated_at?: string | null
           user_id?: string
+          is_downpayment?: boolean
         }
         Relationships: [
           {

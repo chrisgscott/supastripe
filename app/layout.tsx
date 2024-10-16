@@ -5,16 +5,17 @@ import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import { createClient } from '@/utils/supabase/server';
 import { loadStripe } from '@stripe/stripe-js';
+import { Metadata } from 'next'
+import Script from 'next/script'
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
   : "http://localhost:3000";
 
-export const metadata = {
-  metadataBase: new URL(defaultUrl),
-  title: "Your App Name",
-  description: "Your app description",
-};
+export const metadata: Metadata = {
+  title: 'Your App Name',
+  description: 'Your app description',
+}
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -47,6 +48,7 @@ export default async function RootLayout({
               </main>
             </div>
           )}
+          <Script src="https://js.stripe.com/v3/" strategy="afterInteractive" />
         </ThemeProvider>
       </body>
     </html>
