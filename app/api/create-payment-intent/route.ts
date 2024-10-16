@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     console.log('create-payment-intent: Request body:', body);
 
-    const { paymentPlanId, transactionId } = body;
+    const { paymentPlanId } = body;
 
     if (!paymentPlanId) {
       console.error('create-payment-intent: No paymentPlanId provided');
@@ -42,7 +42,6 @@ export async function POST(request: Request) {
     console.log('create-payment-intent: Fetching payment plan data');
     const supabase = createClient();
 
-    // Fetch the payment plan and its transactions
     const { data: paymentPlan, error: paymentPlanError } = await supabase
       .from('payment_plans')
       .select('*, transactions(*), customers(*)')
@@ -56,114 +55,56 @@ export async function POST(request: Request) {
 
     console.log('create-payment-intent: Payment plan data:', paymentPlan);
 
-    // If transactionId is not provided, we're just fetching the payment plan data
-    if (!transactionId) {
-      return NextResponse.json(paymentPlan);
+    const downpaymentTransaction = paymentPlan.transactions.find((t: Transaction) => t.is_downpayment);
+
+    if (!downpaymentTransaction) {
+      console.error('create-payment-intent: No downpayment transaction found');
+      return NextResponse.json({ error: 'No downpayment transaction found' }, { status: 400 });
     }
 
-    const transaction = paymentPlan.transactions.find((t: Transaction) => t.is_downpayment);
-    if (!transaction) {
-      throw new Error('Downpayment transaction not found');
-    }
+    console.log('create-payment-intent: Payment plan data:', paymentPlan);
+    console.log('create-payment-intent: Downpayment transaction:', downpaymentTransaction);
 
-    console.log('create-payment-intent: Transaction data:', transaction);
-    if (!transaction.user_id) {
-      throw new Error('Transaction does not have a user_id');
-    }
+    const amount = Math.round(downpaymentTransaction.amount * 100);
+    const applicationFeeAmount = Math.round(amount * platformFeePercentage);
+    console.log('create-payment-intent: Amount:', amount);
+    console.log('create-payment-intent: Application fee amount:', applicationFeeAmount);
 
-    // Fetch the customer information from the payment plan data
-    const { data: customer, error: customerError } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('id', paymentPlan.customer_id)
-      .single();
-
-    console.log('create-payment-intent: Fetched customer data:', customer);
-
-    if (customerError || !customer) {
-      console.error('create-payment-intent: Customer not found');
-      throw new Error('Customer not found for this payment plan');
-    }
-
-    // Fetch or create a Stripe Customer
-    let stripeCustomer;
-    if (!customer.stripe_customer_id) {
-      stripeCustomer = await stripe.customers.create({
-        email: customer.email,
-        name: customer.name,
-        metadata: {
-          user_id: customer.user_id
-        }
-      });
-
-      // Update the customer with the Stripe customer ID
-      await supabase
-        .from('customers')
-        .update({ stripe_customer_id: stripeCustomer.id })
-        .eq('id', customer.id);
-    } else {
-      stripeCustomer = await stripe.customers.retrieve(customer.stripe_customer_id) as Stripe.Customer;
-    }
-
-    console.log('create-payment-intent: Stripe customer:', stripeCustomer);
-
-    // Fetch the Stripe account ID for the user who created the payment plan
+    // Fetch the connected Stripe account ID for the user
     const { data: stripeAccount, error: stripeAccountError } = await supabase
       .from('stripe_accounts')
       .select('stripe_account_id')
-      .eq('user_id', transaction.user_id)
+      .eq('user_id', paymentPlan.user_id)
       .single();
 
-    console.log('create-payment-intent: Fetching Stripe account for user:', transaction.user_id);
-
-    if (stripeAccountError || !stripeAccount) {
-      throw new Error('Stripe account not found for the user');
+    if (stripeAccountError || !stripeAccount?.stripe_account_id) {
+      console.error('create-payment-intent: No Stripe account found for user');
+      return NextResponse.json({ error: 'No Stripe account found for user' }, { status: 400 });
     }
 
     console.log('create-payment-intent: Stripe account:', stripeAccount);
 
-    // Calculate the platform fee
-    const platformFee = Math.round(transaction.amount * 100 * platformFeePercentage);
-
-    // Check if a PaymentIntent already exists for this transaction
-    const existingTransaction = await supabase
-      .from('transactions')
-      .select('stripe_payment_intent_id')
-      .eq('id', transaction.id)
-      .single();
-
-    if (existingTransaction.data?.stripe_payment_intent_id) {
-      // If a PaymentIntent already exists, retrieve it
-      const existingPaymentIntent = await stripe.paymentIntents.retrieve(existingTransaction.data.stripe_payment_intent_id);
-      return NextResponse.json({ clientSecret: existingPaymentIntent.client_secret });
-    }
-
-    // If no PaymentIntent exists, create a new one
+    console.log('create-payment-intent: Creating payment intent');
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(transaction.amount * 100), // Convert to cents and ensure it's an integer
+      amount: amount, // Already in cents
       currency: 'usd',
-      customer: stripeCustomer.id,
-      metadata: {
-        payment_plan_id: paymentPlanId,
-        transaction_id: transactionId,
-        customer_name: customer.name,
-        customer_email: customer.email
-      },
-      capture_method: 'automatic',
-      application_fee_amount: platformFee,
+      application_fee_amount: applicationFeeAmount,
       transfer_data: {
         destination: stripeAccount.stripe_account_id,
       },
-      payment_method_types: ['card'],
+      metadata: {
+        payment_plan_id: paymentPlanId,
+        transaction_id: downpaymentTransaction.id,
+      },
     });
+
+    console.log('create-payment-intent: PaymentIntent created:', paymentIntent.id);
 
     // Update the transaction with the new PaymentIntent ID
     await supabase
       .from('transactions')
       .update({ stripe_payment_intent_id: paymentIntent.id })
-      .eq('id', transaction.id);
-
-    console.log('create-payment-intent: PaymentIntent created:', paymentIntent.id);
+      .eq('id', downpaymentTransaction.id);
 
     console.log('create-payment-intent: Returning client secret');
     return NextResponse.json({ clientSecret: paymentIntent.client_secret });

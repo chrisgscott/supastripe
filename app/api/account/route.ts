@@ -25,13 +25,14 @@ export async function POST(request: Request) {
     // Save the account information to the stripe_accounts table
     const { data: stripeAccountData, error: stripeAccountError } = await supabase
       .from('stripe_accounts')
-      .insert({
+      .upsert({
         user_id: user.id,
         stripe_account_id: account.id,
         stripe_onboarding_completed: false,
         stripe_account_created_at: new Date().toISOString(),
         stripe_account_details_url: `https://dashboard.stripe.com/${account.id}`,
       })
+      .select()
       .single();
 
     if (stripeAccountError) {
