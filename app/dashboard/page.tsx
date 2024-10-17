@@ -1,10 +1,16 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CalendarIcon, UserIcon } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { format, isFuture, startOfMonth, addMonths, endOfMonth, isAfter, isBefore, parse } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { PaymentChart } from './components/PaymentChart';
 
 const queryClient = new QueryClient();
 
@@ -16,70 +22,103 @@ export default function DashboardWrapper() {
   );
 }
 
+interface PaymentDataItem {
+  month: string;
+  collected: number;
+  forecasted: number;
+}
+
 function Dashboard() {
+  const [paymentData, setPaymentData] = useState<PaymentDataItem[]>([]);
+  const [isLoadingActivePlans, setIsLoadingActivePlans] = useState(true);
+  const [activePlans, setActivePlans] = useState(0);
   const [paidTimeFrame, setPaidTimeFrame] = useState('30');
+  const [isLoadingRevenue, setIsLoadingRevenue] = useState(true);
+  const [revenue, setRevenue] = useState('$0');
   const [pendingTimeFrame, setPendingTimeFrame] = useState('30');
+  const [isLoadingScheduledRevenue, setIsLoadingScheduledRevenue] = useState(true);
+  const [scheduledRevenue, setScheduledRevenue] = useState('$0');
+  const [isLoadingNextPayout, setIsLoadingNextPayout] = useState(true);
+  const [nextPayout, setNextPayout] = useState({ amount: 'None scheduled', date: null });
 
-  const fetchNextPayout = async () => {
-    const response = await fetch('/api/next-payout');
-    if (!response.ok) throw new Error('Failed to fetch next payout');
-    return response.json();
-  };
+  useEffect(() => {
+    fetchPaymentData();
+    fetchActivePlans();
+    fetchRevenue(paidTimeFrame);
+    fetchScheduledRevenue(pendingTimeFrame);
+    fetchNextPayout();
+  }, [paidTimeFrame, pendingTimeFrame]);
 
-  const fetchRevenue = async (timeFrame: string) => {
-    const response = await fetch(`/api/revenue?days=${timeFrame}`);
-    if (!response.ok) throw new Error('Failed to fetch revenue');
-    return response.json();
-  };
-
-  const fetchScheduledRevenue = async (timeFrame: string) => {
-    const response = await fetch(`/api/scheduled-revenue?days=${timeFrame}`);
-    if (!response.ok) throw new Error('Failed to fetch scheduled revenue');
-    return response.json();
+  const fetchPaymentData = async () => {
+    try {
+      const response = await fetch('/api/get-payment-chart-data');
+      const data = await response.json();
+      setPaymentData(data);
+    } catch (error) {
+      console.error('Error fetching payment data:', error);
+    }
   };
 
   const fetchActivePlans = async () => {
-    const response = await fetch('/api/active-plans-count');
-    if (!response.ok) throw new Error('Failed to fetch active plans count');
-    return response.json();
+    setIsLoadingActivePlans(true);
+    try {
+      const response = await fetch('/api/active-plans');
+      const data = await response.json();
+      setActivePlans(data.activePlans);
+    } catch (error) {
+      console.error('Error fetching active plans:', error);
+    }
+    setIsLoadingActivePlans(false);
   };
 
-  const { data: nextPayout, isLoading: isLoadingNextPayout } = useQuery({
-    queryKey: ['nextPayout'],
-    queryFn: fetchNextPayout,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
+  const fetchRevenue = async (days: string) => {
+    setIsLoadingRevenue(true);
+    try {
+      const response = await fetch(`/api/revenue?days=${days}`);
+      const data = await response.json();
+      setRevenue(data.revenue);
+    } catch (error) {
+      console.error('Error fetching revenue:', error);
+    }
+    setIsLoadingRevenue(false);
+  };
 
-  const { data: revenue, isLoading: isLoadingRevenue } = useQuery({
-    queryKey: ['revenue', paidTimeFrame],
-    queryFn: () => fetchRevenue(paidTimeFrame),
-    staleTime: 60 * 1000, // 1 minute
-  });
+  const fetchScheduledRevenue = async (days: string) => {
+    setIsLoadingScheduledRevenue(true);
+    try {
+      const response = await fetch(`/api/scheduled-revenue?days=${days}`);
+      const data = await response.json();
+      setScheduledRevenue(data.scheduledRevenue);
+    } catch (error) {
+      console.error('Error fetching scheduled revenue:', error);
+    }
+    setIsLoadingScheduledRevenue(false);
+  };
 
-  const { data: scheduledRevenue, isLoading: isLoadingScheduledRevenue } = useQuery({
-    queryKey: ['scheduledRevenue', pendingTimeFrame],
-    queryFn: () => fetchScheduledRevenue(pendingTimeFrame),
-    staleTime: 60 * 1000, // 1 minute
-  });
-
-  const { data: activePlans, isLoading: isLoadingActivePlans } = useQuery({
-    queryKey: ['activePlans'],
-    queryFn: fetchActivePlans,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
+  const fetchNextPayout = async () => {
+    setIsLoadingNextPayout(true);
+    try {
+      const response = await fetch('/api/next-payout');
+      const data = await response.json();
+      setNextPayout(data);
+    } catch (error) {
+      console.error('Error fetching next payout:', error);
+    }
+    setIsLoadingNextPayout(false);
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Plans</CardTitle>
             <UserIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isLoadingActivePlans ? 'Loading...' : activePlans?.count}
+              {isLoadingActivePlans ? 'Loading...' : activePlans}
             </div>
           </CardContent>
         </Card>
@@ -101,7 +140,7 @@ function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isLoadingRevenue ? 'Loading...' : revenue?.revenue}
+              {isLoadingRevenue ? 'Loading...' : revenue}
             </div>
           </CardContent>
         </Card>
@@ -123,7 +162,7 @@ function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isLoadingScheduledRevenue ? 'Loading...' : scheduledRevenue?.scheduledRevenue}
+              {isLoadingScheduledRevenue ? 'Loading...' : scheduledRevenue}
             </div>
           </CardContent>
         </Card>
@@ -135,13 +174,29 @@ function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isLoadingNextPayout ? 'Loading...' : nextPayout?.amount}
+              {isLoadingNextPayout ? 'Loading...' : nextPayout.amount}
             </div>
-            {nextPayout?.date && (
+            {nextPayout.date && (
               <div className="text-xs text-muted-foreground">
                 {nextPayout.date}
               </div>
             )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* New row of cards */}
+      <div className="grid gap-4 md:grid-cols-3 mt-4">
+        <div className="md:col-span-2">
+          <PaymentChart data={paymentData} />
+        </div>
+        
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Placeholder for quick actions content</p>
           </CardContent>
         </Card>
       </div>
