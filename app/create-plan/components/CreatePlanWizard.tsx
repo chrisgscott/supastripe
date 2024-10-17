@@ -70,7 +70,10 @@ export default function CreatePlanWizard() {
       {currentStep === 1 && <PlanDetailsForm />}
       {currentStep === 2 && <PaymentSchedule />}
       {currentStep === 3 && clientSecret && (
-        <Elements stripe={stripePromise} options={{ clientSecret }}>
+        <Elements stripe={stripePromise} options={{ 
+          clientSecret,
+          appearance: { theme: 'stripe', variables: { fontFamily: '"Outfit", sans-serif' } }
+        }}>
           <StripePaymentForm />
         </Elements>
       )}

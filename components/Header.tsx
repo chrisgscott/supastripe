@@ -1,12 +1,52 @@
-import AuthButton from './header-auth'
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function Header() {
   return (
-    <header className="bg-gray-800 text-white p-4">
-      <div className="container mx-auto flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Your App Name</h1>
-        <AuthButton />
+    <header className="bg-white shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          <div className="flex items-center">
+            <Link href="/dashboard" className="flex-shrink-0">
+              <img className="h-6 w-auto" src="/images/logo.png" alt="PayKit" />
+            </Link>
+            <nav className="ml-6 flex space-x-8">
+              <Link
+                href="/dashboard"
+                className="text-gray-500 hover:text-gray-700 px-3 py-2 text-sm font-medium"
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/payment-plans"
+                className="text-gray-500 hover:text-gray-700 px-3 py-2 text-sm font-medium"
+              >
+                Payment Plans
+              </Link>
+              <Link
+                href="/settings"
+                className="text-gray-500 hover:text-gray-700 px-3 py-2 text-sm font-medium"
+              >
+                Settings
+              </Link>
+            </nav>
+          </div>
+          <div className="flex items-center">
+            <Link href="/create-plan">
+              <Button variant="default" className="mr-4">
+                New Payment Plan
+              </Button>
+            </Link>
+            <Link href="/profile">
+              <Avatar>
+                <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" />
+                <AvatarFallback>CN</AvatarFallback>
+              </Avatar>
+            </Link>
+          </div>
+        </div>
       </div>
     </header>
-  )
+  );
 }
