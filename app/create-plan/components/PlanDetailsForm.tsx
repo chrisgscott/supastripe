@@ -31,68 +31,74 @@ export default function PlanDetailsForm() {
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="customerName">Customer Name</Label>
-            <Input
-              id="customerName"
-              value={planDetails.customerName || ''}
-              onChange={(e) => handleChange('customerName', e.target.value)}
-              required
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="customerName">Customer Name</Label>
+              <Input
+                id="customerName"
+                value={planDetails.customerName || ''}
+                onChange={(e) => handleChange('customerName', e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="customerEmail">Customer Email</Label>
+              <Input
+                id="customerEmail"
+                type="email"
+                value={planDetails.customerEmail || ''}
+                onChange={(e) => handleChange('customerEmail', e.target.value)}
+                required
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="customerEmail">Customer Email</Label>
-            <Input
-              id="customerEmail"
-              type="email"
-              value={planDetails.customerEmail || ''}
-              onChange={(e) => handleChange('customerEmail', e.target.value)}
-              required
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="totalAmount">Total Amount</Label>
+              <Input
+                id="totalAmount"
+                type="number"
+                value={planDetails.totalAmount || ''}
+                onChange={(e) => handleChange('totalAmount', e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="downpaymentAmount">Downpayment Amount</Label>
+              <Input
+                id="downpaymentAmount"
+                type="number"
+                value={planDetails.downpaymentAmount || ''}
+                onChange={(e) => handleChange('downpaymentAmount', e.target.value)}
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="totalAmount">Total Amount</Label>
-            <Input
-              id="totalAmount"
-              type="number"
-              value={planDetails.totalAmount || ''}
-              onChange={(e) => handleChange('totalAmount', e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="numberOfPayments">Number of Payments</Label>
-            <Input
-              id="numberOfPayments"
-              type="number"
-              value={planDetails.numberOfPayments || ''}
-              onChange={(e) => handleChange('numberOfPayments', e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="paymentInterval">Payment Interval</Label>
-            <Select
-              value={planDetails.paymentInterval || 'monthly'}
-              onValueChange={(value) => handleChange('paymentInterval', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select interval" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="weekly">Weekly</SelectItem>
-                <SelectItem value="monthly">Monthly</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="downpaymentAmount">Downpayment Amount</Label>
-            <Input
-              id="downpaymentAmount"
-              type="number"
-              value={planDetails.downpaymentAmount || ''}
-              onChange={(e) => handleChange('downpaymentAmount', e.target.value)}
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="numberOfPayments">Number of Payments</Label>
+              <Input
+                id="numberOfPayments"
+                type="number"
+                value={planDetails.numberOfPayments || ''}
+                onChange={(e) => handleChange('numberOfPayments', e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="paymentInterval">Payment Interval</Label>
+              <Select
+                value={planDetails.paymentInterval || 'monthly'}
+                onValueChange={(value) => handleChange('paymentInterval', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select interval" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
         <CardFooter>

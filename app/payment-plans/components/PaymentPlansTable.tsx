@@ -44,11 +44,26 @@ type PaymentPlanStatus = (typeof PAYMENT_PLAN_STATUSES)[number];
 interface PaymentPlan {
   id: string;
   customerName: string;
-  customerEmail: string;
   totalAmount: number;
   nextPaymentDate: string | null;
   status: PaymentPlanStatus;
+  created_at: string;
 }
+
+const getStatusColor = (status: PaymentPlanStatus): string => {
+  switch (status) {
+    case 'active':
+      return 'text-green-600';
+    case 'completed':
+      return 'text-blue-600';
+    case 'cancelled':
+      return 'text-red-600';
+    case 'failed':
+      return 'text-orange-600';
+    default:
+      return 'text-gray-600';
+  }
+};
 
 const columns: ColumnDef<PaymentPlan>[] = [
   {
@@ -60,20 +75,6 @@ const columns: ColumnDef<PaymentPlan>[] = [
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
           Customer Name
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-  },
-  {
-    accessorKey: "customerEmail",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Email
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       );
@@ -116,7 +117,29 @@ const columns: ColumnDef<PaymentPlan>[] = [
     },
     cell: ({ row }) => {
       const date = row.getValue("nextPaymentDate");
-      return date ? format(new Date(date as string), "MM/dd/yyyy") : "N/A";
+      if (!date) return "N/A";
+      return format(new Date(date as string), "MM/dd/yyyy");
+    },
+  },
+  {
+    accessorKey: "created_at",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Created At
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      );
+    },
+    cell: ({ row }) => {
+      const date = row.getValue("created_at");
+      if (!date || isNaN(new Date(date as string).getTime())) {
+        return "Invalid Date";
+      }
+      return format(new Date(date as string), "MM/dd/yyyy");
     },
   },
   {
@@ -132,15 +155,23 @@ const columns: ColumnDef<PaymentPlan>[] = [
         </Button>
       );
     },
+    cell: ({ row }) => {
+      const status = row.getValue("status") as PaymentPlanStatus;
+      return (
+        <div className={`capitalize font-medium ${getStatusColor(status)}`}>
+          {status}
+        </div>
+      );
+    },
   },
   {
     id: "actions",
     cell: ({ row }) => {
-      const payment = row.original;
+      const plan = row.original;
       return (
-        <Button variant="secondary" onClick={() => console.log(payment)}>
-          <NotepadText className="w-4 h-4 mr-2" />
-          Details
+        <Button variant="ghost" className="h-8 w-8 p-0">
+          <span className="sr-only">Open menu</span>
+          <NotepadText className="h-4 w-4" />
         </Button>
       );
     },
@@ -150,9 +181,10 @@ const columns: ColumnDef<PaymentPlan>[] = [
 async function fetchPaymentPlans() {
   const response = await fetch("/api/payment-plans");
   if (!response.ok) {
-    throw new Error("Network response was not ok");
+    const errorData = await response.json();
+    throw new Error(errorData.error || "Failed to fetch payment plans");
   }
-  return response.json();
+  return await response.json();
 }
 
 export function PaymentPlansTable() {
@@ -248,7 +280,7 @@ export function PaymentPlansTable() {
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody>
+          <TableBody className="text-sm">
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow

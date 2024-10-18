@@ -80,6 +80,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
 
   console.log(`Processing successful payment for transaction ${transactionId}`)
 
+  // Update transaction status
   const { error: updateError } = await supabase
     .from('transactions')
     .update({ 
@@ -93,6 +94,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
     throw updateError
   }
 
+  // Fetch the transaction and related payment plan
   const { data: transaction, error: fetchError } = await supabase
     .from('transactions')
     .select('*, payment_plans(*)')
@@ -104,28 +106,23 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
     throw fetchError
   }
 
+  // Check if this is the first paid transaction for the payment plan
   const { count, error: countError } = await supabase
     .from('transactions')
     .select('id', { count: 'exact' })
     .eq('payment_plan_id', transaction.payment_plan_id)
-    .eq('status', 'pending')
+    .eq('status', 'paid')
 
   if (countError) {
-    console.error(`Error counting pending transactions for payment plan ${transaction.payment_plan_id}:`, countError)
+    console.error(`Error counting paid transactions for payment plan ${transaction.payment_plan_id}:`, countError)
     throw countError
   }
 
-  let newStatus = transaction.payment_plans.status
-  if (count === 0) {
-    newStatus = 'completed'
-  } else if (transaction.payment_plans.status === 'pending') {
-    newStatus = 'active'
-  }
-
-  if (newStatus !== transaction.payment_plans.status) {
+  // If this is the first paid transaction, update the payment plan status to 'active'
+  if (count === 1) {
     const { error: planUpdateError } = await supabase
       .from('payment_plans')
-      .update({ status: newStatus })
+      .update({ status: 'active' })
       .eq('id', transaction.payment_plan_id)
 
     if (planUpdateError) {
