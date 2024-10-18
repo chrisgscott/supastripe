@@ -103,40 +103,70 @@ export type Database = {
       }
       profiles: {
         Row: {
-          business_email: string | null
-          business_name: string | null
-          business_phone: string | null
-          business_url: string | null
-          created_at: string | null
-          first_name: string | null
           id: string
-          is_onboarded: boolean | null
-          last_name: string | null
+          created_at: string | null
           updated_at: string | null
+          first_name: string | null
+          last_name: string | null
+          business_name: string | null
+          business_type: string | null
+          business_description: string | null
+          business_url: string | null
+          support_email: string | null
+          support_phone: string | null
+          address_line1: string | null
+          address_line2: string | null
+          address_city: string | null
+          address_state: string | null
+          address_postal_code: string | null
+          address_country: string | null
+          is_onboarded: boolean
+          stripe_account_id: string | null
+          logo_url: string | null
         }
         Insert: {
-          business_email?: string | null
-          business_name?: string | null
-          business_phone?: string | null
-          business_url?: string | null
+          id?: string
           created_at?: string | null
-          first_name?: string | null
-          id: string
-          is_onboarded?: boolean | null
-          last_name?: string | null
           updated_at?: string | null
+          first_name?: string | null
+          last_name?: string | null
+          business_name?: string | null
+          business_type?: string | null
+          business_description?: string | null
+          business_url?: string | null
+          support_email?: string | null
+          support_phone?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          address_city?: string | null
+          address_state?: string | null
+          address_postal_code?: string | null
+          address_country?: string | null
+          is_onboarded?: boolean
+          stripe_account_id?: string | null
+          logo_url?: string | null
         }
         Update: {
-          business_email?: string | null
-          business_name?: string | null
-          business_phone?: string | null
-          business_url?: string | null
-          created_at?: string | null
-          first_name?: string | null
           id?: string
-          is_onboarded?: boolean | null
-          last_name?: string | null
+          created_at?: string | null
           updated_at?: string | null
+          first_name?: string | null
+          last_name?: string | null
+          business_name?: string | null
+          business_type?: string | null
+          business_description?: string | null
+          business_url?: string | null
+          support_email?: string | null
+          support_phone?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          address_city?: string | null
+          address_state?: string | null
+          address_postal_code?: string | null
+          address_country?: string | null
+          is_onboarded?: boolean
+          stripe_account_id?: string | null
+          logo_url?: string | null
         }
         Relationships: [
           {

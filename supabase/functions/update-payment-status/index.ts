@@ -206,8 +206,8 @@ async function handleAccountUpdated(account: Stripe.Account, supabase: any) {
     .update({
       business_name: account.business_profile?.name || null,
       business_url: account.business_profile?.url || null,
-      business_phone: account.business_profile?.support_phone || null,
-      business_email: account.email || null,
+      support_phone: account.business_profile?.support_phone || null,
+      support_email: account.business_profile?.support_email || account.email || null,
       is_onboarded: account.details_submitted,
     })
     .eq('stripe_account_id', account.id)

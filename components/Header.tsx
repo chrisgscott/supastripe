@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { BadgePlus } from "lucide-react";
 
 export default function Header() {
   return (
@@ -34,15 +34,10 @@ export default function Header() {
           </div>
           <div className="flex items-center">
             <Link href="/create-plan">
-              <Button variant="default" className="mr-4">
-                New Payment Plan
+              <Button variant="default">
+                <BadgePlus className="w-4 h-4 mr-2" />
+                Create Payment Plan
               </Button>
-            </Link>
-            <Link href="/profile">
-              <Avatar>
-                <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" />
-                <AvatarFallback>CN</AvatarFallback>
-              </Avatar>
             </Link>
           </div>
         </div>

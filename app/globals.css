@@ -1,6 +1,17 @@
+/* stylelint-disable */
+/* eslint-disable */
+/* postcss-disable */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --primary-button: #0b70a6;
+  --primary-button-hover: #5FC1F6;
+  --secondary-button: #5FC1F6;
+  --secondary-button-hover: #0b70a6;
+}
 
 @layer base {
   :root {
@@ -65,5 +76,23 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+[data-state="active"].bg-\[\#5FC1F6\] {
+  color: white;
+}
+
+@layer base {
+  .btn-primary {
+    @apply bg-[var(--primary-button)] hover:bg-[var(--primary-button-hover)] text-white;
+  }
+  
+  .btn-secondary {
+    @apply bg-[var(--secondary-button)] hover:bg-[var(--secondary-button-hover)] text-white;
+  }
+
+  .btn-subtle {
+    @apply bg-gray-100 text-gray-700 hover:bg-gray-200;
   }
 }

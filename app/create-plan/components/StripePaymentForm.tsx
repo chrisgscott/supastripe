@@ -95,6 +95,7 @@ export default function StripePaymentForm() {
       </CardContent>
       <CardFooter>
         <Button
+          variant="default"
           type="submit"
           onClick={handleSubmit}
           disabled={!stripe || !elements || !isPaymentElementReady || isLoading}

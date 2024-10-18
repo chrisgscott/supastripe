@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from 'date-fns';
+import { Mail } from 'lucide-react';
 
 interface FailedTransaction {
   id: string;
@@ -45,7 +46,10 @@ export function NeedsAttentionCard({ failedTransactions, isLoading }: NeedsAtten
                       : 'No next attempt scheduled'}
                   </div>
                 </div>
-                <Button onClick={() => handleEmailCustomer(transaction.email)}>Email</Button>
+                <Button variant="subtle" size="sm" onClick={() => handleEmailCustomer(transaction.email)}>
+                  <Mail className="w-4 h-4 mr-2" />
+                  Email
+                </Button>
               </li>
             ))}
           </ul>

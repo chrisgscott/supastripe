@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -6,9 +6,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   ColumnDef,
   flexRender,
@@ -19,29 +19,35 @@ import {
   SortingState,
   getFilteredRowModel,
   ColumnFiltersState,
-} from "@tanstack/react-table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowUpDown } from "lucide-react"
-import { format } from "date-fns"
-import { useQuery } from '@tanstack/react-query'
+} from "@tanstack/react-table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ArrowUpDown, NotepadText } from "lucide-react";
+import { format } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
 
 const PAYMENT_PLAN_STATUSES = [
-  'created',
-  'active',
-  'completed',
-  'cancelled',
-  'failed'
+  "created",
+  "active",
+  "completed",
+  "cancelled",
+  "failed",
 ] as const;
 
-type PaymentPlanStatus = typeof PAYMENT_PLAN_STATUSES[number];
+type PaymentPlanStatus = (typeof PAYMENT_PLAN_STATUSES)[number];
 
 interface PaymentPlan {
-  id: string
-  customerName: string
-  customerEmail: string
-  totalAmount: number
-  nextPaymentDate: string | null
-  status: PaymentPlanStatus
+  id: string;
+  customerName: string;
+  customerEmail: string;
+  totalAmount: number;
+  nextPaymentDate: string | null;
+  status: PaymentPlanStatus;
 }
 
 const columns: ColumnDef<PaymentPlan>[] = [
@@ -56,7 +62,7 @@ const columns: ColumnDef<PaymentPlan>[] = [
           Customer Name
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
-      )
+      );
     },
   },
   {
@@ -70,7 +76,7 @@ const columns: ColumnDef<PaymentPlan>[] = [
           Email
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
-      )
+      );
     },
   },
   {
@@ -84,15 +90,15 @@ const columns: ColumnDef<PaymentPlan>[] = [
           Total Amount
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
-      )
+      );
     },
     cell: ({ row }) => {
-      const amount = parseFloat(row.getValue("totalAmount"))
+      const amount = parseFloat(row.getValue("totalAmount"));
       const formatted = new Intl.NumberFormat("en-US", {
         style: "currency",
         currency: "USD",
-      }).format(amount)
-      return <div className="font-medium">{formatted}</div>
+      }).format(amount);
+      return <div className="font-medium">{formatted}</div>;
     },
   },
   {
@@ -106,11 +112,11 @@ const columns: ColumnDef<PaymentPlan>[] = [
           Next Payment Date
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
-      )
+      );
     },
     cell: ({ row }) => {
-      const date = row.getValue("nextPaymentDate")
-      return date ? format(new Date(date as string), 'MM/dd/yyyy') : 'N/A'
+      const date = row.getValue("nextPaymentDate");
+      return date ? format(new Date(date as string), "MM/dd/yyyy") : "N/A";
     },
   },
   {
@@ -124,40 +130,45 @@ const columns: ColumnDef<PaymentPlan>[] = [
           Status
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
-      )
+      );
     },
   },
   {
     id: "actions",
     cell: ({ row }) => {
-      const payment = row.original
+      const payment = row.original;
       return (
-        <Button variant="ghost" onClick={() => console.log(payment)}>
-          View Details
+        <Button variant="secondary" onClick={() => console.log(payment)}>
+          <NotepadText className="w-4 h-4 mr-2" />
+          Details
         </Button>
-      )
+      );
     },
   },
-]
+];
 
 async function fetchPaymentPlans() {
-  const response = await fetch('/api/payment-plans')
+  const response = await fetch("/api/payment-plans");
   if (!response.ok) {
-    throw new Error('Network response was not ok')
+    throw new Error("Network response was not ok");
   }
-  return response.json()
+  return response.json();
 }
 
 export function PaymentPlansTable() {
-  const [sorting, setSorting] = useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [globalFilter, setGlobalFilter] = useState("")
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [globalFilter, setGlobalFilter] = useState("");
 
-  const { data: paymentPlans, isLoading, isError } = useQuery({
-    queryKey: ['paymentPlans'],
+  const {
+    data: paymentPlans,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["paymentPlans"],
     queryFn: fetchPaymentPlans,
     refetchInterval: 30000, // Refetch every 30 seconds
-  })
+  });
 
   const table = useReactTable({
     data: paymentPlans || [],
@@ -175,14 +186,14 @@ export function PaymentPlansTable() {
       columnFilters,
       globalFilter,
     },
-  })
+  });
 
   if (isLoading) {
-    return <div>Loading...</div>
+    return <div>Loading...</div>;
   }
 
   if (isError) {
-    return <div>Error loading payment plans</div>
+    return <div>Error loading payment plans</div>;
   }
 
   return (
@@ -195,9 +206,13 @@ export function PaymentPlansTable() {
           className="max-w-sm mr-4"
         />
         <Select
-          value={(table.getColumn("status")?.getFilterValue() as string) ?? "all"}
+          value={
+            (table.getColumn("status")?.getFilterValue() as string) ?? "all"
+          }
           onValueChange={(value) =>
-            table.getColumn("status")?.setFilterValue(value === "all" ? "" : value)
+            table
+              .getColumn("status")
+              ?.setFilterValue(value === "all" ? "" : value)
           }
         >
           <SelectTrigger className="max-w-sm">
@@ -228,7 +243,7 @@ export function PaymentPlansTable() {
                             header.getContext()
                           )}
                     </TableHead>
-                  )
+                  );
                 })}
               </TableRow>
             ))}
@@ -242,14 +257,20 @@ export function PaymentPlansTable() {
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
                   No results.
                 </TableCell>
               </TableRow>
@@ -282,5 +303,5 @@ export function PaymentPlansTable() {
         </div>
       </div>
     </div>
-  )
+  );
 }

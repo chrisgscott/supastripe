@@ -51,8 +51,8 @@ export async function POST(request: Request) {
       .update({
         business_name: fullAccount.business_profile?.name || '',
         business_url: fullAccount.business_profile?.url || '',
-        business_phone: fullAccount.business_profile?.support_phone || '',
-        business_email: fullAccount.email || user.email || '',
+        support_phone: fullAccount.business_profile?.support_phone || '',
+        support_email: fullAccount.business_profile?.support_email || fullAccount.email || user.email || '',
         is_onboarded: false,
       })
       .eq('id', user.id);

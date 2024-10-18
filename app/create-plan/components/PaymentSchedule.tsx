@@ -89,8 +89,8 @@ export default function PaymentSchedule() {
         </Table>
       </CardContent>
       <CardFooter className="flex justify-between">
-        <Button variant="outline" onClick={() => setCurrentStep(1)}>Back</Button>
-        <Button onClick={handleSubmit}>Next</Button>
+        <Button variant="secondary" onClick={() => setCurrentStep(1)}>Back</Button>
+        <Button variant="default" onClick={handleSubmit}>Next</Button>
       </CardFooter>
     </Card>
   );
