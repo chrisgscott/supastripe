@@ -13,12 +13,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const now = new Date().toISOString();
+
   let query = supabase
     .from('transactions')
     .select('amount, due_date')
     .eq('user_id', user.id)
     .eq('status', 'pending')
-    .gte('due_date', new Date().toISOString());
+    .neq('status', 'failed')
+    .gt('due_date', now);
 
   if (days && days !== 'all') {
     const endDate = new Date(Date.now() + parseInt(days) * 24 * 60 * 60 * 1000);

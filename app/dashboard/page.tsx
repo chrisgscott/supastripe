@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PaymentChart } from './components/PaymentChart';
+import { NeedsAttentionCard } from './components/NeedsAttentionCard';
 
 const queryClient = new QueryClient();
 
@@ -40,14 +41,35 @@ function Dashboard() {
   const [scheduledRevenue, setScheduledRevenue] = useState('$0');
   const [isLoadingNextPayout, setIsLoadingNextPayout] = useState(true);
   const [nextPayout, setNextPayout] = useState({ amount: 'None scheduled', date: null });
+  const [failedTransactions, setFailedTransactions] = useState([]);
+  const [isLoadingFailedTransactions, setIsLoadingFailedTransactions] = useState(true);
+  const [userName, setUserName] = useState('');
+
+  const fetchUserName = async () => {
+    try {
+      const response = await fetch('/api/user-name');
+      const data = await response.json();
+      setUserName(data.firstName || '');
+    } catch (error) {
+      console.error('Error fetching user name:', error);
+    }
+  };
 
   useEffect(() => {
     fetchPaymentData();
     fetchActivePlans();
-    fetchRevenue(paidTimeFrame);
-    fetchScheduledRevenue(pendingTimeFrame);
     fetchNextPayout();
-  }, [paidTimeFrame, pendingTimeFrame]);
+    fetchFailedTransactions();
+    fetchUserName();
+  }, []);
+
+  useEffect(() => {
+    fetchRevenue(paidTimeFrame);
+  }, [paidTimeFrame]);
+
+  useEffect(() => {
+    fetchScheduledRevenue(pendingTimeFrame);
+  }, [pendingTimeFrame]);
 
   const fetchPaymentData = async () => {
     try {
@@ -62,7 +84,7 @@ function Dashboard() {
   const fetchActivePlans = async () => {
     setIsLoadingActivePlans(true);
     try {
-      const response = await fetch('/api/active-plans');
+      const response = await fetch('/api/active-plans-count');
       const data = await response.json();
       setActivePlans(data.activePlans);
     } catch (error) {
@@ -107,9 +129,23 @@ function Dashboard() {
     setIsLoadingNextPayout(false);
   };
 
+  const fetchFailedTransactions = async () => {
+    setIsLoadingFailedTransactions(true);
+    try {
+      const response = await fetch('/api/failed-transactions');
+      const data = await response.json();
+      setFailedTransactions(data);
+    } catch (error) {
+      console.error('Error fetching failed transactions:', error);
+    }
+    setIsLoadingFailedTransactions(false);
+  };
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
+      <h1 className="text-3xl font-bold mb-6">
+        {userName ? `Welcome to PayKit, ${userName}.` : 'Welcome to PayKit'}
+      </h1>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -191,14 +227,10 @@ function Dashboard() {
           <PaymentChart data={paymentData} />
         </div>
         
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>Placeholder for quick actions content</p>
-          </CardContent>
-        </Card>
+        <NeedsAttentionCard
+          failedTransactions={failedTransactions}
+          isLoading={isLoadingFailedTransactions}
+        />
       </div>
     </div>
   );

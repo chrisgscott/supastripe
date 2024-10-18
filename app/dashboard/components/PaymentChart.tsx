@@ -29,18 +29,18 @@ interface PaymentChartProps {
 const chartConfig: ChartConfig = {
   collected: {
     label: "Collected",
-    color: "#0E89CA",
+    color: "#0CC9AA",
   },
   forecasted: {
     label: "Forecasted",
-    color: "hsl(var(--chart-2))",
+    color: "#5FC1F6",
   },
 } as const;
 
 type ChartKey = keyof typeof chartConfig;
 
 export function PaymentChart({ data }: PaymentChartProps) {
-  const [activeChart, setActiveChart] = useState<ChartKey>("collected");
+  const [activeChart, setActiveChart] = useState<ChartKey>("forecasted");
 
   const total = useMemo<Record<ChartKey, number>>(
     () => ({
@@ -54,9 +54,9 @@ export function PaymentChart({ data }: PaymentChartProps) {
     <Card>
       <CardHeader className="flex flex-col items-stretch space-y-0 border-b p-0 sm:flex-row">
         <div className="flex flex-1 flex-col justify-center gap-1 px-6 py-5 sm:py-6">
-          <CardTitle>Payment Chart</CardTitle>
+          <CardTitle>Cash Flow</CardTitle>
           <CardDescription>
-            Showing collected and forecasted payments
+            Your collected and forecasted payments
           </CardDescription>
         </div>
         <div className="flex">

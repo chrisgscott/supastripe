@@ -22,7 +22,8 @@ export async function GET(request: Request) {
     .from('transactions')
     .select('amount')
     .eq('user_id', user.id)
-    .eq('status', 'paid');
+    .eq('status', 'paid')
+    .neq('status', 'failed');
 
   if (startDate) {
     query.gte('created_at', startDate);

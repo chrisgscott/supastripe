@@ -82,7 +82,10 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
 
   const { error: updateError } = await supabase
     .from('transactions')
-    .update({ status: 'paid' })
+    .update({ 
+      status: 'paid',
+      paid_at: new Date().toISOString()
+    })
     .eq('id', transactionId)
 
   if (updateError) {
@@ -145,7 +148,12 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent, su
 
   const { error: updateError } = await supabase
     .from('transactions')
-    .update({ status: 'failed' })
+    .update({ 
+      status: 'failed',
+      next_attempt_date: paymentIntent.next_payment_attempt 
+        ? new Date(paymentIntent.next_payment_attempt * 1000).toISOString() 
+        : null
+    })
     .eq('id', transactionId)
 
   if (updateError) {

@@ -21,5 +21,5 @@ export async function GET() {
     return NextResponse.json({ error: 'Failed to fetch active plans count' }, { status: 500 });
   }
 
-  return NextResponse.json({ count });
+  return NextResponse.json({ activePlans: count });
 }
