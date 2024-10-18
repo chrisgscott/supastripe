@@ -1,23 +1,65 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import ProfileSettings from './components/ProfileSettings';
 import StripeSettings from './components/StripeSettings';
 import EmailSettings from './components/EmailSettings';
+import { createClient } from '@/utils/supabase/client';
+import { User } from '@supabase/supabase-js';
 
 type SettingsTab = 'profile' | 'stripe' | 'email';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
+  const [user, setUser] = useState<User | null>(null);
+  const [stripeAccount, setStripeAccount] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+
+      if (user) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError) {
+          setError('Failed to fetch profile data');
+        } else {
+          setProfile(profileData);
+        }
+
+        const { data: stripeData, error: stripeError } = await supabase
+          .from('stripe_accounts')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (stripeError) {
+          setError('Failed to fetch Stripe account data');
+        } else {
+          setStripeAccount(stripeData);
+        }
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const renderContent = () => {
     switch (activeTab) {
       case 'profile':
         return <ProfileSettings />;
       case 'stripe':
-        return <StripeSettings />;
+        return <StripeSettings stripeAccount={stripeAccount} profile={profile} user={user} error={error} />;
       case 'email':
         return <EmailSettings />;
       default:
@@ -57,7 +99,7 @@ export default function SettingsPage() {
         </Card>
       </div>
       <div className="w-3/4 pl-4">
-        {renderContent()}
+      {renderContent()}
       </div>
     </div>
   );
