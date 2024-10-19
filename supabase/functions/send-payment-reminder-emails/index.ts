@@ -5,6 +5,22 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL') as string
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string
 const brevoApiKey = Deno.env.get('BREVO_API_KEY') as string
 
+interface Transaction {
+  id: string;
+  amount: number;
+  due_date: string;
+  payment_plans: {
+    user_id: string;
+    customers: {
+      name: string;
+      email: string;
+    };
+  };
+  users: {
+    business_name: string;
+  };
+}
+
 serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
@@ -21,14 +37,27 @@ serve(async (req) => {
     `)
     .eq('status', 'pending')
     .eq('reminder_email_date', today)
-    .eq('reminder_sent', false)
+    .eq('reminder_sent', false);
 
   if (error) {
-    console.error('Error fetching transactions:', error)
-    return new Response(JSON.stringify({ error: 'Internal Server Error' }), { status: 500 })
+    console.error('Error fetching transactions:', error);
+    return new Response(JSON.stringify({ error: 'Internal Server Error' }), { status: 500 });
   }
 
-  for (const transaction of transactions) {
+  const typedTransactions: Transaction[] = transactions?.map((t: any) => ({
+    id: t.id,
+    amount: t.amount,
+    due_date: t.due_date,
+    payment_plans: {
+      user_id: t.payment_plans.user_id,
+      customers: t.payment_plans.customers[0]
+    },
+    users: {
+      business_name: t.users[0].business_name
+    }
+  })) || [];
+
+  for (const transaction of typedTransactions) {
     const { data: emailTemplate } = await supabase
       .from('email_templates')
       .select('subject, content')

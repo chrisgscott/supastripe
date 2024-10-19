@@ -65,7 +65,9 @@ export async function POST(request: Request) {
     console.log('create-payment-intent: Payment plan data:', paymentPlan);
     console.log('create-payment-intent: Downpayment transaction:', downpaymentTransaction);
 
-    const amount = Math.round(downpaymentTransaction.amount * 100);
+    const firstTransaction = paymentPlan.transactions[0];
+
+    const amount = Math.round(firstTransaction.amount * 100);
     const applicationFeeAmount = Math.round(amount * platformFeePercentage);
     console.log('create-payment-intent: Amount:', amount);
     console.log('create-payment-intent: Application fee amount:', applicationFeeAmount);

@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 interface PaymentScheduleItem {
   date: Date;
   amount: number;
+  is_downpayment: boolean;
 }
 
 interface PaymentPlan {
@@ -77,9 +78,9 @@ export async function POST(request: Request) {
       payment_plan_id: createdPlan.id,
       amount: payment.amount,
       due_date: payment.date,
-      status: 'pending',
+      status: index === 0 ? 'pending_capture' : 'pending', // First payment is pending capture
       user_id: user.id,
-      is_downpayment: index === 0 && paymentPlan.downpaymentAmount > 0
+      is_downpayment: payment.is_downpayment
     }));
 
     const { data: insertedTransactions, error: transactionsError } = await supabase

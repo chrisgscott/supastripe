@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 interface PaymentScheduleItem {
   date: Date;
   amount: number;
+  is_downpayment: boolean;
 }
 
 export default function PaymentSchedule() {
@@ -19,16 +20,23 @@ export default function PaymentSchedule() {
 
   const calculatePaymentSchedule = () => {
     const { totalAmount, numberOfPayments, paymentInterval, downpaymentAmount } = planDetails;
-    const remainingAmount = totalAmount - downpaymentAmount;
-    const regularPaymentAmount = Number((remainingAmount / numberOfPayments).toFixed(2));
+    
+    // Ensure downpayment is not greater than total amount
+    const validDownpayment = Math.min(downpaymentAmount, totalAmount);
+    
+    const remainingAmount = totalAmount - validDownpayment;
+    const regularPaymentAmount = Number((remainingAmount / (numberOfPayments - (validDownpayment > 0 ? 1 : 0))).toFixed(2));
     let schedule: PaymentScheduleItem[] = [];
     let currentDate = new Date();
 
-    if (downpaymentAmount > 0) {
-      schedule.push({ date: currentDate, amount: downpaymentAmount });
-    }
+    // Always add first payment (either downpayment or first installment)
+    schedule.push({ 
+      date: currentDate, 
+      amount: validDownpayment > 0 ? validDownpayment : regularPaymentAmount,
+      is_downpayment: validDownpayment > 0
+    });
 
-    for (let i = 0; i < numberOfPayments; i++) {
+    for (let i = 1; i < numberOfPayments; i++) {
       currentDate = paymentInterval === "weekly" ? addWeeks(currentDate, 1) : addMonths(currentDate, 1);
       let amount = regularPaymentAmount;
 
@@ -37,10 +45,10 @@ export default function PaymentSchedule() {
         amount = Number((totalAmount - totalPaid + regularPaymentAmount).toFixed(2));
       }
 
-      schedule.push({ date: currentDate, amount });
+      schedule.push({ date: currentDate, amount, is_downpayment: false });
     }
 
-    setPlanDetails(prev => ({ ...prev, paymentSchedule: schedule }));
+    setPlanDetails(prev => ({ ...prev, paymentSchedule: schedule, downpaymentAmount: validDownpayment }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -50,7 +58,13 @@ export default function PaymentSchedule() {
       const response = await fetch('/api/create-payment-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(planDetails),
+        body: JSON.stringify({
+          ...planDetails,
+          paymentSchedule: planDetails.paymentSchedule.map((item, index) => ({
+            ...item,
+            is_downpayment: index === 0 && planDetails.downpaymentAmount > 0
+          }))
+        }),
       });
       const data = await response.json();
       if (data.error) {
@@ -68,7 +82,7 @@ export default function PaymentSchedule() {
     <Card>
       <CardHeader>
         <CardTitle>Payment Schedule</CardTitle>
-        <CardDescription>Payments will be automatically processed on this schedule</CardDescription>
+        <CardDescription>Payments will be <i>automatically processed</i> on this schedule:</CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
@@ -79,9 +93,9 @@ export default function PaymentSchedule() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {planDetails.paymentSchedule?.map((item: PaymentScheduleItem, index: number) => (
+            {planDetails.paymentSchedule?.map((item, index) => (
               <TableRow key={index}>
-                <TableCell>{format(item.date, 'MM/dd/yyyy')}</TableCell>
+                <TableCell>{index === 0 ? "Due Now" : format(item.date, 'MM/dd/yyyy')}</TableCell>
                 <TableCell>${item.amount.toFixed(2)}</TableCell>
               </TableRow>
             ))}
