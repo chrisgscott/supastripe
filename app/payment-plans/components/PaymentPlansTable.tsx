@@ -173,7 +173,12 @@ const columns: ColumnDef<PaymentPlan>[] = [
     cell: ({ row }) => {
       const plan = row.original;
       return (
-        <Button variant="subtle" size="sm" className="h-8 p-2">
+        <Button
+          variant="subtle"
+          size="sm"
+          className="h-8 p-2"
+          onClick={() => window.location.href = `/payment-plans/${plan.id}`}
+        >
           <span className="text-xs mr-1">Details</span>
           <ArrowRight className="h-4 w-4" />
         </Button>

@@ -146,7 +146,7 @@ function Dashboard() {
       <h1 className="text-3xl font-bold mb-6">
         {userName ? `Welcome to PayKit, ${userName}.` : 'Welcome to PayKit'}
       </h1>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Plans</CardTitle>
