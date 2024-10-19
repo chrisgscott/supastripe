@@ -68,7 +68,7 @@ export default function PaymentSchedule() {
     <Card>
       <CardHeader>
         <CardTitle>Payment Schedule</CardTitle>
-        <CardDescription>Review your payment schedule</CardDescription>
+        <CardDescription>Payments will be automatically processed on this schedule</CardDescription>
       </CardHeader>
       <CardContent>
         <Table>

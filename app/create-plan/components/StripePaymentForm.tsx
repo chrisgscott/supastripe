@@ -69,7 +69,7 @@ export default function StripePaymentForm() {
     <Card>
       <CardHeader>
         <CardTitle>Payment Details</CardTitle>
-        <CardDescription>Complete your payment to finalize the plan</CardDescription>
+        <CardDescription>Save your payment details to start the payment plan</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit}>
@@ -100,7 +100,7 @@ export default function StripePaymentForm() {
           onClick={handleSubmit}
           disabled={!stripe || !elements || !isPaymentElementReady || isLoading}
         >
-          {isLoading ? "Processing..." : "Pay Now"}
+          {isLoading ? "Processing..." : "Save and Pay Now"}
         </Button>
       </CardFooter>
     </Card>

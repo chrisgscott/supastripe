@@ -57,9 +57,9 @@ export default function CreatePlanWizard() {
       <div className="mb-8">
         <h2 className="text-2xl font-bold mb-4">Create Payment Plan</h2>
         <div className="flex justify-between">
-          <span className={`${currentStep >= 1 ? 'text-blue-600' : 'text-gray-400'}`}>Plan Details</span>
-          <span className={`${currentStep >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>Payment Schedule</span>
-          <span className={`${currentStep >= 3 ? 'text-blue-600' : 'text-gray-400'}`}>Payment</span>
+          <span className={`${currentStep >= 1 ? 'text-blue-600' : 'text-gray-400'}`}>1. Plan Details</span>
+          <span className={`${currentStep >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>2. Payment Schedule</span>
+          <span className={`${currentStep >= 3 ? 'text-blue-600' : 'text-gray-400'}`}>3. Payment Details</span>
         </div>
         <div className="flex h-1 mt-2">
           <div className={`w-1/3 ${currentStep >= 1 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>

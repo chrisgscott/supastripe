@@ -5,11 +5,33 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from '@/utils/supabase/client';
+import { Input } from "@/components/ui/input";
+
+interface EmailTemplate {
+  subject: string;
+  content: string;
+}
+
+interface EmailSettings {
+  ccOnClientEmails: boolean;
+  newPlanWelcome: EmailTemplate;
+  upcomingPaymentReminder: EmailTemplate;
+  paymentSuccessful: EmailTemplate;
+  paymentFailed: EmailTemplate;
+  planCompleted: EmailTemplate;
+  planCanceled: EmailTemplate;
+}
 
 export default function EmailSettings() {
-  const [ccOnClientEmails, setCcOnClientEmails] = useState(false);
-  const [welcomeTemplate, setWelcomeTemplate] = useState('');
-  const [invoiceTemplate, setInvoiceTemplate] = useState('');
+  const [emailSettings, setEmailSettings] = useState<EmailSettings>({
+    ccOnClientEmails: false,
+    newPlanWelcome: { subject: '', content: '' },
+    upcomingPaymentReminder: { subject: '', content: '' },
+    paymentSuccessful: { subject: '', content: '' },
+    paymentFailed: { subject: '', content: '' },
+    planCompleted: { subject: '', content: '' },
+    planCanceled: { subject: '', content: '' },
+  });
   const [message, setMessage] = useState('');
 
   useEffect(() => {
@@ -30,9 +52,7 @@ export default function EmailSettings() {
       if (error) {
         console.error('Error fetching email settings:', error);
       } else if (data) {
-        setCcOnClientEmails(data.cc_on_client_emails);
-        setWelcomeTemplate(data.welcome_template || '');
-        setInvoiceTemplate(data.invoice_template || '');
+        setEmailSettings(data);
       }
     }
   };
@@ -46,9 +66,7 @@ export default function EmailSettings() {
         .from('email_settings')
         .upsert({
           user_id: user.id,
-          cc_on_client_emails: ccOnClientEmails,
-          welcome_template: welcomeTemplate,
-          invoice_template: invoiceTemplate
+          ...emailSettings
         });
 
       if (error) {
@@ -58,6 +76,16 @@ export default function EmailSettings() {
         setMessage('Email settings saved successfully');
       }
     }
+  };
+
+  const handleTemplateChange = (template: keyof EmailSettings, field: 'subject' | 'content', value: string) => {
+    setEmailSettings(prev => ({
+      ...prev,
+      [template]: {
+        ...(prev[template] as EmailTemplate),
+        [field]: value
+      }
+    }));
   };
 
   return (
@@ -72,44 +100,47 @@ export default function EmailSettings() {
           <div className="flex items-center space-x-2">
             <Switch
               id="cc-emails"
-              checked={ccOnClientEmails}
-              onCheckedChange={setCcOnClientEmails}
+              checked={emailSettings.ccOnClientEmails}
+              onCheckedChange={(checked) => setEmailSettings(prev => ({ ...prev, ccOnClientEmails: checked }))}
             />
             <Label htmlFor="cc-emails">CC me on all client emails</Label>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Email Templates</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="welcome-template">Welcome Email Template</Label>
-            <Textarea
-              id="welcome-template"
-              value={welcomeTemplate}
-              onChange={(e) => setWelcomeTemplate(e.target.value)}
-              rows={5}
-              placeholder="Enter your welcome email template here..."
-            />
-          </div>
-          <div>
-            <Label htmlFor="invoice-template">Invoice Email Template</Label>
-            <Textarea
-              id="invoice-template"
-              value={invoiceTemplate}
-              onChange={(e) => setInvoiceTemplate(e.target.value)}
-              rows={5}
-              placeholder="Enter your invoice email template here..."
-            />
-          </div>
-        </CardContent>
-      </Card>
+      {Object.entries(emailSettings).map(([key, value]) => {
+        if (key === 'ccOnClientEmails') return null;
+        return (
+          <Card key={key}>
+            <CardHeader>
+              <CardTitle>{key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor={`${key}-subject`}>Subject</Label>
+                <Input
+                  id={`${key}-subject`}
+                  value={value.subject}
+                  onChange={(e) => handleTemplateChange(key as keyof EmailSettings, 'subject', e.target.value)}
+                  placeholder="Enter email subject..."
+                />
+              </div>
+              <div>
+                <Label htmlFor={`${key}-content`}>Email Content</Label>
+                <Textarea
+                  id={`${key}-content`}
+                  value={value.content}
+                  onChange={(e) => handleTemplateChange(key as keyof EmailSettings, 'content', e.target.value)}
+                  rows={5}
+                  placeholder="Enter email content..."
+                />
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
 
       <Button onClick={saveEmailSettings}>Save Email Settings</Button>
-
       {message && <p className="mt-4 text-sm text-green-600">{message}</p>}
     </div>
   );

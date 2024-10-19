@@ -8,6 +8,8 @@ import StripeSettings from './components/StripeSettings';
 import EmailSettings from './components/EmailSettings';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
+import { Wallet, Mail, CircleUser } from "lucide-react";
+
 
 type SettingsTab = 'profile' | 'stripe' | 'email';
 
@@ -78,6 +80,7 @@ export default function SettingsPage() {
                 className="w-full justify-start"
                 onClick={() => setActiveTab('profile')}
               >
+                <CircleUser className="h-5 w-5 mr-3" />
                 Profile
               </Button>
               <Button
@@ -85,6 +88,7 @@ export default function SettingsPage() {
                 className="w-full justify-start"
                 onClick={() => setActiveTab('stripe')}
               >
+                <Wallet className="h-5 w-5 mr-3" />
                 Stripe
               </Button>
               <Button
@@ -92,6 +96,7 @@ export default function SettingsPage() {
                 className="w-full justify-start"
                 onClick={() => setActiveTab('email')}
               >
+                <Mail className="h-5 w-5 mr-3" />
                 Email
               </Button>
             </nav>
