@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import type { Request } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') as string
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string
@@ -21,7 +22,7 @@ interface Transaction {
   };
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
   // Get transactions due for reminder today
