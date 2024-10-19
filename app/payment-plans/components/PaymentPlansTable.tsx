@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowUpDown, NotepadText } from "lucide-react";
+import { ArrowUpDown, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 
@@ -74,10 +74,14 @@ const columns: ColumnDef<PaymentPlan>[] = [
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Customer Name
+          Customer
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       );
+    },
+    cell: ({ row }) => {
+      const customerName = row.original.customerName || "Unknown";
+      return <div>{customerName}</div>;
     },
   },
   {
@@ -169,9 +173,9 @@ const columns: ColumnDef<PaymentPlan>[] = [
     cell: ({ row }) => {
       const plan = row.original;
       return (
-        <Button variant="ghost" className="h-8 w-8 p-0">
-          <span className="sr-only">Open menu</span>
-          <NotepadText className="h-4 w-4" />
+        <Button variant="subtle" size="sm" className="h-8 p-2">
+          <span className="text-xs mr-1">Details</span>
+          <ArrowRight className="h-4 w-4" />
         </Button>
       );
     },
@@ -184,7 +188,9 @@ async function fetchPaymentPlans() {
     const errorData = await response.json();
     throw new Error(errorData.error || "Failed to fetch payment plans");
   }
-  return await response.json();
+  const data = await response.json();
+  console.log('Fetched payment plans:', JSON.stringify(data, null, 2));
+  return data;
 }
 
 export function PaymentPlansTable() {
@@ -212,13 +218,22 @@ export function PaymentPlansTable() {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: "includesString",
+    globalFilterFn: (row, columnId, filterValue) => {
+      const value = row.getValue(columnId);
+      return String(value).toLowerCase().includes(String(filterValue).toLowerCase());
+    },
     state: {
       sorting,
       columnFilters,
       globalFilter,
     },
   });
+
+  useEffect(() => {
+    if (paymentPlans) {
+      console.log('Payment plans in component:', JSON.stringify(paymentPlans, null, 2));
+    }
+  }, [paymentPlans]);
 
   if (isLoading) {
     return <div>Loading...</div>;
