@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { format } from 'date-fns'
+import UpdateCardModalWrapper from '../components/UpdateCardModalWrapper'
 
 interface PaymentPlanDetails {
   id: string
@@ -13,7 +14,7 @@ interface PaymentPlanDetails {
   amountPaid: number
   status: string
   createdAt: string
-  customers: { name?: string; email?: string } | { name?: string; email?: string }[] | null
+  customers: { name?: string; email?: string; stripe_customer_id?: string } | { name?: string; email?: string; stripe_customer_id?: string }[] | null
   transactions: {
     id: string
     amount: number
@@ -23,7 +24,7 @@ interface PaymentPlanDetails {
 }
 
 export default async function PaymentPlanDetails({ params }: { params: { id: string } }) {
-  const supabase = createClient()
+  const supabase = createClient();
   
   const { data: paymentPlan, error } = await supabase
     .from('payment_plans')
@@ -32,15 +33,15 @@ export default async function PaymentPlanDetails({ params }: { params: { id: str
       total_amount,
       status,
       created_at,
-      customers (name, email),
+      customers (id, name, email, stripe_customer_id),
       transactions (id, amount, due_date, status)
     `)
     .eq('id', params.id)
-    .single()
+    .single();
 
   if (error || !paymentPlan) {
     console.error('Error fetching payment plan:', error);
-    notFound()
+    notFound();
   }
 
   const planDetails: PaymentPlanDetails = {
@@ -72,9 +73,12 @@ export default async function PaymentPlanDetails({ params }: { params: { id: str
       dueDate: t.due_date,
       status: t.status
     }))
-  }
+  };
 
-  const nextPayment = planDetails.transactions.find(t => t.status !== 'paid');
+  // Sort transactions by due date and find the next unpaid one
+  const nextPayment = planDetails.transactions
+    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+    .find(t => t.status !== 'paid' && new Date(t.dueDate) >= new Date());
 
   return (
     <div className="container mx-auto py-10">
@@ -98,10 +102,10 @@ export default async function PaymentPlanDetails({ params }: { params: { id: str
               </div>
               <div className="flex justify-between">
                 <span>Amount Scheduled:</span>
-                <span className="font-semibold">${(planDetails.totalAmount - planDetails.amountPaid).toFixed(2)}</span>
+                <span className="font-semibold mb-3">${(planDetails.totalAmount - planDetails.amountPaid).toFixed(2)}</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${(planDetails.amountPaid / planDetails.totalAmount) * 100}%` }}></div>
+              <div className="w-full bg-gray-200 rounded-full h-4 mt-2">
+                <div className="bg-blue-500 h-4 rounded-full" style={{ width: `${(planDetails.amountPaid / planDetails.totalAmount) * 100}%` }}></div>
               </div>
             </div>
           </CardContent>
@@ -116,7 +120,14 @@ export default async function PaymentPlanDetails({ params }: { params: { id: str
               <>
                 <div className="text-3xl font-bold mb-2">${nextPayment.amount.toFixed(2)}</div>
                 <div className="text-gray-600 mb-4">Due on {format(new Date(nextPayment.dueDate), 'MMMM d, yyyy')}</div>
-                <Button className="w-full mb-2">Update Card Details</Button>
+                <UpdateCardModalWrapper 
+                  stripeCustomerId={
+                    Array.isArray(planDetails.customers)
+                      ? planDetails.customers[0]?.stripe_customer_id ?? ''
+                      : planDetails.customers?.stripe_customer_id ?? ''
+                  } 
+                  paymentPlanId={planDetails.id}
+                />
                 <Button variant="outline" className="w-full">Update Payment Schedule</Button>
               </>
             ) : (
@@ -154,17 +165,19 @@ export default async function PaymentPlanDetails({ params }: { params: { id: str
               </TableRow>
             </TableHeader>
             <TableBody>
-              {planDetails.transactions.map((transaction) => (
-                <TableRow key={transaction.id}>
-                  <TableCell>{format(new Date(transaction.dueDate), 'MMMM d, yyyy')}</TableCell>
-                  <TableCell>${transaction.amount.toFixed(2)}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded ${transaction.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                      {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {planDetails.transactions
+                .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+                .map((transaction) => (
+                  <TableRow key={transaction.id}>
+                    <TableCell>{format(new Date(transaction.dueDate), 'MMMM d, yyyy')}</TableCell>
+                    <TableCell>${transaction.amount.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 rounded ${transaction.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                        {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))}
             </TableBody>
           </Table>
         </CardContent>

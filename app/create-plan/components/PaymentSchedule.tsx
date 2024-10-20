@@ -55,22 +55,36 @@ export default function PaymentSchedule() {
     e.preventDefault();
     try {
       console.log('Submitting plan details:', planDetails);
+
+      // Create Stripe customer
+      const createCustomerResponse = await fetch('/api/create-stripe-customer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: planDetails.customerName,
+          email: planDetails.customerEmail,
+        }),
+      });
+      const { stripeCustomerId } = await createCustomerResponse.json();
+
+      // Create payment plan
       const response = await fetch('/api/create-payment-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...planDetails,
+          stripeCustomerId,
           paymentSchedule: planDetails.paymentSchedule.map((item, index) => ({
             ...item,
             is_downpayment: index === 0 && planDetails.downpaymentAmount > 0
           }))
         }),
       });
-      const data = await response.json();
-      if (data.error) {
-        throw new Error(data.error);
+      const responseData = await response.json();
+      if (responseData.error) {
+        throw new Error(responseData.error);
       }
-      setPlanDetails(prev => ({ ...prev, paymentPlanId: data.paymentPlanId }));
+      setPlanDetails(prev => ({ ...prev, paymentPlanId: responseData.paymentPlanId }));
       setCurrentStep(3);
     } catch (error) {
       console.error('Error creating payment plan:', error);
