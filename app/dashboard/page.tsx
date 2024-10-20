@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PaymentChart } from './components/PaymentChart';
 import { NeedsAttentionCard } from './components/NeedsAttentionCard';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const queryClient = new QueryClient();
 
@@ -176,7 +177,7 @@ function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isLoadingRevenue ? 'Loading...' : revenue}
+              {isLoadingRevenue ? 'Loading...' : formatCurrency(Number(revenue.replace(/[^0-9.-]+/g, '')))}
             </div>
           </CardContent>
         </Card>
@@ -198,7 +199,7 @@ function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isLoadingScheduledRevenue ? 'Loading...' : scheduledRevenue}
+              {isLoadingScheduledRevenue ? 'Loading...' : formatCurrency(Number(scheduledRevenue.replace(/[^0-9.-]+/g, '')))}
             </div>
           </CardContent>
         </Card>
@@ -210,7 +211,7 @@ function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isLoadingNextPayout ? 'Loading...' : nextPayout.amount}
+              {isLoadingNextPayout ? 'Loading...' : (nextPayout.amount === 'None scheduled' ? 'None scheduled' : formatCurrency(Number(nextPayout.amount.replace(/[^0-9.-]+/g, ''))))}
             </div>
             {nextPayout.date && (
               <div className="text-xs text-muted-foreground">

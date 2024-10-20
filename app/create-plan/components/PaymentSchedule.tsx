@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useCreatePlan } from '../CreatePlanContext';
 import { format, addMonths, addWeeks } from 'date-fns';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatCurrency } from '@/utils/formatCurrency';
 
 interface PaymentScheduleItem {
   date: Date;
@@ -12,83 +13,57 @@ interface PaymentScheduleItem {
 }
 
 export default function PaymentSchedule() {
-  const { planDetails, setPlanDetails, setCurrentStep } = useCreatePlan();
+  const { planDetails, setPlanDetails, setCurrentStep, createPaymentPlan } = useCreatePlan();
 
-  useEffect(() => {
-    calculatePaymentSchedule();
-  }, [planDetails.totalAmount, planDetails.numberOfPayments, planDetails.paymentInterval, planDetails.downpaymentAmount]);
-
-  const calculatePaymentSchedule = () => {
+  const calculatePaymentSchedule = useCallback(() => {
     const { totalAmount, numberOfPayments, paymentInterval, downpaymentAmount } = planDetails;
     
-    // Ensure downpayment is not greater than total amount
-    const validDownpayment = Math.min(downpaymentAmount, totalAmount);
+    // Convert amounts to cents
+    const totalAmountCents = Math.round(totalAmount * 100);
+    const downpaymentAmountCents = Math.round(downpaymentAmount * 100);
     
-    const remainingAmount = totalAmount - validDownpayment;
-    const regularPaymentAmount = Number((remainingAmount / (numberOfPayments - (validDownpayment > 0 ? 1 : 0))).toFixed(2));
+    // Ensure downpayment is not greater than total amount
+    const validDownpaymentCents = Math.min(downpaymentAmountCents, totalAmountCents);
+    
+    const remainingAmountCents = totalAmountCents - validDownpaymentCents;
+    const regularPaymentAmountCents = Math.round(remainingAmountCents / (numberOfPayments - (validDownpaymentCents > 0 ? 1 : 0)));
     let schedule: PaymentScheduleItem[] = [];
     let currentDate = new Date();
 
     // Always add first payment (either downpayment or first installment)
     schedule.push({ 
       date: currentDate, 
-      amount: validDownpayment > 0 ? validDownpayment : regularPaymentAmount,
-      is_downpayment: validDownpayment > 0
+      amount: validDownpaymentCents > 0 ? validDownpaymentCents : regularPaymentAmountCents,
+      is_downpayment: validDownpaymentCents > 0
     });
 
     for (let i = 1; i < numberOfPayments; i++) {
       currentDate = paymentInterval === "weekly" ? addWeeks(currentDate, 1) : addMonths(currentDate, 1);
-      let amount = regularPaymentAmount;
+      let amountCents = regularPaymentAmountCents;
 
       if (i === numberOfPayments - 1) {
-        const totalPaid = schedule.reduce((sum, payment) => sum + payment.amount, 0) + regularPaymentAmount;
-        amount = Number((totalAmount - totalPaid + regularPaymentAmount).toFixed(2));
+        const totalPaidCents = schedule.reduce((sum, payment) => sum + payment.amount, 0) + regularPaymentAmountCents;
+        amountCents = totalAmountCents - totalPaidCents + regularPaymentAmountCents;
       }
 
-      schedule.push({ date: currentDate, amount, is_downpayment: false });
+      schedule.push({ date: currentDate, amount: amountCents, is_downpayment: false });
     }
 
-    setPlanDetails(prev => ({ ...prev, paymentSchedule: schedule, downpaymentAmount: validDownpayment }));
-  };
+    return schedule;
+  }, [planDetails]);
+
+  useEffect(() => {
+    const schedule = calculatePaymentSchedule();
+    setPlanDetails(prev => ({ ...prev, paymentSchedule: schedule }));
+  }, [planDetails.totalAmount, planDetails.numberOfPayments, planDetails.paymentInterval, planDetails.downpaymentAmount, calculatePaymentSchedule, setPlanDetails]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      console.log('Submitting plan details:', planDetails);
-
-      // Create Stripe customer
-      const createCustomerResponse = await fetch('/api/create-stripe-customer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: planDetails.customerName,
-          email: planDetails.customerEmail,
-        }),
-      });
-      const { stripeCustomerId } = await createCustomerResponse.json();
-
-      // Create payment plan
-      const response = await fetch('/api/create-payment-plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...planDetails,
-          stripeCustomerId,
-          paymentSchedule: planDetails.paymentSchedule.map((item, index) => ({
-            ...item,
-            is_downpayment: index === 0 && planDetails.downpaymentAmount > 0
-          }))
-        }),
-      });
-      const responseData = await response.json();
-      if (responseData.error) {
-        throw new Error(responseData.error);
-      }
-      setPlanDetails(prev => ({ ...prev, paymentPlanId: responseData.paymentPlanId }));
+      await createPaymentPlan();
       setCurrentStep(3);
     } catch (error) {
-      console.error('Error creating payment plan:', error);
-      // Handle error (e.g., show error message to user)
+      // Handle error
     }
   };
 
@@ -110,7 +85,7 @@ export default function PaymentSchedule() {
             {planDetails.paymentSchedule?.map((item, index) => (
               <TableRow key={index}>
                 <TableCell>{index === 0 ? "Due Now" : format(item.date, 'MM/dd/yyyy')}</TableCell>
-                <TableCell>${item.amount.toFixed(2)}</TableCell>
+                <TableCell>{formatCurrency(item.amount)}</TableCell>
               </TableRow>
             ))}
           </TableBody>

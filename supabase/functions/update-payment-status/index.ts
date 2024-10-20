@@ -3,108 +3,109 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Stripe } from 'https://esm.sh/stripe@12.18.0'
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') as string, {
+const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
   apiVersion: '2024-06-20',
-})
+  httpClient: Stripe.createFetchHttpClient(),
+});
 
-const cryptoProvider = Stripe.createSubtleCryptoProvider();
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+);
 
-serve(async (req) => {
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') as string,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string
-  )
+serve(async (req: Request) => {
+  const signature = req.headers.get('stripe-signature');
 
-  const payload = await req.text()
-  console.log('Received webhook payload:', payload)
-
-  const sig = req.headers.get('stripe-signature') as string
-  const connectedAccountId = req.headers.get('stripe-account') as string
-
-  let event
-
-  try {
-    event = await stripe.webhooks.constructEventAsync(
-      payload,
-      sig,
-      Deno.env.get('STRIPE_WEBHOOK_SECRET') as string,
-      undefined,
-      cryptoProvider
-    )
-    console.log(`Received valid ${event.type} event:`, JSON.stringify(event, null, 2))
-  } catch (err: any) {
-    console.error(`Webhook Error: ${err.message}`)
-    return new Response(JSON.stringify({ error: `Webhook Error: ${err.message}` }), { status: 400 })
+  if (!signature) {
+    console.error('No Stripe signature found in the request');
+    return new Response('No signature', { status: 400 });
   }
 
   try {
+    const body = await req.text();
+    console.log('Received webhook body:', body);
+
+    const event = await stripe.webhooks.constructEventAsync(
+      body,
+      signature,
+      Deno.env.get('STRIPE_WEBHOOK_SECRET')!
+    );
+
+    console.log('Constructed Stripe event:', event);
+
     switch (event.type) {
       case 'payment_intent.succeeded':
-        await handlePaymentIntentSucceeded(event.data.object, supabase)
-        break
+        await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent, supabase);
+        break;
       case 'payment_intent.payment_failed':
-        await handlePaymentIntentFailed(event.data.object, supabase)
-        break
-      case 'account.updated':
-        await handleAccountUpdated(event.data.object, supabase)
-        break
-      case 'payout.created':
-      case 'payout.paid':
-      case 'payout.failed':
-        await handlePayout(event.data.object, supabase, connectedAccountId)
-        break
-      case 'review.opened':
-      case 'review.closed':
-        await handleReview(event.data.object, supabase, connectedAccountId)
-        break
+        await handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent, supabase);
+        break;
       case 'transfer.created':
-        await handleTransfer(event.data.object, supabase)
-        break
+        await handleTransfer(event.data.object as Stripe.Transfer, supabase);
+        break;
       default:
-        console.log(`Unhandled event type ${event.type}`)
+        console.log(`Unhandled event type ${event.type}`);
     }
 
-    return new Response(JSON.stringify({ received: true }), { status: 200 })
-  } catch (error) {
-    console.error(`Error processing ${event.type}:`, error)
-    return new Response(JSON.stringify({ error: `Error processing ${event.type}` }), { status: 500 })
+    return new Response(JSON.stringify({ received: true }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (err) {
+    console.error('Error processing webhook:', err);
+    return new Response(
+      JSON.stringify({ error: 'Error processing webhook', details: err.message }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } }
+    );
   }
-})
+});
 
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent, supabase: any) {
-  const transactionId = paymentIntent.metadata.transaction_id
+  console.log('Handling successful PaymentIntent:', paymentIntent);
+
+  const transactionId = paymentIntent.metadata.transaction_id;
 
   if (!transactionId) {
-    throw new Error('No transaction ID found in metadata')
+    console.error('No transaction ID found in metadata:', paymentIntent.metadata);
+    throw new Error('No transaction ID found in metadata');
   }
 
-  console.log(`Processing successful payment for transaction ${transactionId}`)
+  console.log(`Processing successful payment for transaction ${transactionId}`);
 
   // Update transaction status
-  const { error: updateError } = await supabase
+  const { data: updatedTransaction, error: updateError } = await supabase
     .from('transactions')
     .update({ 
       status: 'paid',
       paid_at: new Date().toISOString()
     })
     .eq('id', transactionId)
+    .select();
 
   if (updateError) {
-    console.error(`Error updating transaction ${transactionId}:`, updateError)
-    throw updateError
+    console.error(`Error updating transaction ${transactionId}:`, updateError);
+    throw updateError;
   }
+
+  console.log(`Updated transaction ${transactionId}:`, updatedTransaction);
 
   // Fetch the transaction and related payment plan
   const { data: transaction, error: fetchError } = await supabase
     .from('transactions')
     .select('*, payment_plans(*)')
     .eq('id', transactionId)
-    .single()
+    .single();
 
   if (fetchError) {
-    console.error(`Error fetching transaction ${transactionId}:`, fetchError)
-    throw fetchError
+    console.error(`Error fetching transaction ${transactionId}:`, fetchError);
+    throw fetchError;
   }
+
+  if (!transaction) {
+    console.error(`No transaction found with ID ${transactionId}`);
+    throw new Error(`No transaction found with ID ${transactionId}`);
+  }
+
+  console.log('Fetched transaction:', transaction);
 
   // Check if this is the first paid transaction for the payment plan
   const { count, error: countError } = await supabase

@@ -12,15 +12,26 @@ export default function PlanDetailsForm() {
   const handleChange = (name: string, value: string | number) => {
     setPlanDetails(prev => ({
       ...prev,
-      [name]: ['totalAmount', 'downpaymentAmount', 'numberOfPayments'].includes(name)
-        ? Number(value) || 0
-        : value
+      [name]: value
     }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setCurrentStep(2);
+    // Validate the form data
+    if (validateForm()) {
+      setCurrentStep(2);
+    }
+  };
+
+  const validateForm = () => {
+    // Add your validation logic here
+    // For example:
+    if (!planDetails.customerName || !planDetails.customerEmail || !planDetails.totalAmount || !planDetails.numberOfPayments) {
+      alert('Please fill in all required fields');
+      return false;
+    }
+    return true;
   };
 
   return (
@@ -58,8 +69,9 @@ export default function PlanDetailsForm() {
               <Input
                 id="totalAmount"
                 type="number"
+                step="0.01"
                 value={planDetails.totalAmount || ''}
-                onChange={(e) => handleChange('totalAmount', e.target.value)}
+                onChange={(e) => handleChange('totalAmount', parseFloat(e.target.value))}
                 required
               />
             </div>
@@ -68,8 +80,9 @@ export default function PlanDetailsForm() {
               <Input
                 id="downpaymentAmount"
                 type="number"
+                step="0.01"
                 value={planDetails.downpaymentAmount || ''}
-                onChange={(e) => handleChange('downpaymentAmount', e.target.value)}
+                onChange={(e) => handleChange('downpaymentAmount', parseFloat(e.target.value))}
               />
             </div>
           </div>
@@ -80,7 +93,7 @@ export default function PlanDetailsForm() {
                 id="numberOfPayments"
                 type="number"
                 value={planDetails.numberOfPayments || ''}
-                onChange={(e) => handleChange('numberOfPayments', e.target.value)}
+                onChange={(e) => handleChange('numberOfPayments', parseInt(e.target.value, 10))}
                 required
               />
             </div>

@@ -15,6 +15,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
+import { formatCurrency } from '@/utils/formatCurrency';
 
 interface PaymentDataItem {
   month: string;
@@ -71,7 +72,7 @@ export function PaymentChart({ data }: PaymentChartProps) {
                 {chartConfig[key].label}
               </span>
               <span className="text-lg font-bold leading-none sm:text-3xl">
-                ${total[key].toLocaleString()}
+                {formatCurrency(total[key])}
               </span>
             </button>
           ))}

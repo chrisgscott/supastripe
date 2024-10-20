@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import Stripe from 'stripe';
 
 interface PaymentScheduleItem {
   date: Date;
@@ -22,13 +23,13 @@ interface PaymentPlan {
 
 export async function POST(request: Request) {
   const supabase = createClient();
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2024-06-20" });
 
   try {
     const paymentPlan = await request.json();
     console.log('Parsed payment plan:', JSON.stringify(paymentPlan, null, 2));
 
     const { data: { user } } = await supabase.auth.getUser();
-
     if (!user) {
       throw new Error('Not authenticated');
     }
@@ -48,10 +49,21 @@ export async function POST(request: Request) {
       throw new Error(customerError.message);
     }
 
-    // Ensure total_amount is a number
-    const totalAmount = Number(paymentPlan.totalAmount);
-    if (isNaN(totalAmount)) {
-      throw new Error('Invalid total amount');
+    // Create Stripe customer
+    const stripeCustomer = await stripe.customers.create({
+      name: paymentPlan.customerName,
+      email: paymentPlan.customerEmail,
+      metadata: { supabase_customer_id: customer.id }
+    });
+
+    // Update the customer with Stripe ID
+    const { error: updateError } = await supabase
+      .from('customers')
+      .update({ stripe_customer_id: stripeCustomer.id })
+      .eq('id', customer.id);
+
+    if (updateError) {
+      throw new Error(`Error updating customer with Stripe ID: ${updateError.message}`);
     }
 
     // Create the payment plan in the database
@@ -60,10 +72,10 @@ export async function POST(request: Request) {
       .insert({
         customer_id: customer.id,
         user_id: user.id,
-        total_amount: totalAmount,
+        total_amount: Math.round(paymentPlan.totalAmount * 100), // Convert to cents
         number_of_payments: paymentPlan.numberOfPayments,
         payment_interval: paymentPlan.paymentInterval,
-        downpayment_amount: paymentPlan.downpaymentAmount,
+        downpayment_amount: Math.round(paymentPlan.downpaymentAmount * 100), // Also convert downpayment to cents
         status: 'created'
       })
       .select()
@@ -74,11 +86,15 @@ export async function POST(request: Request) {
     }
 
     // Create transactions for the payment schedule
+    if (!paymentPlan.paymentSchedule || paymentPlan.paymentSchedule.length === 0) {
+      throw new Error('Payment schedule is empty');
+    }
+
     const transactions = paymentPlan.paymentSchedule.map((payment: PaymentScheduleItem, index: number) => ({
       payment_plan_id: createdPlan.id,
       amount: payment.amount,
       due_date: payment.date,
-      status: index === 0 ? 'pending_capture' : 'pending', // First payment is pending capture
+      status: index === 0 ? 'pending_capture' : 'pending',
       user_id: user.id,
       is_downpayment: payment.is_downpayment
     }));
@@ -92,7 +108,14 @@ export async function POST(request: Request) {
       throw new Error(`Failed to create transactions: ${transactionsError.message}`);
     }
 
-    return NextResponse.json({ paymentPlanId: createdPlan.id, transactions: insertedTransactions });
+    const firstTransaction = insertedTransactions.find(t => t.status === 'pending_capture');
+
+    return NextResponse.json({ 
+      paymentPlanId: createdPlan.id, 
+      transactions: insertedTransactions,
+      stripeCustomerId: stripeCustomer.id,
+      firstTransactionId: firstTransaction?.id
+    });
   } catch (error: any) {
     console.error("Error creating payment plan:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

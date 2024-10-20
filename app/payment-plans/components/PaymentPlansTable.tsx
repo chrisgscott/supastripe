@@ -30,6 +30,7 @@ import {
 import { ArrowUpDown, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const PAYMENT_PLAN_STATUSES = [
   "created",
@@ -98,12 +99,8 @@ const columns: ColumnDef<PaymentPlan>[] = [
       );
     },
     cell: ({ row }) => {
-      const amount = parseFloat(row.getValue("totalAmount"));
-      const formatted = new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-      }).format(amount);
-      return <div className="font-medium">{formatted}</div>;
+      const amount = row.getValue("totalAmount");
+      return <div className="font-medium">{formatCurrency(amount as number)}</div>;
     },
   },
   {

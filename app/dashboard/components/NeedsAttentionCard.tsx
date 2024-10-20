@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from 'date-fns';
 import { Mail } from 'lucide-react';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 interface FailedTransaction {
   id: string;
@@ -39,7 +40,9 @@ export function NeedsAttentionCard({ failedTransactions, isLoading }: NeedsAtten
             {failedTransactions.map((transaction) => (
               <li key={transaction.id} className="flex items-center justify-between">
                 <div>
-                  <div className="font-semibold">{transaction.customerName} - ${transaction.amount.toFixed(2)}</div>
+                  <div className="font-semibold">
+                    {transaction.customerName} - {formatCurrency(transaction.amount)}
+                  </div>
                   <div className="text-sm text-gray-500">
                     {transaction.nextAttempt 
                       ? `Next attempt on ${format(parseISO(transaction.nextAttempt), 'dd MMM yyyy')}`

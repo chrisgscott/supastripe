@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useStripe, useElements, CardNumberElement, CardExpiryElement, CardCvcElement } from '@stripe/react-stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { Stripe, StripeElements } from '@stripe/stripe-js';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -22,6 +23,7 @@ function UpdateCardForm({ stripeCustomerId, onClose, paymentPlanId }: { stripeCu
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [zipCode, setZipCode] = useState('');
 
   useEffect(() => {
     async function createSetupIntent() {
@@ -46,7 +48,12 @@ function UpdateCardForm({ stripeCustomerId, onClose, paymentPlanId }: { stripeCu
     try {
       const result = await stripe.confirmCardSetup(clientSecret, {
         payment_method: {
-          card: elements.getElement(CardElement)!,
+          card: elements.getElement(CardNumberElement)!,
+          billing_details: {
+            address: {
+              postal_code: zipCode,
+            },
+          },
         },
       });
 
@@ -67,20 +74,55 @@ function UpdateCardForm({ stripeCustomerId, onClose, paymentPlanId }: { stripeCu
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <CardElement />
-      {error && (
-        <Alert variant="destructive" className="mt-4">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-      <div className="mt-4 flex justify-end space-x-2">
-        <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-        <Button type="submit" disabled={!stripe || isLoading}>
+    <Card>
+      <CardHeader>
+        <CardTitle>Update Card Details</CardTitle>
+        <CardDescription>Update your payment method for this payment plan</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="cardNumber" className="block text-sm font-medium text-gray-700">Card Number</label>
+              <CardNumberElement id="cardNumber" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
+            </div>
+            <div className="flex space-x-4">
+              <div className="flex-1">
+                <label htmlFor="cardExpiry" className="block text-sm font-medium text-gray-700">Expiration Date</label>
+                <CardExpiryElement id="cardExpiry" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
+              </div>
+              <div className="flex-1">
+                <label htmlFor="cardCvc" className="block text-sm font-medium text-gray-700">CVC</label>
+                <CardCvcElement id="cardCvc" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="zipCode" className="block text-sm font-medium text-gray-700">Zip Code</label>
+              <input
+                type="text"
+                id="zipCode"
+                value={zipCode}
+                onChange={(e) => setZipCode(e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                placeholder="Enter zip code"
+              />
+            </div>
+          </div>
+          {error && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+        </form>
+      </CardContent>
+      <CardFooter>
+        <Button type="button" variant="outline" onClick={onClose} className="mr-2">Cancel</Button>
+        <Button type="submit" onClick={handleSubmit} disabled={!stripe || isLoading}>
           {isLoading ? "Updating..." : "Update Card"}
         </Button>
-      </div>
-    </form>
+      </CardFooter>
+    </Card>
   );
 }
 

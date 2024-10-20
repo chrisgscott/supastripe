@@ -121,7 +121,6 @@ export type Database = {
           address_postal_code: string | null
           address_country: string | null
           is_onboarded: boolean
-          stripe_account_id: string | null
           logo_url: string | null
         }
         Insert: {
@@ -143,7 +142,6 @@ export type Database = {
           address_postal_code?: string | null
           address_country?: string | null
           is_onboarded?: boolean
-          stripe_account_id?: string | null
           logo_url?: string | null
         }
         Update: {
@@ -165,7 +163,6 @@ export type Database = {
           address_postal_code?: string | null
           address_country?: string | null
           is_onboarded?: boolean
-          stripe_account_id?: string | null
           logo_url?: string | null
         }
         Relationships: [
@@ -180,43 +177,43 @@ export type Database = {
       }
       stripe_accounts: {
         Row: {
-          created_at: string | null
           id: string
+          user_id: string
+          stripe_account_id: string
+          stripe_onboarding_completed: boolean
           stripe_account_created_at: string | null
           stripe_account_details_url: string | null
-          stripe_account_id: string | null
-          stripe_onboarding_completed: boolean | null
+          created_at: string | null
           updated_at: string | null
-          user_id: string | null
         }
         Insert: {
-          created_at?: string | null
           id?: string
+          user_id: string
+          stripe_account_id: string
+          stripe_onboarding_completed?: boolean
           stripe_account_created_at?: string | null
           stripe_account_details_url?: string | null
-          stripe_account_id?: string | null
-          stripe_onboarding_completed?: boolean | null
+          created_at?: string | null
           updated_at?: string | null
-          user_id?: string | null
         }
         Update: {
-          created_at?: string | null
           id?: string
+          user_id?: string
+          stripe_account_id?: string
+          stripe_onboarding_completed?: boolean
           stripe_account_created_at?: string | null
           stripe_account_details_url?: string | null
-          stripe_account_id?: string | null
-          stripe_onboarding_completed?: boolean | null
+          created_at?: string | null
           updated_at?: string | null
-          user_id?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "stripe_accounts_user_id_fkey"
             columns: ["user_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "users"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       transactions: {
@@ -408,3 +405,4 @@ export type Enums<
   : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
     ? PublicSchema["Enums"][PublicEnumNameOrOptions]
     : never
+
