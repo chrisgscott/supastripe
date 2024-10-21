@@ -136,7 +136,7 @@ serve(async (req: Request) => {
       // Prepare email parameters
       const emailParams = {
         customer_name: transaction.payment_plans.customers.name,
-        amount: transaction.amount / 100, // Convert cents to dollars
+        amount: Number((transaction.amount / 100).toFixed(2)), // Round to 2 decimal places
         due_date: transaction.due_date,
         business_name: profileData.business_name,
         support_email: profileData.support_email,

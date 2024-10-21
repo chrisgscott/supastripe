@@ -84,7 +84,7 @@ export default async function PaymentPlanDetails({ params }: { params: { id: str
   return (
     <div className="container mx-auto py-10">
       <h1 className="text-3xl font-bold mb-4">{planDetails.customerName}</h1>
-      <p className="text-gray-600 mb-8">{planDetails.customerEmail} • Created on {format(new Date(planDetails.createdAt), 'MMMM d, yyyy')} • <span className="bg-green-100 text-green-800 px-2 py-1 rounded">{planDetails.status}</span></p>
+      <p className="text-gray-600 mb-8">{planDetails.customerEmail} • Created on {format(new Date(planDetails.createdAt), 'MMMM d, yyyy')} • <span className="bg-green-100 text-green-800 px-2 py-1 rounded">{planDetails.status.charAt(0).toUpperCase() + planDetails.status.slice(1)}</span></p>
       
       <div className="grid grid-cols-3 gap-6 mb-8">
         <Card>

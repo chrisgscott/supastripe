@@ -8,7 +8,7 @@ interface PlanDetails {
   numberOfPayments: number;
   paymentInterval: string;
   downpaymentAmount: number;
-  paymentSchedule: Array<{ date: Date; amount: number }>;
+  paymentSchedule: Array<{ date: string; amount: number }>;
   paymentPlanId?: string;
   stripeCustomerId?: string;
   clientSecret?: string;

@@ -54,7 +54,11 @@ export default function PaymentSchedule() {
 
   useEffect(() => {
     const schedule = calculatePaymentSchedule();
-    setPlanDetails(prev => ({ ...prev, paymentSchedule: schedule }));
+    const stringSchedule = schedule.map(item => ({
+      ...item,
+      date: item.date.toISOString()
+    }));
+    setPlanDetails(prev => ({ ...prev, paymentSchedule: stringSchedule }));
   }, [planDetails.totalAmount, planDetails.numberOfPayments, planDetails.paymentInterval, planDetails.downpaymentAmount, calculatePaymentSchedule, setPlanDetails]);
 
   const handleSubmit = async (e: React.FormEvent) => {
