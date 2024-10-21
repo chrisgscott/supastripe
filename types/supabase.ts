@@ -229,6 +229,7 @@ export type Database = {
           user_id: string
           is_downpayment: boolean
           last_reminder_email_log_id: string | null
+          idempotency_key: string
         }
         Insert: {
           amount: number
@@ -242,6 +243,7 @@ export type Database = {
           user_id: string
           is_downpayment?: boolean
           last_reminder_email_log_id?: string | null
+          idempotency_key?: string
         }
         Update: {
           amount?: number
@@ -255,6 +257,7 @@ export type Database = {
           user_id?: string
           is_downpayment?: boolean
           last_reminder_email_log_id?: string | null
+          idempotency_key?: string
         }
         Relationships: [
           {
@@ -328,6 +331,7 @@ export type Database = {
           error_message: string | null
           related_id: string | null
           related_type: string | null
+          idempotency_key: string
         }
         Insert: {
           id?: string
@@ -338,6 +342,7 @@ export type Database = {
           error_message?: string | null
           related_id?: string | null
           related_type?: string | null
+          idempotency_key?: string
         }
         Update: {
           id?: string
@@ -348,6 +353,7 @@ export type Database = {
           error_message?: string | null
           related_id?: string | null
           related_type?: string | null
+          idempotency_key?: string
         }
         Relationships: []
       }
@@ -448,3 +454,4 @@ export type Enums<
   : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
     ? PublicSchema["Enums"][PublicEnumNameOrOptions]
     : never
+
