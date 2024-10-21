@@ -228,6 +228,7 @@ export type Database = {
           updated_at: string | null
           user_id: string
           is_downpayment: boolean
+          last_reminder_email_log_id: string | null
         }
         Insert: {
           amount: number
@@ -240,6 +241,7 @@ export type Database = {
           updated_at?: string | null
           user_id: string
           is_downpayment?: boolean
+          last_reminder_email_log_id?: string | null
         }
         Update: {
           amount?: number
@@ -252,6 +254,7 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           is_downpayment?: boolean
+          last_reminder_email_log_id?: string | null
         }
         Relationships: [
           {
@@ -268,6 +271,13 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "transactions_last_reminder_email_log_id_fkey"
+            columns: ["last_reminder_email_log_id"]
+            isOneToOne: false
+            referencedRelation: "email_logs"
+            referencedColumns: ["id"]
+          }
         ]
       }
       email_templates: {
@@ -307,6 +317,39 @@ export type Database = {
             referencedColumns: ["id"]
           }
         ]
+      }
+      email_logs: {
+        Row: {
+          id: string
+          email_type: string
+          recipient_email: string
+          status: string
+          sent_at: string
+          error_message: string | null
+          related_id: string | null
+          related_type: string | null
+        }
+        Insert: {
+          id?: string
+          email_type: string
+          recipient_email: string
+          status: string
+          sent_at?: string
+          error_message?: string | null
+          related_id?: string | null
+          related_type?: string | null
+        }
+        Update: {
+          id?: string
+          email_type?: string
+          recipient_email?: string
+          status?: string
+          sent_at?: string
+          error_message?: string | null
+          related_id?: string | null
+          related_type?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {
@@ -405,4 +448,3 @@ export type Enums<
   : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
     ? PublicSchema["Enums"][PublicEnumNameOrOptions]
     : never
-

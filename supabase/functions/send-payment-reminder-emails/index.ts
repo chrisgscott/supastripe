@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import type { Request } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { sendPaymentReminderEmail } from '../../../utils/email-service.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') as string
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string
@@ -21,6 +22,8 @@ interface Transaction {
   };
   users: {
     business_name: string;
+    support_email: string;
+    support_phone: string;
   };
 }
 
@@ -36,11 +39,11 @@ serve(async (req: Request) => {
       amount,
       due_date,
       payment_plans!inner(user_id, customers(name, email)),
-      users!inner(business_name)
+      users!inner(business_name, profiles(support_email, support_phone))
     `)
     .eq('status', 'pending')
     .eq('reminder_email_date', today)
-    .eq('reminder_sent', false);
+    .is('last_reminder_email_log_id', null);
 
   if (error) {
     console.error('Error fetching transactions:', error);
@@ -56,54 +59,68 @@ serve(async (req: Request) => {
       customers: t.payment_plans.customers[0]
     },
     users: {
-      business_name: t.users[0].business_name
+      business_name: t.users[0].business_name,
+      support_email: t.users[0].profiles[0]?.support_email,
+      support_phone: t.users[0].profiles[0]?.support_phone
     }
   })) || [];
 
   for (const transaction of typedTransactions) {
-    const { data: emailTemplate } = await supabase
-      .from('email_templates')
-      .select('subject, content')
-      .eq('user_id', transaction.payment_plans.user_id)
-      .eq('template_type', 'upcomingPaymentReminder')
-      .single()
+    const emailParams = {
+      customer_name: transaction.payment_plans.customers.name,
+      amount: transaction.amount,
+      due_date: transaction.due_date,
+      business_name: transaction.users.business_name,
+      support_email: transaction.users.support_email,
+      support_phone: transaction.users.support_phone
+    }
 
-    if (emailTemplate) {
-      const emailData = {
-        to: [{ email: transaction.payment_plans.customers.email }],
-        templateId: 1, // Replace with your Brevo template ID
-        params: {
-          customer_name: transaction.payment_plans.customers.name,
-          amount: transaction.amount,
-          due_date: transaction.due_date,
-          business_name: transaction.users.business_name
-        },
-        subject: emailTemplate.subject,
-        htmlContent: emailTemplate.content
-      }
+    try {
+      const success = await sendPaymentReminderEmail(
+        transaction.payment_plans.customers.email,
+        emailParams
+      )
 
-      try {
-        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'api-key': brevoApiKey
-          },
-          body: JSON.stringify(emailData)
+      // Log the email attempt
+      const { data: emailLog, error: emailLogError } = await supabase
+        .from('email_logs')
+        .insert({
+          email_type: 'payment_reminder',
+          recipient_email: transaction.payment_plans.customers.email,
+          status: success ? 'sent' : 'failed',
+          related_id: transaction.id,
+          related_type: 'transaction'
         })
+        .select()
+        .single()
 
-        if (response.ok) {
-          // Update the transaction to mark that a reminder has been sent
-          await supabase
-            .from('transactions')
-            .update({ reminder_sent: true })
-            .eq('id', transaction.id)
-        } else {
-          console.error(`Failed to send email for transaction ${transaction.id}:`, await response.text())
-        }
-      } catch (error) {
-        console.error(`Error sending email for transaction ${transaction.id}:`, error)
+      if (emailLogError) {
+        console.error(`Error logging email for transaction ${transaction.id}:`, emailLogError)
       }
+
+      if (success) {
+        // Update the transaction to reference the email log
+        await supabase
+          .from('transactions')
+          .update({ last_reminder_email_log_id: emailLog.id })
+          .eq('id', transaction.id)
+        console.log(`Successfully sent reminder email for transaction ${transaction.id}`)
+      } else {
+        console.error(`Failed to send email for transaction ${transaction.id}`)
+      }
+    } catch (error) {
+      console.error(`Error sending email for transaction ${transaction.id}:`, error)
+      // Log the error in email_logs
+      await supabase
+        .from('email_logs')
+        .insert({
+          email_type: 'payment_reminder',
+          recipient_email: transaction.payment_plans.customers.email,
+          status: 'error',
+          error_message: error.message,
+          related_id: transaction.id,
+          related_type: 'transaction'
+        })
     }
   }
 

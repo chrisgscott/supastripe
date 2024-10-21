@@ -6,6 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@getbrevo/brevo": "^2.2.0",
     "@radix-ui/react-avatar": "^1.1.1",
     "@radix-ui/react-checkbox": "^1.1.1",
     "@radix-ui/react-dialog": "^1.1.2",
@@ -16,6 +17,7 @@
     "@radix-ui/react-select": "^2.1.2",
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-switch": "^1.1.1",
+    "@sendinblue/client": "^3.3.1",
     "@stripe/connect-js": "^3.3.15",
     "@stripe/react-connect-js": "^3.3.16",
     "@stripe/react-stripe-js": "^2.8.1",
