@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { Bar, BarChart, CartesianGrid, XAxis } from "recharts"
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import {
   Card,
   CardContent,
@@ -105,19 +105,25 @@ export function PaymentChart({ data }: PaymentChartProps) {
                 });
               }}
             />
+            <YAxis
+              tickFormatter={(value) => formatCurrency(value)}
+              axisLine={false}
+              tickLine={false}
+              tickMargin={8}
+            />
             <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  className="w-[150px]"
-                  nameKey={activeChart}
-                  labelFormatter={(value) => {
-                    return new Date(value).toLocaleDateString("en-US", {
-                      month: "long",
-                      year: "numeric",
-                    });
-                  }}
-                />
-              }
+              content={({ active, payload, label }) => {
+                if (active && payload && payload.length) {
+                  const value = payload[0].value;
+                  return (
+                    <div className="rounded-lg bg-white p-2 shadow-md">
+                      <p className="font-semibold">{new Date(label).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</p>
+                      <p>{`${chartConfig[activeChart].label}: ${typeof value === 'number' ? formatCurrency(value) : 'N/A'}`}</p>
+                    </div>
+                  );
+                }
+                return null;
+              }}
             />
             <Bar 
               dataKey={activeChart} 
