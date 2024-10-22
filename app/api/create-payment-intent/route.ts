@@ -134,6 +134,7 @@ export async function POST(request: Request) {
         transfer_data: {
           destination: stripeAccount.stripe_account_id,
         },
+        setup_future_usage: 'off_session',
       });
 
       console.log('Created PaymentIntent:', JSON.stringify(paymentIntent, null, 2));

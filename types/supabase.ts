@@ -357,6 +357,44 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_processing_logs: {
+        Row: {
+          id: string
+          transaction_id: string
+          status: string
+          stripe_payment_intent_id: string | null
+          error_message: string | null
+          idempotency_key: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          transaction_id: string
+          status: string
+          stripe_payment_intent_id?: string | null
+          error_message?: string | null
+          idempotency_key: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          transaction_id?: string
+          status?: string
+          stripe_payment_intent_id?: string | null
+          error_message?: string | null
+          idempotency_key?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_processing_logs_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

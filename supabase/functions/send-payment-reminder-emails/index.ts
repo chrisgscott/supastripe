@@ -79,7 +79,7 @@ serve(async (req: Request) => {
 
   try {
     console.log('Fetching transactions');
-    const today = new Date().toISOString().split('T')[0]
+    const currentDate = new Date().toISOString().split('T')[0];
     
     // Fetch pending transactions that need reminder emails
     const { data: transactions, error } = await supabase
@@ -94,8 +94,9 @@ serve(async (req: Request) => {
         )
       `)
       .eq('status', 'pending')
-      .eq('reminder_email_date', today)
-      .is('last_reminder_email_log_id', null);
+      .eq('reminder_email_date', currentDate)
+      .is('last_reminder_email_log_id', null)
+      .limit(MAX_RECORDS_PER_EXECUTION);
 
     if (error) {
       console.error('Error fetching transactions:', error);
@@ -107,7 +108,7 @@ serve(async (req: Request) => {
     // Process each transaction concurrently
     const results = await Promise.allSettled(transactions.map(async (transaction) => {
       // Create a unique idempotency key for this email attempt
-      const idempotencyKey = `payment_reminder_${transaction.id}_${today}`;
+      const idempotencyKey = `payment_reminder_${transaction.id}_${currentDate}`;
 
       // Check if an email has already been sent for this transaction today
       const { data: existingLog } = await supabase
@@ -208,14 +209,32 @@ serve(async (req: Request) => {
     const failedCount = results.filter(result => result.status === 'rejected').length;
     const successCount = results.length - failedCount;
 
+    // Check if there are more records to process
+    const { count, error: countError } = await supabase
+      .from('transactions')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending')
+      .eq('reminder_email_date', currentDate)
+      .is('last_reminder_email_log_id', null);
+
+    if (countError) {
+      console.error('Error getting total count:', countError);
+    }
+
+    const hasMoreRecords = (count || 0) > transactions.length;
+
     // Return the results
     return new Response(JSON.stringify({ 
       message: 'Reminder emails processed',
       successCount,
-      failedCount
+      failedCount,
+      processedCount: transactions.length,
+      hasMoreRecords
     }), { status: 200 });
   } catch (error) {
     console.error('Unexpected error:', error);
     return new Response(JSON.stringify({ error: 'Unexpected error occurred' }), { status: 500 });
   }
 });
+
+const MAX_RECORDS_PER_EXECUTION = 100; // Adjust this number as needed

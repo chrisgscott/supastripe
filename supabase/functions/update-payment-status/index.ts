@@ -3,15 +3,22 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Stripe } from 'https://esm.sh/stripe@12.18.0'
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
+const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
+const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+if (!stripeSecretKey || !stripeWebhookSecret || !supabaseUrl || !supabaseServiceKey) {
+  console.error('Missing required environment variables');
+  Deno.exit(1);
+}
+
+const stripe = new Stripe(stripeSecretKey, {
   apiVersion: '2024-06-20',
   httpClient: Stripe.createFetchHttpClient(),
 });
 
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-);
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 serve(async (req: Request) => {
   const signature = req.headers.get('stripe-signature');
@@ -21,6 +28,9 @@ serve(async (req: Request) => {
     return new Response('No signature', { status: 400 });
   }
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 seconds timeout
+
   try {
     const body = await req.text();
     console.log('Received webhook body:', body);
@@ -28,10 +38,11 @@ serve(async (req: Request) => {
     const event = await stripe.webhooks.constructEventAsync(
       body,
       signature,
-      Deno.env.get('STRIPE_WEBHOOK_SECRET')!
+      stripeWebhookSecret
     );
 
-    console.log('Constructed Stripe event:', event);
+    console.log(`Received webhook event: ${event.type}`);
+    console.log('Event data:', JSON.stringify(event.data, null, 2));
 
     switch (event.type) {
       case 'payment_intent.succeeded':
@@ -47,10 +58,12 @@ serve(async (req: Request) => {
         console.log(`Unhandled event type ${event.type}`);
     }
 
+    clearTimeout(timeoutId);
     return new Response(JSON.stringify({ received: true }), {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (err) {
+    clearTimeout(timeoutId);
     console.error('Error processing webhook:', err);
     return new Response(
       JSON.stringify({ error: 'Error processing webhook', details: err.message }),
@@ -71,68 +84,32 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
 
   console.log(`Processing successful payment for transaction ${transactionId}`);
 
-  // Update transaction status
-  const { data: updatedTransaction, error: updateError } = await supabase
-    .from('transactions')
-    .update({ 
-      status: 'paid',
-      paid_at: new Date().toISOString()
-    })
-    .eq('id', transactionId)
-    .select();
+  const { data, error } = await supabase.rpc('handle_successful_payment', {
+    p_transaction_id: transactionId,
+    p_paid_at: new Date().toISOString()
+  });
 
-  if (updateError) {
-    console.error(`Error updating transaction ${transactionId}:`, updateError);
-    throw updateError;
+  if (error) {
+    console.error(`Error processing successful payment for transaction ${transactionId}:`, error);
+    throw error;
   }
 
-  console.log(`Updated transaction ${transactionId}:`, updatedTransaction);
+  // Update or insert a new log entry for the successful payment
+  const { error: logError } = await supabase
+    .from('payment_processing_logs')
+    .upsert({
+      transaction_id: transactionId,
+      status: 'payment_succeeded',
+      stripe_payment_intent_id: paymentIntent.id,
+      idempotency_key: `payment_succeeded_${transactionId}_${paymentIntent.id}`
+    });
 
-  // Fetch the transaction and related payment plan
-  const { data: transaction, error: fetchError } = await supabase
-    .from('transactions')
-    .select('*, payment_plans(*)')
-    .eq('id', transactionId)
-    .single();
-
-  if (fetchError) {
-    console.error(`Error fetching transaction ${transactionId}:`, fetchError);
-    throw fetchError;
+  if (logError) {
+    console.error(`Error logging successful payment for transaction ${transactionId}:`, logError);
+    // Note: We're not throwing here to avoid breaking the main flow if logging fails
   }
 
-  if (!transaction) {
-    console.error(`No transaction found with ID ${transactionId}`);
-    throw new Error(`No transaction found with ID ${transactionId}`);
-  }
-
-  console.log('Fetched transaction:', transaction);
-
-  // Check if this is the first paid transaction for the payment plan
-  const { count, error: countError } = await supabase
-    .from('transactions')
-    .select('id', { count: 'exact' })
-    .eq('payment_plan_id', transaction.payment_plan_id)
-    .eq('status', 'paid')
-
-  if (countError) {
-    console.error(`Error counting paid transactions for payment plan ${transaction.payment_plan_id}:`, countError)
-    throw countError
-  }
-
-  // If this is the first paid transaction, update the payment plan status to 'active'
-  if (count === 1) {
-    const { error: planUpdateError } = await supabase
-      .from('payment_plans')
-      .update({ status: 'active' })
-      .eq('id', transaction.payment_plan_id)
-
-    if (planUpdateError) {
-      console.error(`Error updating payment plan ${transaction.payment_plan_id}:`, planUpdateError)
-      throw planUpdateError
-    }
-  }
-
-  console.log(`Successfully processed payment for transaction ${transactionId}`)
+  console.log(`Successfully processed payment for transaction ${transactionId}`, data);
 }
 
 async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent, supabase: any) {
