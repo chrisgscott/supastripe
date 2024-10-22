@@ -13,7 +13,7 @@ interface PaymentScheduleItem {
 }
 
 export default function PaymentSchedule() {
-  const { planDetails, setPlanDetails, setCurrentStep, createPaymentPlan } = useCreatePlan();
+  const { planDetails, setPlanDetails, setCurrentStep, createPaymentPlanAndIntent } = useCreatePlan();
 
   const calculatePaymentSchedule = useCallback(() => {
     const { totalAmount, numberOfPayments, paymentInterval, downpaymentAmount } = planDetails;
@@ -64,7 +64,7 @@ export default function PaymentSchedule() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createPaymentPlan();
+      await createPaymentPlanAndIntent();
       setCurrentStep(3);
     } catch (error) {
       // Handle error

@@ -21,8 +21,13 @@ interface CreatePlanContextType {
   setPlanDetails: React.Dispatch<React.SetStateAction<PlanDetails>>;
   currentStep: number;
   setCurrentStep: React.Dispatch<React.SetStateAction<number>>;
-  createPaymentPlan: () => Promise<void>;
-  createPaymentIntent: () => Promise<void>;
+  error: string | null;
+  setError: React.Dispatch<React.SetStateAction<string | null>>;
+  isLoading: boolean;
+  setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  saveProgress: () => Promise<void>;
+  loadProgress: () => Promise<void>;
+  createPaymentPlanAndIntent: () => Promise<void>;
   handleStripeReturn: (paymentIntentId: string) => Promise<void>;
   calculatePaymentSchedule: (details: PlanDetails) => Array<{ date: string; amount: number }>;
 }
@@ -40,87 +45,82 @@ export function CreatePlanProvider({ children }: { children: React.ReactNode }) 
     paymentSchedule: [],
   });
   const [currentStep, setCurrentStep] = useState(1);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const createPaymentPlan = async () => {
+  const saveProgress = async () => {
+    localStorage.setItem('planProgress', JSON.stringify({ planDetails, currentStep }));
+  };
+
+  const loadProgress = async () => {
+    const progress = localStorage.getItem('planProgress');
+    if (progress) {
+      const { planDetails: savedDetails, currentStep: savedStep } = JSON.parse(progress);
+      setPlanDetails(savedDetails);
+      setCurrentStep(savedStep);
+    }
+  };
+
+  const createPaymentPlanAndIntent = async () => {
+    setIsLoading(true);
+    setError(null);
     try {
-      const response = await fetch('/api/create-payment-plan', {
+      const response = await fetch('/api/create-payment-plan-and-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(planDetails),
       });
       const responseData = await response.json();
-      if (responseData.error) {
-        throw new Error(responseData.error);
-      }
-      if (!responseData.paymentPlanId) {
-        throw new Error('Payment plan ID not received from server');
+      if (!response.ok) {
+        throw new Error(responseData.error || 'An error occurred while creating the payment plan');
       }
       setPlanDetails(prev => ({
         ...prev,
         paymentPlanId: responseData.paymentPlanId,
         stripeCustomerId: responseData.stripeCustomerId,
-        firstTransactionId: responseData.firstTransactionId
+        firstTransactionId: responseData.firstTransactionId,
+        clientSecret: responseData.clientSecret
       }));
-      setCurrentStep(3); // Only proceed to next step if paymentPlanId is set
-    } catch (error) {
-      console.error('Error creating payment plan:', error);
-      throw error;
-    }
-  };
-
-  const createPaymentIntent = async () => {
-    try {
-      if (!planDetails.firstTransactionId) {
-        throw new Error('First transaction ID is missing');
+      setCurrentStep(3);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError('An unknown error occurred');
       }
-      const response = await fetch('/api/create-payment-intent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          paymentPlanId: planDetails.paymentPlanId,
-          amount: planDetails.paymentSchedule[0].amount,
-          firstTransactionId: planDetails.firstTransactionId,
-          isSetupIntent: false
-        }),
-      });
-      const data = await response.json();
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      setPlanDetails(prev => ({ ...prev, clientSecret: data.clientSecret }));
-    } catch (error) {
-      console.error('Error creating payment intent:', error);
-      throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleStripeReturn = useCallback(async (paymentIntentId: string) => {
+    setIsLoading(true);
+    setError(null);
     try {
       const response = await fetch('/api/handle-stripe-return', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ paymentIntentId }),
       });
-
-      if (!response.ok) {
-        throw new Error('Payment confirmation failed');
-      }
-
       const data = await response.json();
-      if (data.success) {
-        setPlanDetails(prevDetails => ({
-          ...prevDetails,
-          ...data.planDetails
-        }));
-        setCurrentStep(4);
-      } else {
+      if (!response.ok) {
         throw new Error(data.error || 'Payment confirmation failed');
       }
-    } catch (error) {
-      console.error('Error handling Stripe return:', error);
-      // Handle error (e.g., show error message to user)
+      setPlanDetails(prevDetails => ({
+        ...prevDetails,
+        ...data.planDetails
+      }));
+      setCurrentStep(4);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError('An unknown error occurred');
+      }
+    } finally {
+      setIsLoading(false);
     }
-  }, [setPlanDetails, setCurrentStep]);
+  }, []);
 
   const calculatePaymentSchedule = useCallback((details: PlanDetails) => {
     const { totalAmount, numberOfPayments, paymentInterval, downpaymentAmount } = details;
@@ -166,8 +166,13 @@ export function CreatePlanProvider({ children }: { children: React.ReactNode }) 
     setPlanDetails,
     currentStep,
     setCurrentStep,
-    createPaymentPlan,
-    createPaymentIntent,
+    error,
+    setError,
+    isLoading,
+    setIsLoading,
+    saveProgress,
+    loadProgress,
+    createPaymentPlanAndIntent,
     handleStripeReturn,
     calculatePaymentSchedule,
   };

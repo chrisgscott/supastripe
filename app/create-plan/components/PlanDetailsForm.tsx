@@ -15,7 +15,7 @@ interface FormErrors {
 }
 
 export default function PlanDetailsForm() {
-  const { planDetails, setPlanDetails, setCurrentStep, calculatePaymentSchedule, createPaymentPlan } = useCreatePlan();
+  const { planDetails, setPlanDetails, setCurrentStep, calculatePaymentSchedule, createPaymentPlanAndIntent } = useCreatePlan();
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
 
@@ -75,7 +75,7 @@ export default function PlanDetailsForm() {
     if (Object.values(errors).every(error => !error)) {
       setIsLoading(true);
       try {
-        await createPaymentPlan();
+        await createPaymentPlanAndIntent();
         setCurrentStep(2);
       } catch (error) {
         console.error('Error creating payment plan:', error);
