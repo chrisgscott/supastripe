@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
+import { addWeeks, addMonths } from 'date-fns';
 
 interface PlanDetails {
   customerName: string;
@@ -23,6 +24,7 @@ interface CreatePlanContextType {
   createPaymentPlan: () => Promise<void>;
   createPaymentIntent: () => Promise<void>;
   handleStripeReturn: (paymentIntentId: string) => Promise<void>;
+  calculatePaymentSchedule: (details: PlanDetails) => Array<{ date: string; amount: number }>;
 }
 
 const CreatePlanContext = createContext<CreatePlanContextType | undefined>(undefined);
@@ -50,12 +52,16 @@ export function CreatePlanProvider({ children }: { children: React.ReactNode }) 
       if (responseData.error) {
         throw new Error(responseData.error);
       }
+      if (!responseData.paymentPlanId) {
+        throw new Error('Payment plan ID not received from server');
+      }
       setPlanDetails(prev => ({
         ...prev,
         paymentPlanId: responseData.paymentPlanId,
         stripeCustomerId: responseData.stripeCustomerId,
         firstTransactionId: responseData.firstTransactionId
       }));
+      setCurrentStep(3); // Only proceed to next step if paymentPlanId is set
     } catch (error) {
       console.error('Error creating payment plan:', error);
       throw error;
@@ -88,7 +94,7 @@ export function CreatePlanProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
-  const handleStripeReturn = async (paymentIntentId: string) => {
+  const handleStripeReturn = useCallback(async (paymentIntentId: string) => {
     try {
       const response = await fetch('/api/handle-stripe-return', {
         method: 'POST',
@@ -96,21 +102,64 @@ export function CreatePlanProvider({ children }: { children: React.ReactNode }) 
         body: JSON.stringify({ paymentIntentId }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      if (!response.ok) {
+        throw new Error('Payment confirmation failed');
+      }
+
+      const data = await response.json();
+      if (data.success) {
         setPlanDetails(prevDetails => ({
           ...prevDetails,
           ...data.planDetails
         }));
         setCurrentStep(4);
       } else {
-        throw new Error('Payment confirmation failed');
+        throw new Error(data.error || 'Payment confirmation failed');
       }
     } catch (error) {
       console.error('Error handling Stripe return:', error);
       // Handle error (e.g., show error message to user)
     }
-  };
+  }, [setPlanDetails, setCurrentStep]);
+
+  const calculatePaymentSchedule = useCallback((details: PlanDetails) => {
+    const { totalAmount, numberOfPayments, paymentInterval, downpaymentAmount } = details;
+    
+    // Convert amounts to cents
+    const totalAmountCents = Math.round(totalAmount * 100);
+    const downpaymentAmountCents = Math.round(downpaymentAmount * 100) || 0; // Use 0 if no downpayment
+    
+    // Ensure downpayment is not greater than total amount
+    const validDownpaymentCents = Math.min(downpaymentAmountCents, totalAmountCents);
+    
+    const remainingAmountCents = totalAmountCents - validDownpaymentCents;
+    const regularPaymentAmountCents = Math.round(remainingAmountCents / numberOfPayments);
+    let schedule: Array<{ date: string; amount: number }> = [];
+    let currentDate = new Date();
+
+    // Add downpayment if it exists, otherwise add first regular payment
+    schedule.push({ 
+      date: currentDate.toISOString(), 
+      amount: validDownpaymentCents > 0 ? validDownpaymentCents : regularPaymentAmountCents,
+    });
+
+    // Adjust the number of remaining payments
+    const remainingPayments = validDownpaymentCents > 0 ? numberOfPayments - 1 : numberOfPayments - 1;
+
+    for (let i = 0; i < remainingPayments; i++) {
+      currentDate = paymentInterval === "weekly" ? addWeeks(currentDate, 1) : addMonths(currentDate, 1);
+      let amountCents = regularPaymentAmountCents;
+
+      if (i === remainingPayments - 1) {
+        const totalPaidCents = schedule.reduce((sum, payment) => sum + payment.amount, 0) + regularPaymentAmountCents;
+        amountCents = totalAmountCents - totalPaidCents + regularPaymentAmountCents;
+      }
+
+      schedule.push({ date: currentDate.toISOString(), amount: amountCents });
+    }
+
+    return schedule;
+  }, []);
 
   const value = {
     planDetails,
@@ -120,6 +169,7 @@ export function CreatePlanProvider({ children }: { children: React.ReactNode }) 
     createPaymentPlan,
     createPaymentIntent,
     handleStripeReturn,
+    calculatePaymentSchedule,
   };
 
   return (

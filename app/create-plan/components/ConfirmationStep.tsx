@@ -11,6 +11,7 @@ interface ConfirmationStepProps {
     numberOfPayments: number;
     paymentInterval: string;
     paymentSchedule?: { amount: number; date: string }[];
+    paymentPlanId?: string;
   };
 }
 
@@ -19,6 +20,10 @@ export default function ConfirmationStep({ planDetails }: ConfirmationStepProps)
   const [emailSent, setEmailSent] = useState(false);
 
   const handleSendEmail = async () => {
+    if (!planDetails.paymentPlanId) {
+      console.error('Payment plan ID is undefined');
+      return;
+    }
     setIsSending(true);
     try {
       const response = await fetch('/api/send-payment-plan-email', {
@@ -26,7 +31,7 @@ export default function ConfirmationStep({ planDetails }: ConfirmationStepProps)
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(planDetails),
+        body: JSON.stringify({ paymentPlanId: planDetails.paymentPlanId }),
       });
 
       if (response.ok) {
@@ -65,7 +70,7 @@ export default function ConfirmationStep({ planDetails }: ConfirmationStepProps)
         </Button>
         <Button 
           onClick={handleSendEmail} 
-          disabled={isSending || emailSent}
+          disabled={isSending || emailSent || !planDetails.paymentPlanId}
         >
           {isSending ? 'Sending...' : emailSent ? 'Email Sent' : 'Send Payment Plan Details'}
         </Button>
