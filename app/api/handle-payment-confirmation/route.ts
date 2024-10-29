@@ -66,6 +66,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const paymentIntentId = searchParams.get("payment_intent");
   
+  console.log('GET handler - Payment Intent ID:', paymentIntentId);
+  
   if (!paymentIntentId) {
     return NextResponse.json(
       { success: false, error: "No payment intent ID provided" },
@@ -75,10 +77,46 @@ export async function GET(request: Request) {
 
   try {
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    console.log('Retrieved payment intent:', {
+      id: paymentIntent.id,
+      status: paymentIntent.status,
+      metadata: paymentIntent.metadata
+    });
+    
     const supabase = createClient();
 
     if (paymentIntent.status === "succeeded") {
+      if (!paymentIntent.metadata.payment_plan_id) {
+        console.error('No payment_plan_id in metadata:', paymentIntent.metadata);
+        return NextResponse.json(
+          { success: false, error: "No payment plan ID in metadata" },
+          { status: 400 }
+        );
+      }
+
       const idempotencyKey = crypto.randomUUID();
+      console.log('Calling RPC with params:', {
+        p_idempotency_key: idempotencyKey,
+        p_payment_plan_id: paymentIntent.metadata.payment_plan_id,
+        p_stripe_payment_intent_id: paymentIntent.id
+      });
+
+      console.log('Payment Intent Details:', {
+        id: paymentIntent.id,
+        status: paymentIntent.status,
+        metadata: paymentIntent.metadata,
+        payment_plan_id: paymentIntent.metadata.payment_plan_id
+      });
+
+      console.log('RPC Function Call:', {
+        function: 'complete_payment_plan_creation',
+        parameters: {
+          p_idempotency_key: idempotencyKey,
+          p_payment_plan_id: paymentIntent.metadata.payment_plan_id,
+          p_stripe_payment_intent_id: paymentIntent.id
+        }
+      });
+
       const { error: completionError } = await supabase
         .rpc('complete_payment_plan_creation', {
           p_payment_plan_id: paymentIntent.metadata.payment_plan_id,
@@ -87,7 +125,14 @@ export async function GET(request: Request) {
         });
 
       if (completionError) {
-        console.error("Error completing payment plan creation:", completionError);
+        console.error("Error completing payment plan creation:", {
+          error: completionError,
+          params: {
+            p_idempotency_key: idempotencyKey,
+            p_payment_plan_id: paymentIntent.metadata.payment_plan_id,
+            p_stripe_payment_intent_id: paymentIntent.id
+          }
+        });
         return NextResponse.json(
           { success: false, error: "Failed to complete payment plan creation" },
           { status: 500 }

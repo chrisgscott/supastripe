@@ -78,10 +78,10 @@ export async function POST(request: Request) {
         p_customer_name: paymentPlan.customerName,
         p_customer_email: paymentPlan.customerEmail,
         p_user_id: user.id,
-        p_total_amount: Money.fromDollars(paymentPlan.totalAmount).toCents(),
+        p_total_amount: Math.round(Money.fromDollars(paymentPlan.totalAmount).toCents()),
         p_number_of_payments: paymentPlan.numberOfPayments,
         p_payment_interval: paymentPlan.paymentInterval,
-        p_downpayment_amount: Money.fromDollars(firstPayment.amount).toCents(),
+        p_downpayment_amount: Math.round(Money.fromDollars(firstPayment.amount).toCents()),
         p_payment_schedule: convertedPaymentSchedule,
         p_stripe_customer_id: stripeCustomer.id,
         p_idempotency_key: idempotencyKey
@@ -92,7 +92,17 @@ export async function POST(request: Request) {
       throw new Error('Failed to create payment plan in database');
     }
 
+    console.log('create-payment-intent-and-plan-id: Database plan created:', dbPlan);
+
     const paymentAmount = Money.fromDollars(firstPayment.amount).toCents();
+    const metadata = {
+      payment_plan_id: dbPlan[0].payment_plan_id,
+      is_downpayment: firstPayment.is_downpayment.toString(),
+      transaction_id: dbPlan[0].first_transaction_id
+    };
+    
+    console.log('create-payment-intent-and-plan-id: Setting metadata:', metadata);
+
     paymentIntent = await stripe.paymentIntents.create({
       amount: paymentAmount,
       currency: 'usd',
@@ -103,11 +113,7 @@ export async function POST(request: Request) {
       transfer_data: {
         destination: stripeAccount.stripe_account_id,
       },
-      metadata: {
-        payment_plan_id: dbPlan.payment_plan_id,
-        is_downpayment: firstPayment.is_downpayment.toString(),
-        transaction_id: dbPlan.first_transaction_id
-      }
+      metadata
     });
 
     console.log('create-payment-intent-and-plan-id: Created PaymentIntent:', paymentIntent.id);
