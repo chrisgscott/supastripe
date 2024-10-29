@@ -3,6 +3,42 @@ import { createClient } from '@/utils/supabase/server';
 import { sendEmail } from '@/utils/core-email-service';
 import { formatCurrency, Money } from '@/utils/currencyUtils';
 import { Tables } from '@/types/supabase';
+import { format } from 'date-fns';
+
+const formatPaymentScheduleHtml = (transactions: Tables<'transactions'>[]) => {
+  return `
+    <table style="width:100%; border-collapse: collapse; margin-top: 20px;">
+      <thead>
+        <tr>
+          <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Date</th>
+          <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Amount</th>
+          <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${transactions.map(payment => `
+          <tr>
+            <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">
+              ${payment.is_downpayment ? "Due Now" : format(new Date(payment.due_date), 'MMM dd, yyyy')}
+            </td>
+            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">
+              ${Money.fromCents(payment.amount).toString()}
+            </td>
+            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">
+              <span style="display: inline-block; padding: 4px 8px; border-radius: 9999px; font-size: 12px; 
+                ${payment.is_downpayment 
+                  ? 'background-color: #f0fdf4; color: #15803d;' 
+                  : 'background-color: #f9fafb; color: #4b5563;'
+                }">
+                ${payment.is_downpayment ? "Paid" : "Scheduled"}
+              </span>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+};
 
 export async function POST(request: Request) {
   const supabase = createClient();
@@ -18,10 +54,21 @@ export async function POST(request: Request) {
         transactions (amount, due_date, is_downpayment)
       `)
       .eq('id', paymentPlanId)
-      .eq('plan_creation_status', 'completed')
       .single();
 
-    if (paymentPlanError) throw paymentPlanError;
+    if (paymentPlanError) {
+      console.error('Error fetching payment plan:', {
+        error: paymentPlanError,
+        paymentPlanId,
+        query: 'payment_plans with customers and transactions'
+      });
+      throw paymentPlanError;
+    }
+
+    if (!paymentPlan) {
+      console.error('Payment plan not found:', { paymentPlanId });
+      return NextResponse.json({ error: 'Payment plan not found' }, { status: 404 });
+    }
 
     // Fetch business details
     const { data: businessInfo, error: businessError } = await supabase
@@ -31,36 +78,30 @@ export async function POST(request: Request) {
 
     if (businessError) throw businessError;
 
-    // Generate the payment schedule table
-    const paymentScheduleTable = `
-      <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse;">
-        <tr>
-          <th style="background-color: #f2f2f2;">Date</th>
-          <th style="background-color: #f2f2f2;">Amount</th>
-        </tr>
-        ${paymentPlan.transactions.map((payment: Tables<'transactions'>, index: number) => `
-          <tr>
-            <td>${payment.is_downpayment ? "Due Now" : new Date(payment.due_date).toLocaleDateString()}</td>
-            <td>${Money.fromCents(payment.amount).toString()}</td>
-          </tr>
-        `).join('')}
-      </table>
-    `;
-
-    const emailParams = {
-      customer_name: paymentPlan.customers.name,
-      total_amount: Money.fromCents(paymentPlan.total_amount).toString(),
-      number_of_payments: paymentPlan.number_of_payments,
-      payment_interval: paymentPlan.payment_interval,
-      business_name: businessInfo.business_name,
-      support_email: businessInfo.support_email,
-      support_phone: businessInfo.support_phone,
-      payment_schedule: paymentScheduleTable
+    const emailTemplate = {
+      templateId: 2,
+      params: {
+        business_name: businessInfo.business_name,
+        business_phone: businessInfo.support_phone,
+        business_email: businessInfo.support_email,
+        plan_id: paymentPlan.id,
+        date: new Date().toLocaleDateString(),
+        customer_name: paymentPlan.customers.name,
+        customer_email: paymentPlan.customers.email,
+        total_amount: Money.fromCents(paymentPlan.total_amount).toString(),
+        number_of_payments: `${paymentPlan.number_of_payments} ${paymentPlan.payment_interval} payments`,
+        payment_schedule_html: formatPaymentScheduleHtml(paymentPlan.transactions),
+        card_last_four: paymentPlan.card_last_four
+      }
     };
 
-    console.log('Email parameters being sent to Brevo:', JSON.stringify(emailParams, null, 2));
+    console.log('Email parameters being sent to Brevo:', JSON.stringify(emailTemplate, null, 2));
 
-    const success = await sendEmail(paymentPlan.customers.email, 2, emailParams);
+    const success = await sendEmail(
+      paymentPlan.customers.email, 
+      emailTemplate.templateId, 
+      emailTemplate.params
+    );
 
     console.log('Response from sendEmail function:', success);
 

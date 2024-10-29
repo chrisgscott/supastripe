@@ -13,6 +13,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useToast } from "@/components/ui/use-toast"
 
 interface ConfirmationStepProps {
   planDetails?: {
@@ -54,6 +55,7 @@ export default function ConfirmationStep({ planDetails: initialPlanDetails, paym
       transactionsCreated: false,
       paymentIntentCreated: false
     });
+    const { toast } = useToast();
   
     useEffect(() => {
       console.log('ConfirmationStep: useEffect triggered', { initialPlanDetails, paymentIntent });
@@ -124,9 +126,17 @@ export default function ConfirmationStep({ planDetails: initialPlanDetails, paym
         });
   
         if (response.ok) {
-          console.log('Email sent successfully');
+          toast({
+            title: "Email Sent",
+            description: "Payment plan details have been sent to the customer's email.",
+          });
           setEmailSent(true);
         } else {
+          toast({
+            variant: "destructive",
+            title: "Failed to Send Email",
+            description: "There was an error sending the payment plan email.",
+          });
           setError('Failed to send payment plan email');
         }
       } catch (error) {
