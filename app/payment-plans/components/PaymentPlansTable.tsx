@@ -46,9 +46,9 @@ type PaymentPlanStatus = (typeof PAYMENT_PLAN_STATUSES)[number];
 interface PaymentPlan {
   id: string;
   customerName: string;
-  totalAmount: number; // This is in cents
+  totalAmount: string;
   nextPaymentDate: string | null;
-  status: PaymentPlanStatus;
+  status: string;
   created_at: string;
 }
 
@@ -88,8 +88,20 @@ const columns: ColumnDef<PaymentPlan>[] = [
   },
   {
     accessorKey: "totalAmount",
-    header: "Total Amount",
-    cell: ({ row }) => Money.fromCents(row.getValue("totalAmount")).toString()
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Amount
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      );
+    },
+    cell: ({ row }) => {
+      return row.getValue("totalAmount");
+    },
   },
   {
     accessorKey: "nextPaymentDate",
@@ -99,57 +111,23 @@ const columns: ColumnDef<PaymentPlan>[] = [
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Next Payment Date
+          Next Payment
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       );
     },
     cell: ({ row }) => {
       const date = row.getValue("nextPaymentDate");
-      if (!date) return "N/A";
-      return format(new Date(date as string), "MM/dd/yyyy");
-    },
-  },
-  {
-    accessorKey: "created_at",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Created At
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-    cell: ({ row }) => {
-      const date = row.getValue("created_at");
-      if (!date || isNaN(new Date(date as string).getTime())) {
-        return "Invalid Date";
-      }
-      return format(new Date(date as string), "MM/dd/yyyy");
+      if (!date) return "No payments scheduled";
+      return format(new Date(date as string), "MMM d, yyyy");
     },
   },
   {
     accessorKey: "status",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Status
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
+    header: "Status",
     cell: ({ row }) => {
-      const status = row.getValue("status") as PaymentPlanStatus;
       return (
-        <div className={`capitalize font-medium ${getStatusColor(status)}`}>
-          {status}
-        </div>
+        <span className="capitalize">{row.getValue("status")}</span>
       );
     },
   },
@@ -159,13 +137,13 @@ const columns: ColumnDef<PaymentPlan>[] = [
       const plan = row.original;
       return (
         <Button
-          variant="subtle"
+          variant="default"
           size="sm"
-          className="h-8 p-2"
-          onClick={() => window.location.href = `/payment-plans/${plan.id}`}
+          className="h-8"
+          onClick={() => window.location.href = `/plan/${plan.id}`}
         >
-          <span className="text-xs mr-1">Details</span>
-          <ArrowRight className="h-4 w-4" />
+          View Details
+          <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       );
     },

@@ -53,7 +53,7 @@ export async function GET() {
       const formattedPlan = {
         id: plan.id,
         customerName: plan.customers?.name || 'Unknown',
-        totalAmount: Money.fromCents(plan.total_amount).toString(),
+        totalAmount: Money.fromCents(plan.total_amount || 0).toString(),
         nextPaymentDate,
         status: plan.status,
         created_at: plan.created_at

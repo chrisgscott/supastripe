@@ -4,9 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { format } from 'date-fns'
-import UpdateCardModalWrapper from '../../plan/components/UpdateCardModalWrapper'
+import UpdateCardModalWrapper from '../components/UpdateCardModalWrapper'
 import { formatCurrency } from '@/utils/currencyUtils'
 import { Money } from '@/utils/currencyUtils'
+import Link from 'next/link'
+import { ChevronLeft } from 'lucide-react'
 
 interface PaymentPlanDetails {
   id: string
@@ -84,6 +86,16 @@ export default async function PaymentPlanDetails({ params }: { params: { id: str
 
   return (
     <div className="container mx-auto">
+      <div className="mb-6">
+        <Link 
+          href="/payment-plans" 
+          className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center"
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" />
+          Back to All Plans
+        </Link>
+      </div>
+      
       <h1 className="text-3xl font-bold mb-4">{planDetails.customerName}</h1>
       <p className="text-gray-600 mb-8">
         {planDetails.customerEmail} • Created on {format(new Date(planDetails.createdAt), 'MMMM d, yyyy')} • 
