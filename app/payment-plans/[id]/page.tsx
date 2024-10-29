@@ -5,7 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { format } from 'date-fns'
 import UpdateCardModalWrapper from '../components/UpdateCardModalWrapper'
-import { formatCurrency } from '@/utils/formatCurrency'
+import { formatCurrency } from '@/utils/currencyUtils'
+import { Money } from '@/utils/currencyUtils'
 
 interface PaymentPlanDetails {
   id: string
@@ -106,7 +107,14 @@ export default async function PaymentPlanDetails({ params }: { params: { id: str
                 <span className="font-semibold mb-3">{formatCurrency(planDetails.totalAmount - planDetails.amountPaid)}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-4 mt-2">
-                <div className="bg-blue-500 h-4 rounded-full" style={{ width: `${(planDetails.amountPaid / planDetails.totalAmount) * 100}%` }}></div>
+                <div 
+                  className="bg-blue-500 h-4 rounded-full" 
+                  style={{ 
+                    width: `${Money.fromDollars(planDetails.amountPaid)
+                      .percentageOf(Money.fromDollars(planDetails.totalAmount))}%` 
+                  }}
+                >
+                </div>
               </div>
             </div>
           </CardContent>
@@ -119,7 +127,9 @@ export default async function PaymentPlanDetails({ params }: { params: { id: str
           <CardContent>
             {nextPayment ? (
               <>
-                <div className="text-3xl font-bold mb-2">{formatCurrency(nextPayment.amount)}</div>
+                <div className="text-3xl font-bold mb-2">
+                  {Money.fromCents(nextPayment.amount).toString()}
+                </div>
                 <div className="text-gray-600 mb-4">Due on {format(new Date(nextPayment.dueDate), 'MMMM d, yyyy')}</div>
                 <UpdateCardModalWrapper 
                   stripeCustomerId={

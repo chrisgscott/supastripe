@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import crypto from 'crypto';
 
 export async function POST(request: Request) {
   const supabase = createClient();
@@ -19,6 +20,19 @@ export async function POST(request: Request) {
       .eq('id', paymentPlanId);
 
     if (planError) throw planError;
+
+    const idempotencyKey = crypto.randomUUID();
+    const { error: logError } = await supabase
+      .from('payment_processing_logs')
+      .insert({
+        transaction_id: transactionId,
+        payment_plan_id: paymentPlanId,
+        stripe_payment_intent_id: null, // We don't have this for failed payments
+        status: 'failed',
+        idempotency_key: idempotencyKey
+      });
+
+    if (logError) throw logError;
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

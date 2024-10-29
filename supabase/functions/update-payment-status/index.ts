@@ -2,6 +2,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Stripe } from 'https://esm.sh/stripe@12.18.0'
+import { Money } from '@/utils/currencyUtils';
+import { Tables } from '@/types/supabase';
 
 const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
@@ -19,6 +21,8 @@ const stripe = new Stripe(stripeSecretKey, {
 });
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+type Transaction = Tables<'transactions'>;
 
 serve(async (req: Request) => {
   const signature = req.headers.get('stripe-signature');

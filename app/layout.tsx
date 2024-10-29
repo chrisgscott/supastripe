@@ -6,6 +6,7 @@ import { createClient } from '@/utils/supabase/server';
 import { loadStripe } from '@stripe/stripe-js';
 import { Metadata } from 'next'
 import Script from 'next/script'
+import { Toaster } from "@/components/ui/toaster"
 
 const notoSans = Noto_Sans({ subsets: ['latin'] });
 
@@ -49,6 +50,7 @@ export default async function RootLayout({
             </div>
           )}
           <Script src="https://js.stripe.com/v3/" strategy="afterInteractive" />
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

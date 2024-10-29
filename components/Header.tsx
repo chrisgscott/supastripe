@@ -33,7 +33,7 @@ export default function Header() {
             </nav>
           </div>
           <div className="flex items-center">
-            <Link href="/create-plan">
+            <Link href="/new-plan">
               <Button variant="default">
                 <BadgePlus className="w-4 h-4 mr-2" />
                 Create Payment Plan

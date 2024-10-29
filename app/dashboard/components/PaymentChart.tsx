@@ -15,7 +15,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-import { formatCurrency } from '@/utils/formatCurrency';
+import { formatCurrency } from '@/utils/currencyUtils';
 
 interface PaymentDataItem {
   month: string;

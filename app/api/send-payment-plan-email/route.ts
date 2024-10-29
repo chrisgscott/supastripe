@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { sendEmail } from '@/utils/core-email-service';
-import { formatCurrency } from '@/utils/formatCurrency';
+import { formatCurrency, Money } from '@/utils/currencyUtils';
 import { Tables } from '@/types/supabase';
 
 export async function POST(request: Request) {
@@ -18,6 +18,7 @@ export async function POST(request: Request) {
         transactions (amount, due_date, is_downpayment)
       `)
       .eq('id', paymentPlanId)
+      .eq('plan_creation_status', 'completed')
       .single();
 
     if (paymentPlanError) throw paymentPlanError;
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
         ${paymentPlan.transactions.map((payment: Tables<'transactions'>, index: number) => `
           <tr>
             <td>${payment.is_downpayment ? "Due Now" : new Date(payment.due_date).toLocaleDateString()}</td>
-            <td>${formatCurrency(payment.amount / 100)}</td>
+            <td>${Money.fromCents(payment.amount).toString()}</td>
           </tr>
         `).join('')}
       </table>
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
 
     const emailParams = {
       customer_name: paymentPlan.customers.name,
-      total_amount: formatCurrency(paymentPlan.total_amount / 100),
+      total_amount: Money.fromCents(paymentPlan.total_amount).toString(),
       number_of_payments: paymentPlan.number_of_payments,
       payment_interval: paymentPlan.payment_interval,
       business_name: businessInfo.business_name,

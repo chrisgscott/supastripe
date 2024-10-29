@@ -1,17 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { Tables } from '@/types/supabase';
+import { Money } from '@/utils/currencyUtils';
 
-interface Customer {
-  name: string;
-  email: string;
-}
-
-interface PaymentPlan {
-  id: string;
-  customers: Customer;
-}
-
-interface Transaction {
+type FailedTransaction = {
   id: string;
   amount: number;
   next_attempt_date: string | null;
@@ -22,7 +14,7 @@ interface Transaction {
       email: string;
     };
   };
-}
+};
 
 export async function GET() {
   const supabase = createClient();
@@ -48,27 +40,20 @@ export async function GET() {
         )
       `)
       .eq('status', 'failed')
+      .eq('plan_creation_status', 'completed')
       .order('next_attempt_date', { ascending: true })
       .limit(5);
 
     if (error) throw error;
 
-    console.log('Raw failed transactions from Supabase:', JSON.stringify(failedTransactions, null, 2));
-
-    const formattedFailedTransactions = failedTransactions.map((transaction: any) => {
-      const customer = transaction.payment_plans.customers;
-      const formattedTransaction = {
-        id: transaction.id,
-        customerName: customer.name || 'Unknown',
-        amount: transaction.amount,
-        nextAttempt: transaction.next_attempt_date || null,
-        email: customer.email || 'Unknown',
-      };
-      console.log('Formatted transaction:', JSON.stringify(formattedTransaction, null, 2));
-      return formattedTransaction;
-    });
-
-    console.log('All formatted failed transactions:', JSON.stringify(formattedFailedTransactions, null, 2));
+    const formattedFailedTransactions = (failedTransactions as unknown as FailedTransaction[]).map((transaction) => ({
+      id: transaction.id,
+      customerName: transaction.payment_plans.customers.name || 'Unknown',
+      amount: Money.fromCents(transaction.amount).toString(),
+      rawAmount: transaction.amount,
+      nextAttempt: transaction.next_attempt_date || null,
+      email: transaction.payment_plans.customers.email || 'Unknown',
+    }));
 
     return NextResponse.json(formattedFailedTransactions);
   } catch (error) {

@@ -2,18 +2,14 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { startOfMonth, endOfMonth, format, isBefore, isAfter } from 'date-fns';
+import { Tables } from '@/types/supabase';
+import { Money } from '@/utils/currencyUtils';
 
-interface Transaction {
-  amount: number;
-  due_date: string;
-  status: string;
-  created_at: string;
-  paid_at: string;
-}
+type Transaction = Tables<'transactions'>;
 
 interface MonthlyData {
-  collected: number;
-  forecasted: number;
+  collected: Money;
+  forecasted: Money;
 }
 
 export async function GET() {
@@ -26,11 +22,14 @@ export async function GET() {
   }
 
   const startDate = new Date('2023-10-16').toISOString(); // Adjust this date as needed
-  const { data, error } = await supabase
+  const query = supabase
     .from('transactions')
     .select('amount, due_date, status, paid_at, created_at')
     .eq('user_id', user.id)
+    .eq('plan_creation_status', 'completed')
     .order('due_date', { ascending: true });
+
+  const { data, error } = await query;
 
   if (error) {
     console.error('Error fetching transactions:', error);
@@ -64,13 +63,16 @@ export async function GET() {
     }
     
     if (!monthlyData[monthKey]) {
-      monthlyData[monthKey] = { collected: 0, forecasted: 0 };
+      monthlyData[monthKey] = {
+        collected: Money.fromCents(0),
+        forecasted: Money.fromCents(0)
+      };
     }
 
     if (transaction.status === 'paid') {
-      monthlyData[monthKey].collected += transaction.amount;
+      monthlyData[monthKey].collected = monthlyData[monthKey].collected.add(Money.fromCents(transaction.amount));
     } else if (transaction.status === 'pending' && isAfter(new Date(transaction.due_date), now)) {
-      monthlyData[monthKey].forecasted += transaction.amount;
+      monthlyData[monthKey].forecasted = monthlyData[monthKey].forecasted.add(Money.fromCents(transaction.amount));
     }
 
     console.log('Processing transaction:', {

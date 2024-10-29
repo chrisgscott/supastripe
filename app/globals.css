@@ -96,3 +96,11 @@
     @apply bg-gray-100 text-gray-700 hover:bg-gray-200;
   }
 }
+.fade-in {
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.fade-in.visible {
+  opacity: 1;
+}

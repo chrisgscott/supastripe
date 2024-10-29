@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PaymentChart } from './components/PaymentChart';
 import { NeedsAttentionCard } from './components/NeedsAttentionCard';
-import { formatCurrency } from '@/utils/formatCurrency';
+import { formatCurrency } from '@/utils/currencyUtils';
 
 const queryClient = new QueryClient();
 

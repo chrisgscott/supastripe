@@ -30,7 +30,8 @@ import {
 import { ArrowUpDown, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
-import { formatCurrency } from '@/utils/formatCurrency';
+import { formatCurrency } from '@/utils/currencyUtils';
+import { Money } from '@/utils/currencyUtils';
 
 const PAYMENT_PLAN_STATUSES = [
   "created",
@@ -45,7 +46,7 @@ type PaymentPlanStatus = (typeof PAYMENT_PLAN_STATUSES)[number];
 interface PaymentPlan {
   id: string;
   customerName: string;
-  totalAmount: number;
+  totalAmount: number; // This is in cents
   nextPaymentDate: string | null;
   status: PaymentPlanStatus;
   created_at: string;
@@ -87,21 +88,8 @@ const columns: ColumnDef<PaymentPlan>[] = [
   },
   {
     accessorKey: "totalAmount",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Total Amount
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-    cell: ({ row }) => {
-      const amount = row.getValue("totalAmount");
-      return <div className="font-medium">{formatCurrency(amount as number)}</div>;
-    },
+    header: "Total Amount",
+    cell: ({ row }) => Money.fromCents(row.getValue("totalAmount")).toString()
   },
   {
     accessorKey: "nextPaymentDate",

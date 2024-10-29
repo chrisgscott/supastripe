@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { Money } from '@/utils/currencyUtils';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -23,7 +24,8 @@ export async function GET(request: Request) {
     .select('amount')
     .eq('user_id', user.id)
     .eq('status', 'paid')
-    .neq('status', 'failed');
+    .neq('status', 'failed')
+    .eq('plan_creation_status', 'completed');
 
   if (startDate) {
     query.gte('created_at', startDate);
@@ -36,17 +38,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Failed to fetch revenue' }, { status: 500 });
   }
 
-  const revenue = data.reduce((sum, transaction) => sum + transaction.amount, 0);
-
-  const formattedRevenue = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(revenue);
+  const totalMoney = Money.fromCents(data.reduce((sum, transaction) => sum + transaction.amount, 0));
 
   return NextResponse.json({ 
-    revenue: formattedRevenue,
-    rawRevenue: revenue
+    revenue: totalMoney.toString(),
+    rawRevenue: totalMoney.toCents()
   });
 }

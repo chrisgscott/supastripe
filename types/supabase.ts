@@ -1,3 +1,4 @@
+
 export type Json =
   | string
   | number
@@ -7,6 +8,31 @@ export type Json =
   | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          operationName?: string
+          query?: string
+          variables?: Json
+          extensions?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       customers: {
@@ -15,37 +41,98 @@ export type Database = {
           email: string
           id: string
           name: string
+          plan_creation_status: string | null
+          stripe_customer_id: string | null
           updated_at: string | null
           user_id: string
-          stripe_customer_id: string | null
         }
         Insert: {
           created_at?: string | null
           email: string
           id?: string
           name: string
+          plan_creation_status?: string | null
+          stripe_customer_id?: string | null
           updated_at?: string | null
           user_id: string
-          stripe_customer_id?: string | null
         }
         Update: {
           created_at?: string | null
           email?: string
           id?: string
           name?: string
+          plan_creation_status?: string | null
+          stripe_customer_id?: string | null
           updated_at?: string | null
           user_id?: string
-          stripe_customer_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "customers_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
+      }
+      email_logs: {
+        Row: {
+          email_type: string
+          error_message: string | null
+          id: string
+          idempotency_key: string | null
+          recipient_email: string
+          related_id: string | null
+          related_type: string | null
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          email_type: string
+          error_message?: string | null
+          id?: string
+          idempotency_key?: string | null
+          recipient_email: string
+          related_id?: string | null
+          related_type?: string | null
+          sent_at?: string | null
+          status: string
+        }
+        Update: {
+          email_type?: string
+          error_message?: string | null
+          id?: string
+          idempotency_key?: string | null
+          recipient_email?: string
+          related_id?: string | null
+          related_type?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      email_templates: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          subject: string
+          template_type: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          subject: string
+          template_type: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          subject?: string
+          template_type?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       payment_plans: {
         Row: {
@@ -53,9 +140,11 @@ export type Database = {
           customer_id: string
           downpayment_amount: number
           id: string
+          idempotency_key: string | null
           number_of_payments: number
           payment_interval: string
-          status: 'created' | 'active' | 'completed' | 'cancelled' | 'failed'
+          plan_creation_status: string | null
+          status: string
           total_amount: number
           updated_at: string | null
           user_id: string
@@ -65,9 +154,11 @@ export type Database = {
           customer_id: string
           downpayment_amount: number
           id?: string
+          idempotency_key?: string | null
           number_of_payments: number
           payment_interval: string
-          status: 'created' | 'active' | 'completed' | 'cancelled' | 'failed'
+          plan_creation_status?: string | null
+          status?: string
           total_amount: number
           updated_at?: string | null
           user_id: string
@@ -77,14 +168,23 @@ export type Database = {
           customer_id?: string
           downpayment_amount?: number
           id?: string
+          idempotency_key?: string | null
           number_of_payments?: number
           payment_interval?: string
-          status?: 'created' | 'active' | 'completed' | 'cancelled' | 'failed'
+          plan_creation_status?: string | null
+          status?: string
           total_amount?: number
           updated_at?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_payment_plans_user"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payment_plans_customer_id_fkey"
             columns: ["customer_id"]
@@ -92,129 +192,227 @@ export type Database = {
             referencedRelation: "customers"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      payment_processing_logs: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          id: string
+          idempotency_key: string
+          status: string
+          stripe_payment_intent_id: string | null
+          transaction_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          idempotency_key: string
+          status: string
+          stripe_payment_intent_id?: string | null
+          transaction_id: string
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          idempotency_key?: string
+          status?: string
+          stripe_payment_intent_id?: string | null
+          transaction_id?: string
+        }
+        Relationships: [
           {
-            foreignKeyName: "payment_plans_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "payment_processing_logs_transaction_id_fkey"
+            columns: ["transaction_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "customer_payment_details"
+            referencedColumns: ["transaction_id"]
+          },
+          {
+            foreignKeyName: "payment_processing_logs_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "detailed_transactions"
+            referencedColumns: ["transaction_id"]
+          },
+          {
+            foreignKeyName: "payment_processing_logs_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
         ]
+      }
+      payouts: {
+        Row: {
+          amount: number
+          arrival_date: string
+          created_at: string | null
+          currency: string
+          id: number
+          status: string
+          stripe_account_id: string
+          stripe_payout_id: string
+        }
+        Insert: {
+          amount: number
+          arrival_date: string
+          created_at?: string | null
+          currency: string
+          id?: number
+          status: string
+          stripe_account_id: string
+          stripe_payout_id: string
+        }
+        Update: {
+          amount?: number
+          arrival_date?: string
+          created_at?: string | null
+          currency?: string
+          id?: number
+          status?: string
+          stripe_account_id?: string
+          stripe_payout_id?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
-          id: string
-          created_at: string | null
-          updated_at: string | null
-          first_name: string | null
-          last_name: string | null
-          business_name: string | null
-          business_type: string | null
-          business_description: string | null
-          business_url: string | null
-          support_email: string | null
-          support_phone: string | null
+          address_city: string | null
+          address_country: string | null
           address_line1: string | null
           address_line2: string | null
-          address_city: string | null
-          address_state: string | null
           address_postal_code: string | null
-          address_country: string | null
-          is_onboarded: boolean
+          address_state: string | null
+          business_description: string | null
+          business_name: string | null
+          business_type: string | null
+          business_url: string | null
+          created_at: string | null
+          first_name: string | null
+          id: string
+          is_onboarded: boolean | null
+          last_name: string | null
           logo_url: string | null
+          stripe_account_id: string | null
+          support_email: string | null
+          support_phone: string | null
+          updated_at: string | null
         }
         Insert: {
-          id?: string
-          created_at?: string | null
-          updated_at?: string | null
-          first_name?: string | null
-          last_name?: string | null
-          business_name?: string | null
-          business_type?: string | null
-          business_description?: string | null
-          business_url?: string | null
-          support_email?: string | null
-          support_phone?: string | null
+          address_city?: string | null
+          address_country?: string | null
           address_line1?: string | null
           address_line2?: string | null
-          address_city?: string | null
-          address_state?: string | null
           address_postal_code?: string | null
-          address_country?: string | null
-          is_onboarded?: boolean
+          address_state?: string | null
+          business_description?: string | null
+          business_name?: string | null
+          business_type?: string | null
+          business_url?: string | null
+          created_at?: string | null
+          first_name?: string | null
+          id: string
+          is_onboarded?: boolean | null
+          last_name?: string | null
           logo_url?: string | null
+          stripe_account_id?: string | null
+          support_email?: string | null
+          support_phone?: string | null
+          updated_at?: string | null
         }
         Update: {
-          id?: string
-          created_at?: string | null
-          updated_at?: string | null
-          first_name?: string | null
-          last_name?: string | null
-          business_name?: string | null
-          business_type?: string | null
-          business_description?: string | null
-          business_url?: string | null
-          support_email?: string | null
-          support_phone?: string | null
+          address_city?: string | null
+          address_country?: string | null
           address_line1?: string | null
           address_line2?: string | null
-          address_city?: string | null
-          address_state?: string | null
           address_postal_code?: string | null
-          address_country?: string | null
-          is_onboarded?: boolean
+          address_state?: string | null
+          business_description?: string | null
+          business_name?: string | null
+          business_type?: string | null
+          business_url?: string | null
+          created_at?: string | null
+          first_name?: string | null
+          id?: string
+          is_onboarded?: boolean | null
+          last_name?: string | null
           logo_url?: string | null
+          stripe_account_id?: string | null
+          support_email?: string | null
+          support_phone?: string | null
+          updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_id_fkey"
-            columns: ["id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       stripe_accounts: {
         Row: {
+          created_at: string | null
           id: string
-          user_id: string
-          stripe_account_id: string
-          stripe_onboarding_completed: boolean
           stripe_account_created_at: string | null
           stripe_account_details_url: string | null
-          created_at: string | null
+          stripe_account_id: string | null
+          stripe_onboarding_completed: boolean | null
           updated_at: string | null
+          user_id: string | null
         }
         Insert: {
+          created_at?: string | null
           id?: string
-          user_id: string
-          stripe_account_id: string
-          stripe_onboarding_completed?: boolean
           stripe_account_created_at?: string | null
           stripe_account_details_url?: string | null
-          created_at?: string | null
+          stripe_account_id?: string | null
+          stripe_onboarding_completed?: boolean | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
+          created_at?: string | null
           id?: string
-          user_id?: string
-          stripe_account_id?: string
-          stripe_onboarding_completed?: boolean
           stripe_account_created_at?: string | null
           stripe_account_details_url?: string | null
-          created_at?: string | null
+          stripe_account_id?: string | null
+          stripe_onboarding_completed?: boolean | null
           updated_at?: string | null
+          user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "stripe_accounts_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
+        Relationships: []
+      }
+      stripe_reviews: {
+        Row: {
+          closed_at: string | null
+          created_at: string | null
+          id: number
+          opened_at: string
+          reason: string
+          status: string
+          stripe_account_id: string
+          stripe_review_id: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string | null
+          id?: number
+          opened_at: string
+          reason: string
+          status: string
+          stripe_account_id: string
+          stripe_review_id: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string | null
+          id?: number
+          opened_at?: string
+          reason?: string
+          status?: string
+          stripe_account_id?: string
+          stripe_review_id?: string
+        }
+        Relationships: []
       }
       transactions: {
         Row: {
@@ -222,44 +420,67 @@ export type Database = {
           created_at: string | null
           due_date: string
           id: string
+          is_downpayment: boolean | null
+          last_reminder_email_log_id: string | null
+          next_attempt_date: string | null
+          paid_at: string | null
           payment_plan_id: string
+          plan_creation_status: string | null
+          reminder_email_date: string | null
           status: string
           stripe_payment_intent_id: string | null
           updated_at: string | null
           user_id: string
-          is_downpayment: boolean
-          last_reminder_email_log_id: string | null
-          idempotency_key: string
         }
         Insert: {
           amount: number
           created_at?: string | null
           due_date: string
           id?: string
+          is_downpayment?: boolean | null
+          last_reminder_email_log_id?: string | null
+          next_attempt_date?: string | null
+          paid_at?: string | null
           payment_plan_id: string
+          plan_creation_status?: string | null
+          reminder_email_date?: string | null
           status: string
           stripe_payment_intent_id?: string | null
           updated_at?: string | null
           user_id: string
-          is_downpayment?: boolean
-          last_reminder_email_log_id?: string | null
-          idempotency_key?: string
         }
         Update: {
           amount?: number
           created_at?: string | null
           due_date?: string
           id?: string
+          is_downpayment?: boolean | null
+          last_reminder_email_log_id?: string | null
+          next_attempt_date?: string | null
+          paid_at?: string | null
           payment_plan_id?: string
+          plan_creation_status?: string | null
+          reminder_email_date?: string | null
           status?: string
           stripe_payment_intent_id?: string | null
           updated_at?: string | null
           user_id?: string
-          is_downpayment?: boolean
-          last_reminder_email_log_id?: string | null
-          idempotency_key?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "transactions_last_reminder_email_log_id_fkey"
+            columns: ["last_reminder_email_log_id"]
+            isOneToOne: false
+            referencedRelation: "email_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_payment_plan_id_fkey"
+            columns: ["payment_plan_id"]
+            isOneToOne: false
+            referencedRelation: "customer_payment_details"
+            referencedColumns: ["payment_plan_id"]
+          },
           {
             foreignKeyName: "transactions_payment_plan_id_fkey"
             columns: ["payment_plan_id"]
@@ -267,140 +488,122 @@ export type Database = {
             referencedRelation: "payment_plans"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "transactions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transactions_last_reminder_email_log_id_fkey"
-            columns: ["last_reminder_email_log_id"]
-            isOneToOne: false
-            referencedRelation: "email_logs"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      email_templates: {
-        Row: {
-          id: string
-          user_id: string
-          template_type: string
-          subject: string
-          content: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          template_type: string
-          subject: string
-          content: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          template_type?: string
-          subject?: string
-          content?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "email_templates_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      email_logs: {
-        Row: {
-          id: string
-          email_type: string
-          recipient_email: string
-          status: string
-          sent_at: string
-          error_message: string | null
-          related_id: string | null
-          related_type: string | null
-          idempotency_key: string
-        }
-        Insert: {
-          id?: string
-          email_type: string
-          recipient_email: string
-          status: string
-          sent_at?: string
-          error_message?: string | null
-          related_id?: string | null
-          related_type?: string | null
-          idempotency_key?: string
-        }
-        Update: {
-          id?: string
-          email_type?: string
-          recipient_email?: string
-          status?: string
-          sent_at?: string
-          error_message?: string | null
-          related_id?: string | null
-          related_type?: string | null
-          idempotency_key?: string
-        }
-        Relationships: []
-      }
-      payment_processing_logs: {
-        Row: {
-          id: string
-          transaction_id: string
-          status: string
-          stripe_payment_intent_id: string | null
-          error_message: string | null
-          idempotency_key: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          transaction_id: string
-          status: string
-          stripe_payment_intent_id?: string | null
-          error_message?: string | null
-          idempotency_key: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          transaction_id?: string
-          status?: string
-          stripe_payment_intent_id?: string | null
-          error_message?: string | null
-          idempotency_key?: string
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payment_processing_logs_transaction_id_fkey"
-            columns: ["transaction_id"]
-            isOneToOne: false
-            referencedRelation: "transactions"
-            referencedColumns: ["id"]
-          }
         ]
       }
     }
     Views: {
-      [_ in never]: never
+      customer_payment_details: {
+        Row: {
+          customer_name: string | null
+          date_created: string | null
+          payment_plan_id: string | null
+          payment_plan_status: string | null
+          transaction_amount: number | null
+          transaction_due_date: string | null
+          transaction_id: string | null
+          transaction_status: string | null
+        }
+        Relationships: []
+      }
+      detailed_transactions: {
+        Row: {
+          amount: number | null
+          customer_email: string | null
+          due_date: string | null
+          is_downpayment: boolean | null
+          payment_plan_id: string | null
+          payment_plan_status: string | null
+          seller_business_name: string | null
+          seller_email: string | null
+          seller_user_id: string | null
+          stripe_payment_intent_id: string | null
+          transaction_id: string | null
+          transaction_status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_payment_plans_user"
+            columns: ["seller_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_payment_plan_id_fkey"
+            columns: ["payment_plan_id"]
+            isOneToOne: false
+            referencedRelation: "customer_payment_details"
+            referencedColumns: ["payment_plan_id"]
+          },
+          {
+            foreignKeyName: "transactions_payment_plan_id_fkey"
+            columns: ["payment_plan_id"]
+            isOneToOne: false
+            referencedRelation: "payment_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
-      [_ in never]: never
+      begin_transaction: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_pending_plans: {
+        Args: {
+          older_than: string
+        }
+        Returns: undefined
+      }
+      commit_transaction: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      complete_payment_plan_creation: {
+        Args: {
+          p_payment_plan_id: string
+          p_stripe_payment_intent_id: string
+        }
+        Returns: undefined
+      }
+      create_payment_plan: {
+        Args: {
+          p_customer_id: string
+          p_user_id: string
+          p_total_amount: number
+          p_number_of_payments: number
+          p_payment_interval: string
+          p_downpayment_amount: number
+          p_payment_schedule: Json
+        }
+        Returns: string
+      }
+      create_payment_plan_step1: {
+        Args: {
+          p_customer_name: string
+          p_customer_email: string
+          p_user_id: string
+          p_total_amount: number
+          p_number_of_payments: number
+          p_payment_interval: string
+          p_downpayment_amount: number
+          p_payment_schedule: Json
+          p_stripe_customer_id: string
+        }
+        Returns: Json
+      }
+      handle_successful_payment: {
+        Args: {
+          p_transaction_id: string
+          p_paid_at: string
+        }
+        Returns: Json
+      }
+      rollback_transaction: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
@@ -493,4 +696,17 @@ export type Enums<
     ? PublicSchema["Enums"][PublicEnumNameOrOptions]
     : never
 
-
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof PublicSchema["CompositeTypes"]
+    | { schema: keyof Database },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
+    ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never

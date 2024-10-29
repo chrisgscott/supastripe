@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from 'date-fns';
 import { Mail } from 'lucide-react';
-import { formatCurrency } from '@/utils/formatCurrency';
+import { formatCurrency } from '@/utils/currencyUtils';
 
 interface FailedTransaction {
   id: string;
