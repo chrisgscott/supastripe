@@ -7,6 +7,12 @@ import { Mail, Printer, FileText, Plus, LayoutDashboard } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { format } from "date-fns";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface ConfirmationStepProps {
   planDetails?: {
@@ -130,6 +136,11 @@ export default function ConfirmationStep({ planDetails: initialPlanDetails, paym
         setIsSending(false);
       }
     };
+
+    const handlePrint = () => {
+      window.print();
+    };
+
     if (error) {
       return (
         <Alert variant="destructive">
@@ -144,7 +155,7 @@ export default function ConfirmationStep({ planDetails: initialPlanDetails, paym
 if (!planDetails) {
   return (
     <div className="space-y-6">
-      <Card className="max-w-3xl mx-auto">
+      <Card className="max-w-3xl mx-auto confirmation-card">
         <CardHeader className="text-center border-b">
           <div className="flex justify-between items-start">
             <div className="text-left space-y-2">
@@ -195,7 +206,7 @@ if (!planDetails) {
           </div>
         </CardContent>
 
-        <CardFooter className="flex justify-between border-t pt-6">
+        <CardFooter className="flex justify-between border-t pt-6 card-actions">
           <div className="flex gap-2">
             {[1, 2, 3].map((i) => (
               <div key={i} className="h-9 w-9 bg-muted animate-pulse rounded" />
@@ -216,7 +227,7 @@ if (!planDetails) {
   
     return (
       <div className="space-y-6">
-        <Card className="max-w-3xl mx-auto">
+        <Card className="max-w-3xl mx-auto confirmation-card">
           <CardHeader className="text-center border-b">
             <div className="flex justify-between items-start">
               <div className="text-left">
@@ -240,7 +251,7 @@ if (!planDetails) {
                 <p className="text-sm text-muted-foreground">{planDetails.customerEmail}</p>
               </div>
               <div className="text-right">
-                <h3 className="font-semibold mb-2">Payment Details</h3>
+                <h3 className="font-semibold mb-2">Payment Plan Details</h3>
                 <p>Total Amount: {formatCurrency(Money.fromCents(planDetails.totalAmount))}</p>
                 <p className="text-sm text-muted-foreground">
                   {planDetails.numberOfPayments} {planDetails.paymentInterval} payments
@@ -270,11 +281,11 @@ if (!planDetails) {
                           <TableCell className="text-right">{formatCurrency(Money.fromCents(payment.amount))}</TableCell>
                           <TableCell className="text-right">
                             {payment.is_downpayment ? (
-                              <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-green-50 text-green-700">
+                              <span className="status-badge inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-green-50 text-green-700">
                                 Paid
                               </span>
                             ) : (
-                              <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-gray-50 text-gray-700">
+                              <span className="status-badge inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-gray-50 text-gray-700">
                                 Scheduled
                               </span>
                             )}
@@ -295,32 +306,78 @@ if (!planDetails) {
             </div>
           </CardContent>
 
-          <CardFooter className="flex justify-between border-t pt-6">
+          <CardFooter className="flex justify-between border-t pt-6 card-actions">
             <div className="flex gap-2">
-              <Button 
-                size="icon" 
-                variant="outline"
-                onClick={handleSendEmail}
-                disabled={isSending || emailSent || !planDetails.paymentPlanId}
-              >
-                <Mail className="h-4 w-4" />
-              </Button>
-              <Button size="icon" variant="outline">
-                <Printer className="h-4 w-4" />
-              </Button>
-              <Button size="icon" variant="outline" onClick={() => window.location.href = `/plan/${planDetails.paymentPlanId}`}>
-                <FileText className="h-4 w-4" />
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleSendEmail}
+                      disabled={isSending || emailSent}
+                    >
+                      <Mail className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Send confirmation email</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={handlePrint}
+                    >
+                      <Printer className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Print payment plan</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="icon">
+                      <FileText className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Go to Plan Details Page</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => window.location.href = '/new-plan'}>
-                <Plus className="h-4 w-4 mr-2" />
-                New Plan
-              </Button>
-              <Button onClick={() => window.location.href = '/dashboard'}>
-                <LayoutDashboard className="h-4 w-4 mr-2" />
-                Dashboard
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline">
+                      <Plus className="h-4 w-4 mr-2" />
+                      New Plan
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Create a new payment plan</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button>
+                      <LayoutDashboard className="h-4 w-4 mr-2" />
+                      Dashboard
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Return to dashboard</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </CardFooter>
         </Card>

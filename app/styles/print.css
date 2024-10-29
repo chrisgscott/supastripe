@@ -1,0 +1,49 @@
+@media print {
+    /* Hide non-printable elements */
+    .no-print,
+    .card-actions {
+      display: none !important;
+    }
+  
+    /* Reset card styles for printing */
+    .confirmation-card {
+      box-shadow: none !important;
+      border: 1px solid #ddd !important;
+      margin: 0 !important;
+      padding: 20px !important;
+    }
+  
+    /* Ensure text colors are good for printing */
+    body {
+      color: black !important;
+      background: white !important;
+    }
+  
+    /* Ensure table borders are visible */
+    table {
+      border-collapse: collapse !important;
+      width: 100% !important;
+    }
+  
+    th, td {
+      border: 1px solid #ddd !important;
+      padding: 8px !important;
+      text-align: left !important;
+    }
+  
+    /* Status badges */
+    .status-badge {
+      border: 1px solid currentColor !important;
+      background: none !important;
+    }
+  
+    /* Ensure proper spacing */
+    .card-content {
+      page-break-inside: avoid;
+    }
+  
+    /* Hide tooltips */
+    [role="tooltip"] {
+      display: none !important;
+    }
+  }
