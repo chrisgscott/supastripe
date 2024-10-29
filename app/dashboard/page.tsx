@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 import { PaymentChart } from './components/PaymentChart';
 import { NeedsAttentionCard } from './components/NeedsAttentionCard';
 import { formatCurrency } from '@/utils/currencyUtils';
+import { DashboardCardSkeleton } from "./components/DashboardCardSkeleton"
+
 
 const queryClient = new QueryClient();
 
@@ -45,6 +47,7 @@ function Dashboard() {
   const [failedTransactions, setFailedTransactions] = useState([]);
   const [isLoadingFailedTransactions, setIsLoadingFailedTransactions] = useState(true);
   const [userName, setUserName] = useState('');
+  const [isLoadingPaymentData, setIsLoadingPaymentData] = useState(true);
 
   const fetchUserName = async () => {
     try {
@@ -73,6 +76,7 @@ function Dashboard() {
   }, [pendingTimeFrame]);
 
   const fetchPaymentData = async () => {
+    setIsLoadingPaymentData(true);
     try {
       const response = await fetch('/api/get-payment-chart-data');
       const data = await response.json();
@@ -80,6 +84,7 @@ function Dashboard() {
     } catch (error) {
       console.error('Error fetching payment data:', error);
     }
+    setIsLoadingPaymentData(false);
   };
 
   const fetchActivePlans = async () => {
@@ -148,84 +153,95 @@ function Dashboard() {
         {userName ? `Welcome to PayKit, ${userName}.` : 'Welcome to PayKit'}
       </h1>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Plans</CardTitle>
-            <UserIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {isLoadingActivePlans ? 'Loading...' : activePlans}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Paid Payments</CardTitle>
-            <Select value={paidTimeFrame} onValueChange={setPaidTimeFrame}>
-              <SelectTrigger className="h-8 w-[100px] text-xs">
-                <SelectValue placeholder="Select timeframe" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem className="text-xs" value="7">7 days</SelectItem>
-                <SelectItem className="text-xs" value="30">30 days</SelectItem>
-                <SelectItem className="text-xs" value="90">90 days</SelectItem>
-                <SelectItem className="text-xs" value="all">All time</SelectItem>
-              </SelectContent>
-            </Select>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {isLoadingRevenue ? 'Loading...' : formatCurrency(Number(revenue.replace(/[^0-9.-]+/g, '')))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Payments</CardTitle>
-            <Select value={pendingTimeFrame} onValueChange={setPendingTimeFrame}>
-              <SelectTrigger className="h-8 w-[100px] text-xs">
-                <SelectValue placeholder="Select timeframe" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem className="text-xs" value="7">7 days</SelectItem>
-                <SelectItem className="text-xs" value="30">30 days</SelectItem>
-                <SelectItem className="text-xs" value="90">90 days</SelectItem>
-                <SelectItem className="text-xs" value="all">All time</SelectItem>
-              </SelectContent>
-            </Select>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {isLoadingScheduledRevenue ? 'Loading...' : formatCurrency(Number(scheduledRevenue.replace(/[^0-9.-]+/g, '')))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Next Payout</CardTitle>
-            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {isLoadingNextPayout ? 'Loading...' : (nextPayout.amount === 'None scheduled' ? 'None scheduled' : formatCurrency(Number(nextPayout.amount.replace(/[^0-9.-]+/g, ''))))}
-            </div>
-            {nextPayout.date && (
-              <div className="text-xs text-muted-foreground">
-                {nextPayout.date}
+        {isLoadingActivePlans ? <DashboardCardSkeleton /> : (
+          <Card className="shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Plans</CardTitle>
+              <UserIcon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {isLoadingActivePlans ? 'Loading...' : activePlans}
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
+
+        {isLoadingRevenue ? <DashboardCardSkeleton /> : (
+          <Card className="shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Paid Payments</CardTitle>
+              <Select value={paidTimeFrame} onValueChange={setPaidTimeFrame}>
+                <SelectTrigger className="h-8 w-[100px] text-xs">
+                  <SelectValue placeholder="Select timeframe" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem className="text-xs" value="7">7 days</SelectItem>
+                  <SelectItem className="text-xs" value="30">30 days</SelectItem>
+                  <SelectItem className="text-xs" value="90">90 days</SelectItem>
+                  <SelectItem className="text-xs" value="all">All time</SelectItem>
+                </SelectContent>
+              </Select>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {isLoadingRevenue ? 'Loading...' : formatCurrency(Number(revenue.replace(/[^0-9.-]+/g, '')))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {isLoadingScheduledRevenue ? <DashboardCardSkeleton /> : (
+          <Card className="shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pending Payments</CardTitle>
+              <Select value={pendingTimeFrame} onValueChange={setPendingTimeFrame}>
+                <SelectTrigger className="h-8 w-[100px] text-xs">
+                  <SelectValue placeholder="Select timeframe" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem className="text-xs" value="7">7 days</SelectItem>
+                  <SelectItem className="text-xs" value="30">30 days</SelectItem>
+                  <SelectItem className="text-xs" value="90">90 days</SelectItem>
+                  <SelectItem className="text-xs" value="all">All time</SelectItem>
+                </SelectContent>
+              </Select>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {isLoadingScheduledRevenue ? 'Loading...' : formatCurrency(Number(scheduledRevenue.replace(/[^0-9.-]+/g, '')))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {isLoadingNextPayout ? <DashboardCardSkeleton /> : (
+          <Card className="shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Next Payout</CardTitle>
+              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {isLoadingNextPayout ? 'Loading...' : (nextPayout.amount === 'None scheduled' ? 'None scheduled' : formatCurrency(Number(nextPayout.amount.replace(/[^0-9.-]+/g, ''))))}
+              </div>
+              {nextPayout.date && (
+                <div className="text-xs text-muted-foreground">
+                  {nextPayout.date}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* New row of cards */}
       <div className="grid gap-4 md:grid-cols-3 mt-4">
         <div className="md:col-span-2">
-          <PaymentChart data={paymentData} />
+          <PaymentChart 
+            data={paymentData} 
+            isLoading={isLoadingPaymentData} 
+          />
         </div>
         
         <NeedsAttentionCard

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { format, parseISO } from 'date-fns';
 import { Mail } from 'lucide-react';
 import { formatCurrency } from '@/utils/currencyUtils';
+import { NeedsAttentionSkeleton } from "./NeedsAttentionSkeleton";
 
 interface FailedTransaction {
   id: string;
@@ -19,6 +20,10 @@ interface NeedsAttentionCardProps {
 }
 
 export function NeedsAttentionCard({ failedTransactions, isLoading }: NeedsAttentionCardProps) {
+  if (isLoading) {
+    return <NeedsAttentionSkeleton />
+  }
+
   const handleEmailCustomer = (email: string) => {
     window.location.href = `mailto:${email}`;
   };

@@ -16,6 +16,8 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 import { formatCurrency } from '@/utils/currencyUtils';
+import { PaymentChartSkeleton } from "./PaymentChartSkeleton"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface PaymentDataItem {
   month: string;
@@ -25,6 +27,7 @@ interface PaymentDataItem {
 
 interface PaymentChartProps {
   data: PaymentDataItem[];
+  isLoading: boolean;
 }
 
 const chartConfig: ChartConfig = {
@@ -40,7 +43,32 @@ const chartConfig: ChartConfig = {
 
 type ChartKey = keyof typeof chartConfig;
 
-export function PaymentChart({ data }: PaymentChartProps) {
+export function PaymentChart({ data, isLoading }: PaymentChartProps) {
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <Skeleton className="h-6 w-[150px]" />
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[350px] flex items-end justify-between gap-2 pt-2">
+            {[...Array(12)].map((_, i) => (
+              <div key={i} className="w-full flex flex-col gap-2">
+                <div className="w-full flex justify-center gap-1">
+                  <Skeleton className="w-full h-32" />
+                  <Skeleton className="w-full h-24" />
+                </div>
+                <Skeleton className="h-4 w-full" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   const [activeChart, setActiveChart] = useState<ChartKey>("forecasted");
 
   const total = useMemo<Record<ChartKey, number>>(
