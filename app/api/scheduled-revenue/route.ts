@@ -25,7 +25,7 @@ export async function GET(request: Request) {
     .gt('due_date', now);
 
   if (days && days !== 'all') {
-    const endDate = new Date(Date.now() + parseInt(days) * 24 * 60 * 60 * 1000);
+    const endDate = new Date(Date.now() + (parseInt(days) + 1) * 24 * 60 * 60 * 1000);
     query = query.lte('due_date', endDate.toISOString());
   }
 

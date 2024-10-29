@@ -1,7 +1,6 @@
-// TODO: Fix current month forecasted revenue
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { startOfMonth, endOfMonth, format, isBefore, isAfter } from 'date-fns';
+import { startOfMonth, format } from 'date-fns';
 import { Tables } from '@/types/supabase';
 import { Money } from '@/utils/currencyUtils';
 
@@ -21,15 +20,13 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const startDate = new Date('2023-10-16').toISOString(); // Adjust this date as needed
-  const query = supabase
+  const { data, error } = await supabase
     .from('transactions')
-    .select('amount, due_date, status, paid_at, created_at')
+    .select('amount, due_date, status, paid_at')
     .eq('user_id', user.id)
     .eq('plan_creation_status', 'completed')
+    .in('status', ['paid', 'pending'])
     .order('due_date', { ascending: true });
-
-  const { data, error } = await query;
 
   if (error) {
     console.error('Error fetching transactions:', error);
@@ -37,30 +34,17 @@ export async function GET() {
   }
 
   const monthlyData: Record<string, MonthlyData> = {};
+
   const now = new Date();
+  now.setHours(0, 0, 0, 0); // Set to start of day
 
   (data as Transaction[]).forEach((transaction) => {
-    let monthKey: string;
+    const dueDate = new Date(transaction.due_date);
+    dueDate.setHours(0, 0, 0, 0); // Set to start of day
     
-    if (transaction.status === 'paid') {
-      if (transaction.paid_at) {
-        const paidDate = new Date(transaction.paid_at);
-        // Shift the month forward by one
-        paidDate.setMonth(paidDate.getMonth() + 1);
-        monthKey = format(startOfMonth(paidDate), 'yyyy-MM');
-      } else {
-        // If paid but no paid_at date, use the due_date
-        const dueDate = new Date(transaction.due_date);
-        // Shift the month forward by one
-        dueDate.setMonth(dueDate.getMonth() + 1);
-        monthKey = format(startOfMonth(dueDate), 'yyyy-MM');
-      }
-    } else {
-      const dueDate = new Date(transaction.due_date);
-      // Shift the month forward by one
-      dueDate.setMonth(dueDate.getMonth() + 1);
-      monthKey = format(startOfMonth(dueDate), 'yyyy-MM');
-    }
+    // Shift the month forward by one for display purposes
+    dueDate.setMonth(dueDate.getMonth() + 1);
+    const monthKey = format(startOfMonth(dueDate), 'yyyy-MM');
     
     if (!monthlyData[monthKey]) {
       monthlyData[monthKey] = {
@@ -71,31 +55,28 @@ export async function GET() {
 
     if (transaction.status === 'paid') {
       monthlyData[monthKey].collected = monthlyData[monthKey].collected.add(Money.fromCents(transaction.amount));
-    } else if (transaction.status === 'pending' && isAfter(new Date(transaction.due_date), now)) {
-      monthlyData[monthKey].forecasted = monthlyData[monthKey].forecasted.add(Money.fromCents(transaction.amount));
+    } else if (transaction.status === 'pending') {
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      // Use original date (before shift) for comparison
+      const originalDueDate = new Date(transaction.due_date);
+      originalDueDate.setHours(0, 0, 0, 0);
+      
+      if (originalDueDate > now) {
+        monthlyData[monthKey].forecasted = monthlyData[monthKey].forecasted.add(Money.fromCents(transaction.amount));
+      }
     }
-
-    console.log('Processing transaction:', {
-      status: transaction.status,
-      amount: transaction.amount,
-      due_date: transaction.due_date,
-      paid_at: transaction.paid_at,
-      monthKey,
-      collected: monthlyData[monthKey].collected,
-      forecasted: monthlyData[monthKey].forecasted
-    });
   });
 
+  // Convert to chart data format with dollars instead of cents
   const chartData = Object.entries(monthlyData)
     .map(([month, data]) => ({
       month,
-      collected: data.collected,
-      forecasted: data.forecasted
+      collected: data.collected.toDollars(),
+      forecasted: data.forecasted.toDollars()
     }))
     .sort((a, b) => a.month.localeCompare(b.month));
 
-  console.log('Monthly Data:', JSON.stringify(monthlyData, null, 2));
-  console.log('Chart Data:', JSON.stringify(chartData, null, 2));
-
+  console.log('Chart Data:', chartData);
   return NextResponse.json(chartData);
 }
