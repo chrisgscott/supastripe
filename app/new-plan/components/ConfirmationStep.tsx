@@ -3,20 +3,35 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, Money } from '@/utils/currencyUtils';
+import { Mail, Printer, FileText, Plus, LayoutDashboard } from "lucide-react"
+import { Separator } from "@/components/ui/separator"
+import { format } from "date-fns";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 
 interface ConfirmationStepProps {
   planDetails?: {
     customerName: string;
     customerEmail: string;
-    totalAmount: number; // This represents dollars
+    totalAmount: number;
     numberOfPayments: number;
     paymentInterval: string;
     paymentSchedule?: { 
-      amount: number; // This represents dollars
+      amount: number;
       date: string;
       is_downpayment: boolean;
+      status?: 'paid' | 'pending';
+      cardLastFour?: string;
     }[];
     paymentPlanId?: string;
+    businessDetails?: {
+      name: string;
+      supportPhone: string;
+      supportEmail: string;
+    };
+    paymentMethod?: {
+      brand: string;
+      last4: string;
+    };
   };
   paymentIntent?: string;
 }
@@ -124,54 +139,192 @@ export default function ConfirmationStep({ planDetails: initialPlanDetails, paym
       );
     }
   
-    if (!planDetails) {
-      return (
-        <div>
-          <h2>Processing your payment...</h2>
-          <ul>
-            <li>{loadingStatus.customerCreated ? '✅' : '⏳'} Creating customer</li>
-            <li>{loadingStatus.paymentPlanCreated ? '✅' : '⏳'} Creating payment plan</li>
-            <li>{loadingStatus.transactionsCreated ? '✅' : '⏳'} Adding transactions</li>
-            <li>{loadingStatus.paymentIntentCreated ? '✅' : '⏳'} Processing payment</li>
-          </ul>
-        </div>
-      );
-    }
+    // Replace the loading state (lines 142-154) with this:
+
+if (!planDetails) {
+  return (
+    <div className="space-y-6">
+      <Card className="max-w-3xl mx-auto">
+        <CardHeader className="text-center border-b">
+          <div className="flex justify-between items-start">
+            <div className="text-left space-y-2">
+              <div className="h-6 w-40 bg-muted animate-pulse rounded" />
+              <div className="h-4 w-32 bg-muted animate-pulse rounded" />
+              <div className="h-4 w-36 bg-muted animate-pulse rounded" />
+            </div>
+            <div className="text-right space-y-2">
+              <div className="h-8 w-64 bg-muted animate-pulse rounded" />
+              <div className="h-4 w-48 bg-muted animate-pulse rounded" />
+              <div className="h-4 w-32 bg-muted animate-pulse rounded" />
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-2 gap-8 pt-4">
+            <div className="space-y-2">
+              <div className="h-5 w-32 bg-muted animate-pulse rounded" />
+              <div className="h-5 w-40 bg-muted animate-pulse rounded" />
+              <div className="h-4 w-48 bg-muted animate-pulse rounded" />
+            </div>
+            <div className="text-right space-y-2">
+              <div className="h-5 w-32 bg-muted animate-pulse rounded ml-auto" />
+              <div className="h-5 w-36 bg-muted animate-pulse rounded ml-auto" />
+              <div className="h-4 w-40 bg-muted animate-pulse rounded ml-auto" />
+            </div>
+          </div>
+
+          <Separator />
+
+          <div>
+            <div className="h-5 w-36 bg-muted animate-pulse rounded mb-4" />
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex justify-between items-center">
+                  <div className="h-4 w-32 bg-muted animate-pulse rounded" />
+                  <div className="h-4 w-24 bg-muted animate-pulse rounded" />
+                  <div className="h-6 w-20 bg-muted animate-pulse rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-muted p-4 rounded-lg">
+            <div className="h-4 w-36 bg-muted-foreground/20 animate-pulse rounded mb-2" />
+            <div className="h-4 w-full bg-muted-foreground/20 animate-pulse rounded" />
+          </div>
+        </CardContent>
+
+        <CardFooter className="flex justify-between border-t pt-6">
+          <div className="flex gap-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-9 w-9 bg-muted animate-pulse rounded" />
+            ))}
+          </div>
+          <div className="flex gap-2">
+            {[1, 2].map((i) => (
+              <div key={i} className="h-9 w-24 bg-muted animate-pulse rounded" />
+            ))}
+          </div>
+        </CardFooter>
+      </Card>
+    </div>
+  );
+}
   
     console.log('ConfirmationStep: Rendering with state:', { planDetails, error, loadingStatus });
   
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Payment Plan Confirmed</CardTitle>
-          <CardDescription>Your payment plan has been successfully created and the first payment processed.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <p><strong>Customer Name:</strong> {planDetails.customerName}</p>
-            <p><strong>Customer Email:</strong> {planDetails.customerEmail}</p>
-            <p>
-              <strong>Total Amount:</strong> {formatCurrency(Money.fromCents(planDetails.totalAmount))}
-            </p>
-            <p><strong>Number of Payments:</strong> {planDetails.numberOfPayments}</p>
-            <p><strong>Payment Interval:</strong> {planDetails.paymentInterval}</p>
-            {planDetails.paymentSchedule && planDetails.paymentSchedule.length > 0 && (
-              <p><strong>First Payment Amount:</strong> {formatCurrency(planDetails.paymentSchedule[0].amount)}</p>
+      <div className="space-y-6">
+        <Card className="max-w-3xl mx-auto">
+          <CardHeader className="text-center border-b">
+            <div className="flex justify-between items-start">
+              <div className="text-left">
+                <h3 className="font-semibold text-lg">{planDetails.businessDetails?.name}</h3>
+                <p className="text-sm text-muted-foreground">{planDetails.businessDetails?.supportPhone}</p>
+                <p className="text-sm text-muted-foreground">{planDetails.businessDetails?.supportEmail}</p>
+              </div>
+              <div className="text-right">
+                <CardTitle className="text-2xl">Payment Plan Confirmation</CardTitle>
+                <p className="text-sm text-muted-foreground">Plan ID: {planDetails.paymentPlanId}</p>
+                <p className="text-sm text-muted-foreground">Date: {format(new Date(), 'MMM dd, yyyy')}</p>
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-2 gap-8 pt-4">
+              <div>
+                <h3 className="font-semibold mb-2">Customer Details</h3>
+                <p>{planDetails.customerName}</p>
+                <p className="text-sm text-muted-foreground">{planDetails.customerEmail}</p>
+              </div>
+              <div className="text-right">
+                <h3 className="font-semibold mb-2">Payment Details</h3>
+                <p>Total Amount: {formatCurrency(Money.fromCents(planDetails.totalAmount))}</p>
+                <p className="text-sm text-muted-foreground">
+                  {planDetails.numberOfPayments} {planDetails.paymentInterval} payments
+                </p>
+              </div>
+            </div>
+            
+            <Separator />
+            
+            {planDetails.paymentSchedule && (
+              <div>
+                <h3 className="font-semibold mb-4">Payment Schedule</h3>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-right">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[...planDetails.paymentSchedule]
+                      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                      .map((payment, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{format(new Date(payment.date), 'MMM dd, yyyy')}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(Money.fromCents(payment.amount))}</TableCell>
+                          <TableCell className="text-right">
+                            {payment.is_downpayment ? (
+                              <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-green-50 text-green-700">
+                                Paid
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-gray-50 text-gray-700">
+                                Scheduled
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
-          </div>
-        </CardContent>
-        <CardFooter className="flex flex-col items-start space-y-2">
-          <Button onClick={() => window.location.href = '/dashboard'}>
-            Go to Dashboard
-          </Button>
-          <Button 
-            onClick={handleSendEmail} 
-            disabled={isSending || emailSent || !planDetails.paymentPlanId}
-          >
-            {isSending ? 'Sending...' : emailSent ? 'Email Sent' : 'Send Payment Plan Details'}
-          </Button>
-        </CardFooter>
-      </Card>
+
+            <div className="bg-muted p-4 rounded-lg text-sm">
+              <p className="font-medium mb-2">Payment Information</p>
+              <p>
+                Future payments will be automatically processed using the card ending in {planDetails.paymentMethod?.last4}.
+                Payments will be charged on the scheduled dates shown above.
+              </p>
+            </div>
+          </CardContent>
+
+          <CardFooter className="flex justify-between border-t pt-6">
+            <div className="flex gap-2">
+              <Button 
+                size="icon" 
+                variant="outline"
+                onClick={handleSendEmail}
+                disabled={isSending || emailSent || !planDetails.paymentPlanId}
+              >
+                <Mail className="h-4 w-4" />
+              </Button>
+              <Button size="icon" variant="outline">
+                <Printer className="h-4 w-4" />
+              </Button>
+              <Button size="icon" variant="outline" onClick={() => window.location.href = `/plan/${planDetails.paymentPlanId}`}>
+                <FileText className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => window.location.href = '/new-plan'}>
+                <Plus className="h-4 w-4 mr-2" />
+                New Plan
+              </Button>
+              <Button onClick={() => window.location.href = '/dashboard'}>
+                <LayoutDashboard className="h-4 w-4 mr-2" />
+                Dashboard
+              </Button>
+            </div>
+          </CardFooter>
+        </Card>
+      </div>
     );
   }
 

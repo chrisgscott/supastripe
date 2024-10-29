@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import Stripe from "stripe";
 import { createClient } from "@/utils/supabase/server";
+import { Tables } from "@/types/supabase";
 import crypto from "crypto";
 import { Money } from "@/utils/currencyUtils";
 
@@ -9,173 +10,147 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2024-06-20",
 });
 
-export async function POST(request: Request) {
-  console.log('handle-payment-confirmation POST: Started');
-  const supabase = createClient();
-  
-  try {
-    const { data: { paymentIntent } } = await request.json();
-    console.log('handle-payment-confirmation POST: Received payment intent:', paymentIntent);
-
-    if (paymentIntent.status === "succeeded") {
-      const { data: plan, error } = await supabase
-        .from("payment_plans")
-        .select("*, customers(*)")
-        .eq("id", paymentIntent.metadata.payment_plan_id)
-        .eq("plan_creation_status", "pending")
-        .single();
-
-      if (error) {
-        console.error("Error fetching plan details:", error);
-        return NextResponse.json(
-          { success: false, error: "Failed to fetch plan details", details: error },
-          { status: 500 }
-        );
-      }
-
-      const idempotencyKey = crypto.randomUUID();
-      const { error: completionError } = await supabase
-        .rpc('complete_payment_plan_creation', {
-          p_payment_plan_id: plan.id,
-          p_stripe_payment_intent_id: paymentIntent.id,
-          p_idempotency_key: idempotencyKey
-        });
-
-      if (completionError) {
-        console.error("Error completing payment plan creation:", completionError);
-        return NextResponse.json(
-          { success: false, error: "Failed to complete payment plan creation" },
-          { status: 500 }
-        );
-      }
-
-      return NextResponse.json({ success: true });
-    }
-
-    return NextResponse.json(
-      { success: false, error: "Payment not succeeded" },
-      { status: 400 }
-    );
-  } catch (error: any) {
-    console.error("handle-payment-confirmation: Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-
 export async function GET(request: Request) {
+  const supabase = createClient();
   const { searchParams } = new URL(request.url);
-  const paymentIntentId = searchParams.get("payment_intent");
-  
-  console.log('GET handler - Payment Intent ID:', paymentIntentId);
-  
+  const paymentIntentId = searchParams.get('payment_intent');
+
   if (!paymentIntentId) {
-    return NextResponse.json(
-      { success: false, error: "No payment intent ID provided" },
-      { status: 400 }
-    );
+    return NextResponse.json({
+      success: false,
+      error: 'Payment intent ID is required'
+    }, { status: 400 });
   }
 
   try {
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-    console.log('Retrieved payment intent:', {
-      id: paymentIntent.id,
-      status: paymentIntent.status,
-      metadata: paymentIntent.metadata
-    });
-    
-    const supabase = createClient();
+    // First, get the payment plan ID from the processing logs
+    const { data: processingLog, error: logError } = await supabase
+      .from('payment_processing_logs')
+      .select('payment_plan_id, transaction_id')
+      .eq('stripe_payment_intent_id', paymentIntentId)
+      .maybeSingle();
 
-    if (paymentIntent.status === "succeeded") {
-      if (!paymentIntent.metadata.payment_plan_id) {
-        console.error('No payment_plan_id in metadata:', paymentIntent.metadata);
-        return NextResponse.json(
-          { success: false, error: "No payment plan ID in metadata" },
-          { status: 400 }
-        );
-      }
-
-      const idempotencyKey = crypto.randomUUID();
-      console.log('Calling RPC with params:', {
-        p_idempotency_key: idempotencyKey,
-        p_payment_plan_id: paymentIntent.metadata.payment_plan_id,
-        p_stripe_payment_intent_id: paymentIntent.id
-      });
-
-      console.log('Payment Intent Details:', {
-        id: paymentIntent.id,
-        status: paymentIntent.status,
-        metadata: paymentIntent.metadata,
-        payment_plan_id: paymentIntent.metadata.payment_plan_id
-      });
-
-      console.log('RPC Function Call:', {
-        function: 'complete_payment_plan_creation',
-        parameters: {
-          p_idempotency_key: idempotencyKey,
-          p_payment_plan_id: paymentIntent.metadata.payment_plan_id,
-          p_stripe_payment_intent_id: paymentIntent.id
-        }
-      });
-
-      const { error: completionError } = await supabase
-        .rpc('complete_payment_plan_creation', {
-          p_payment_plan_id: paymentIntent.metadata.payment_plan_id,
-          p_stripe_payment_intent_id: paymentIntent.id,
-          p_idempotency_key: idempotencyKey
-        });
-
-      if (completionError) {
-        console.error("Error completing payment plan creation:", {
-          error: completionError,
-          params: {
-            p_idempotency_key: idempotencyKey,
-            p_payment_plan_id: paymentIntent.metadata.payment_plan_id,
-            p_stripe_payment_intent_id: paymentIntent.id
-          }
-        });
-        return NextResponse.json(
-          { success: false, error: "Failed to complete payment plan creation" },
-          { status: 500 }
-        );
-      }
-
-      const { data: plan, error } = await supabase
-        .from("payment_plans")
-        .select("*, customers(*)")
-        .eq("id", paymentIntent.metadata.payment_plan_id)
-        .single();
-
-      if (error) {
-        return NextResponse.json(
-          { success: false, error: "Failed to fetch plan details" },
-          { status: 500 }
-        );
-      }
-
+    if (logError) {
+      console.error('Error fetching processing log:', logError);
       return NextResponse.json({
-        success: true,
-        planDetails: {
-          paymentPlanId: plan.id,
-          customerName: plan.customers.name,
-          customerEmail: plan.customers.email,
-          totalAmount: plan.total_amount,
-          numberOfPayments: plan.number_of_payments,
-          paymentInterval: plan.payment_interval,
-        },
-        status: {
-          customerCreated: true,
-          paymentPlanCreated: true,
-          transactionsCreated: true,
-          paymentProcessed: plan.plan_creation_status === 'completed'
-        },
-      });
+        success: false,
+        error: 'Failed to fetch payment record'
+      }, { status: 500 });
     }
 
-    return NextResponse.json(
-      { success: false, error: "Payment not succeeded" },
-      { status: 400 }
-    );
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // Fetch the Stripe payment intent regardless of processing log
+    const stripePaymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+      expand: ['payment_method']
+    });
+
+    const paymentPlanId = processingLog?.payment_plan_id || stripePaymentIntent.metadata?.payment_plan_id;
+
+    if (!paymentPlanId) {
+      return NextResponse.json({
+        success: false,
+        error: 'Payment plan ID not found'
+      }, { status: 404 });
+    }
+
+    // Fetch the payment plan with related data
+    const { data: paymentPlan, error: planError } = await supabase
+      .from('payment_plans')
+      .select(`
+        *,
+        customers (name, email),
+        transactions (
+          amount,
+          due_date,
+          is_downpayment,
+          status
+        )
+      `)
+      .eq('id', paymentPlanId)
+      .single();
+
+    if (planError) {
+      console.error('Error fetching payment plan:', planError);
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to fetch payment plan details'
+      }, { status: 500 });
+    }
+
+    // Fetch business details
+    const { data: businessInfo, error: businessError } = await supabase
+      .from('profiles')
+      .select('business_name, support_email, support_phone')
+      .single();
+
+    if (businessError) {
+      console.error('Error fetching business info:', businessError);
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to fetch business details'
+      }, { status: 500 });
+    }
+
+    const paymentMethod = stripePaymentIntent.payment_method as Stripe.PaymentMethod;
+
+    // Format the response data
+    const formattedPlanDetails = {
+      customerName: paymentPlan.customers.name,
+      customerEmail: paymentPlan.customers.email,
+      totalAmount: paymentPlan.total_amount,
+      numberOfPayments: paymentPlan.number_of_payments,
+      paymentInterval: paymentPlan.payment_interval,
+      paymentPlanId: paymentPlan.id,
+      paymentSchedule: paymentPlan.transactions.map((t: Tables<'transactions'>) => ({
+        amount: t.amount,
+        date: t.due_date,
+        is_downpayment: t.is_downpayment,
+        status: t.status || 'pending'
+      })),
+      businessDetails: {
+        name: businessInfo.business_name,
+        supportPhone: businessInfo.support_phone,
+        supportEmail: businessInfo.support_email
+      },
+      paymentMethod: paymentMethod && {
+        brand: paymentMethod.type === 'card' ? paymentMethod.card?.brand : undefined,
+        last4: paymentMethod.type === 'card' ? paymentMethod.card?.last4 : undefined
+      }
+    };
+
+    // If we don't have a processing log yet, create one
+    if (!processingLog) {
+      const idempotencyKey = crypto.randomUUID();
+      const { error: createLogError } = await supabase
+        .from('payment_processing_logs')
+        .insert({
+          payment_plan_id: paymentPlanId,
+          stripe_payment_intent_id: paymentIntentId,
+          status: stripePaymentIntent.status,
+          idempotency_key: idempotencyKey
+        });
+
+      if (createLogError) {
+        console.error('Error creating processing log:', createLogError);
+        // Don't return error here, as we still want to return the plan details
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      planDetails: formattedPlanDetails,
+      status: {
+        customerCreated: true,
+        paymentPlanCreated: true,
+        transactionsCreated: true,
+        paymentIntentCreated: true
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in handle-payment-confirmation:', error);
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'An unexpected error occurred'
+    }, { status: 500 });
   }
 }
