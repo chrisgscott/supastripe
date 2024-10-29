@@ -66,6 +66,12 @@ export async function POST(request: Request) {
     const paymentPlanId = crypto.randomUUID();
     console.log('create-payment-intent-and-plan-id: Generated payment plan ID:', paymentPlanId);
 
+    // Convert payment schedule amounts to cents before sending to database
+    const convertedPaymentSchedule = paymentPlan.paymentSchedule.map((payment: PaymentScheduleItem) => ({
+      ...payment,
+      amount: Money.fromDollars(payment.amount).toCents()
+    }));
+
     const idempotencyKey = crypto.randomUUID();
     const { data: dbPlan, error: dbError } = await supabase
       .rpc('create_payment_plan_step1', {
@@ -76,7 +82,7 @@ export async function POST(request: Request) {
         p_number_of_payments: paymentPlan.numberOfPayments,
         p_payment_interval: paymentPlan.paymentInterval,
         p_downpayment_amount: Money.fromDollars(firstPayment.amount).toCents(),
-        p_payment_schedule: paymentPlan.paymentSchedule,
+        p_payment_schedule: convertedPaymentSchedule,
         p_stripe_customer_id: stripeCustomer.id,
         p_idempotency_key: idempotencyKey
       });
