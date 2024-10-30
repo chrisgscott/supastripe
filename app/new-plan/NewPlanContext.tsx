@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import { addWeeks, addMonths } from 'date-fns';
 import { Money, formatCurrency } from '@/utils/currencyUtils';
+import { useSearchParams } from 'next/navigation';
 
 interface PlanDetails {
   id?: string;
@@ -14,6 +15,7 @@ interface PlanDetails {
   paymentPlanId?: string;
   stripeCustomerId?: string;
   clientSecret?: string;
+  pendingPlanId?: string;
 }
 
 interface PaymentScheduleItem {
@@ -52,6 +54,9 @@ interface NewPlanProviderProps {
 }
 
 export const NewPlanProvider: React.FC<NewPlanProviderProps> = ({ children }) => {
+  const searchParams = useSearchParams();
+  const pendingPlanId = searchParams.get('pendingPlanId');
+  
   const [planDetails, setPlanDetails] = useState<PlanDetails>({
     customerName: '',
     customerEmail: '',
@@ -65,6 +70,34 @@ export const NewPlanProvider: React.FC<NewPlanProviderProps> = ({ children }) =>
   const [error, setError] = useState<string | null>(null);
   const [isStripeReady, setIsStripeReady] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+
+  useEffect(() => {
+    if (pendingPlanId) {
+      const loadPendingPlan = async () => {
+        try {
+          const response = await fetch(`/api/pending-plans/${pendingPlanId}`);
+          if (!response.ok) throw new Error('Failed to fetch plan details');
+          const plan = await response.json();
+          
+          setPlanDetails({
+            ...planDetails,
+            customerName: plan.customerName,
+            customerEmail: plan.customerEmail || '',
+            totalAmount: Money.fromCents(plan.totalAmount).toDollars(),
+            numberOfPayments: plan.numberOfPayments || 3,
+            paymentInterval: plan.paymentInterval || 'monthly',
+            pendingPlanId: plan.id,
+            downpaymentAmount: Money.fromCents(plan.downpaymentAmount || 0).toDollars()
+          });
+        } catch (error) {
+          console.error('Error loading pending plan:', error);
+          setError('Failed to load pending plan details');
+        }
+      };
+      
+      loadPendingPlan();
+    }
+  }, [pendingPlanId]);
 
   const createPaymentIntent = useCallback(async () => {
     console.log('Creating payment intent with details:', planDetails);

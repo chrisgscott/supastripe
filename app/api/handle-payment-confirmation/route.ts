@@ -28,6 +28,8 @@ export async function GET(request: Request) {
       .from('payment_processing_logs')
       .select('payment_plan_id, transaction_id')
       .eq('stripe_payment_intent_id', paymentIntentId)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (logError) {
@@ -132,6 +134,27 @@ export async function GET(request: Request) {
       if (createLogError) {
         console.error('Error creating processing log:', createLogError);
         // Don't return error here, as we still want to return the plan details
+      }
+    }
+
+    // After verifying the payment intent and before creating the processing log
+    if (stripePaymentIntent.status === 'succeeded') {
+      const idempotencyKey = crypto.randomUUID();
+      
+      // Call the database function to complete plan creation
+      const { error: completionError } = await supabase
+        .rpc('complete_payment_plan_creation', {
+          p_payment_plan_id: paymentPlanId,
+          p_stripe_payment_intent_id: paymentIntentId,
+          p_idempotency_key: idempotencyKey
+        });
+
+      if (completionError) {
+        console.error('Error completing payment plan creation:', completionError);
+        return NextResponse.json({
+          success: false,
+          error: 'Failed to complete payment plan creation'
+        }, { status: 500 });
       }
     }
 

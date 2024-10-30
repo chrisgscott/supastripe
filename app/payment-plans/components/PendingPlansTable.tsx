@@ -25,7 +25,7 @@ import {
 import { ArrowUpDown, ArrowRight } from "lucide-react"
 import { format } from "date-fns"
 import { useQuery } from "@tanstack/react-query"
-import { formatCurrency } from "@/utils/currencyUtils"
+import { formatCurrency, Money } from "@/utils/currencyUtils"
 
 
 interface PendingPlan {
@@ -64,7 +64,8 @@ const columns: ColumnDef<PendingPlan>[] = [
       )
     },
     cell: ({ row }) => {
-      return formatCurrency(row.getValue("totalAmount"))
+      const amount = row.getValue("totalAmount");
+      return Money.fromCents(amount as number).toString();
     },
   },
   {
@@ -93,7 +94,7 @@ const columns: ColumnDef<PendingPlan>[] = [
           variant="default"
           size="sm"
           className="h-8"
-          onClick={() => window.location.href = `/new-plan/complete/${plan.id}`}
+          onClick={() => window.location.href = `/new-plan?pendingPlanId=${plan.id}`}
         >
           Complete Setup
           <ArrowRight className="ml-2 h-4 w-4" />

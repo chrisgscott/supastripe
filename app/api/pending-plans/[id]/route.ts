@@ -55,9 +55,18 @@ export async function GET(
     const formattedData = {
       id: data.id,
       customerName,
+      customerEmail: (() => {
+        if (Array.isArray(data.customers)) {
+          return data.customers[0]?.email || ''
+        } else if (data.customers && typeof data.customers === 'object') {
+          return (data.customers as Customer).email || ''
+        }
+        return ''
+      })(),
       totalAmount: data.total_amount,
       numberOfPayments: data.number_of_payments || 3,
-      paymentInterval: data.payment_interval || 'monthly'
+      paymentInterval: data.payment_interval || 'monthly',
+      downpaymentAmount: data.downpayment_amount || 0
     }
 
     return NextResponse.json(formattedData)

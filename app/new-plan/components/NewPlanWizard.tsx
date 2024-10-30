@@ -62,7 +62,7 @@ export default function NewPlanWizard() {
   }, [currentStep, stripePromise, setIsStripeReady, setError]);
 
   return (
-    <>
+    <div className="container mx-auto py-8 px-4">
       {error && (
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
@@ -77,7 +77,7 @@ export default function NewPlanWizard() {
           </CardContent>
         </Card>
       ) : (
-        <div className="flex">
+        <div className="flex gap-6">
           <div className="flex-grow">
             {currentStep === 1 && <PlanDetailsForm />}
             {currentStep === 2 && (
@@ -92,11 +92,11 @@ export default function NewPlanWizard() {
               />
             )}
           </div>
-          <div className="w-1/3 ml-4">
+          <div className="w-1/3">
             <PaymentSchedule />
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

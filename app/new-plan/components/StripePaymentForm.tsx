@@ -107,7 +107,7 @@ export default function StripePaymentForm({ amount }: StripePaymentFormProps) {
   };
 
   return (
-    <Card className="shadow-none border-none">
+    <Card>
       <CardHeader>
         <CardTitle>Payment Details</CardTitle>
         <CardDescription>

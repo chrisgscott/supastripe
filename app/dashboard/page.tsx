@@ -99,10 +99,10 @@ function Dashboard() {
     setIsLoadingActivePlans(false);
   };
 
-  const fetchRevenue = async (days: string) => {
+  const fetchRevenue = async (timeframe: string) => {
     setIsLoadingRevenue(true);
     try {
-      const response = await fetch(`/api/revenue?days=${days}`);
+      const response = await fetch(`/api/revenue?days=${timeframe}`);
       const data = await response.json();
       setRevenue(data.revenue);
     } catch (error) {
@@ -185,7 +185,7 @@ function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {isLoadingRevenue ? 'Loading...' : formatCurrency(Number(revenue.replace(/[^0-9.-]+/g, '')))}
+                {isLoadingRevenue ? 'Loading...' : revenue}
               </div>
             </CardContent>
           </Card>
