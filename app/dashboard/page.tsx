@@ -209,7 +209,12 @@ function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {isLoadingScheduledRevenue ? 'Loading...' : formatCurrency(Number(scheduledRevenue.replace(/[^0-9.-]+/g, '')))}
+                {isLoadingScheduledRevenue 
+                  ? 'Loading...' 
+                  : scheduledRevenue 
+                    ? formatCurrency(Number(scheduledRevenue.replace(/[^0-9.-]+/g, '')))
+                    : formatCurrency(0)
+                }
               </div>
             </CardContent>
           </Card>

@@ -11,6 +11,9 @@ interface Customer {
 
 type PaymentPlanWithRelations = Tables<'payment_plans'> & {
   customers: Customer | Customer[] | null;
+  payment_plan_states: {
+    status: string;
+  };
 };
 
 export async function GET(

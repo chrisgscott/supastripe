@@ -13,12 +13,21 @@ type PaymentPlanWithRelations = Tables<'payment_plans'> & {
     due_date: string;
     status: string;
   }[];
+  payment_plan_states: {
+    status: string;
+  }[];
 };
 
 export async function GET() {
   const supabase = createClient()
 
   try {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { data, error } = await supabase
       .from('payment_plans')
       .select(`
@@ -27,8 +36,8 @@ export async function GET() {
         number_of_payments,
         payment_interval,
         downpayment_amount,
-        status,
         created_at,
+        status,
         customers (
           name,
           email
@@ -36,9 +45,14 @@ export async function GET() {
         transactions (
           due_date,
           status
+        ),
+        payment_plan_states!inner (
+          status
         )
       `)
-      .eq('plan_creation_status', 'completed')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .eq('payment_plan_states.status', 'completed')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -46,11 +60,9 @@ export async function GET() {
       return NextResponse.json({ error: 'Failed to fetch payment plans' }, { status: 500 })
     }
 
-    console.log('Raw data from Supabase:', JSON.stringify(data, null, 2))
-
     const formattedData = (data as unknown as PaymentPlanWithRelations[]).map((plan) => {
       const nextPaymentDate = calculateNextPaymentDate(plan);
-      const formattedPlan = {
+      return {
         id: plan.id,
         customerName: plan.customers?.name || 'Unknown',
         totalAmount: Money.fromCents(plan.total_amount || 0).toString(),
@@ -58,10 +70,7 @@ export async function GET() {
         status: plan.status,
         created_at: plan.created_at
       };
-      return formattedPlan;
     });
-
-    console.log('Final formatted data:', JSON.stringify(formattedData, null, 2))
 
     return NextResponse.json(formattedData)
   } catch (error) {
@@ -88,9 +97,9 @@ export async function POST(request: Request) {
       // Fetch the pending plan
       const { data: plan, error: planError } = await supabase
         .from('payment_plans')
-        .select('*')
+        .select('*, payment_plan_states!inner(status)')
         .eq('id', pendingPlanId)
-        .eq('plan_creation_status', 'pending')
+        .eq('payment_plan_states.status', 'draft')
         .single();
 
       if (planError) throw planError;
@@ -120,18 +129,24 @@ export async function POST(request: Request) {
 
       if (transactionError) throw transactionError;
 
-      // Update plan status
+      // Update plan details
       const { error: updateError } = await supabase
         .from('payment_plans')
         .update({ 
-          plan_creation_status: 'completed',
-          status: 'active',
           number_of_payments: numberOfPayments,
           payment_interval: paymentInterval
         })
         .eq('id', pendingPlanId);
 
       if (updateError) throw updateError;
+
+      // Update plan state
+      const { error: stateError } = await supabase
+        .from('payment_plan_states')
+        .update({ status: 'pending_payment' })
+        .eq('payment_plan_id', pendingPlanId);
+
+      if (stateError) throw stateError;
 
       return NextResponse.json({ success: true });
     } else {

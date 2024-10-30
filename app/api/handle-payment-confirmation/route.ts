@@ -67,6 +67,9 @@ export async function GET(request: Request) {
           due_date,
           is_downpayment,
           status
+        ),
+        payment_plan_states (
+          status
         )
       `)
       .eq('id', paymentPlanId)
@@ -158,6 +161,16 @@ export async function GET(request: Request) {
         success: false,
         error: 'Failed to complete payment plan creation'
       }, { status: 500 });
+    }
+
+    const { error: stateError } = await supabase
+      .from('payment_plan_states')
+      .update({ status: 'completed' })
+      .eq('payment_plan_id', paymentPlanId);
+
+    if (stateError) {
+      console.error('Error updating payment plan state:', stateError);
+      throw stateError;
     }
 
     console.log('handle-payment-confirmation: Retrieved plan:', {

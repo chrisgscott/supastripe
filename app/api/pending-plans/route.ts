@@ -8,12 +8,21 @@ type PaymentPlanWithRelations = Tables<'payment_plans'> & {
     name: string;
     email: string;
   };
+  payment_plan_states: {
+    status: string;
+  }[];
 };
 
 export async function GET() {
   const supabase = createClient()
 
   try {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { data, error } = await supabase
       .from('payment_plans')
       .select(`
@@ -22,14 +31,17 @@ export async function GET() {
         number_of_payments,
         payment_interval,
         downpayment_amount,
-        status,
         created_at,
         customers (
           name,
           email
+        ),
+        payment_plan_states (
+          status
         )
       `)
-      .eq('plan_creation_status', 'pending')
+      .eq('payment_plan_states.status', 'draft')
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -40,8 +52,8 @@ export async function GET() {
     const formattedData = (data as unknown as PaymentPlanWithRelations[]).map((plan) => ({
       id: plan.id,
       customerName: plan.customers?.name || 'Unknown',
-      totalAmount: plan.total_amount, // Keep as raw cents
-      status: plan.status,
+      totalAmount: plan.total_amount,
+      status: plan.payment_plan_states?.[0]?.status || 'unknown',
       created_at: plan.created_at
     }));
 

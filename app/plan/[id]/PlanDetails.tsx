@@ -135,6 +135,12 @@ export function PlanDetails({ planDetails }: PlanDetailsProps) {
     ?.filter(payment => payment.status === "pending")
     .reduce((sum, payment) => sum + payment.amount, 0) || 0
 
+  const sortedPayments = [...planDetails.paymentSchedule].sort((a, b) => {
+    if (a.is_downpayment) return -1;
+    if (b.is_downpayment) return 1;
+    return new Date(a.date).getTime() - new Date(b.date).getTime();
+  });
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -227,7 +233,7 @@ export function PlanDetails({ planDetails }: PlanDetailsProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {planDetails.paymentSchedule?.map((payment, index) => (
+                  {sortedPayments.map((payment, index) => (
                     <TableRow key={index}>
                       <TableCell>
                         {format(new Date(payment.date), "MMM dd, yyyy")}

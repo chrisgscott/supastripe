@@ -1,4 +1,3 @@
-
 export type Json =
   | string
   | number
@@ -488,6 +487,50 @@ export type Database = {
             referencedRelation: "payment_plans"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      payment_plan_states: {
+        Row: {
+          id: string
+          payment_plan_id: string
+          status: 'draft' | 'pending_customer_approval' | 'changes_requested' | 'pending_payment' | 'completed' | 'cancelled' | 'paused'
+          payment_link_token: string | null
+          payment_link_expires_at: string | null
+          change_request_notes: string | null
+          reminder_count: number
+          last_reminder_sent_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          payment_plan_id: string
+          status: 'draft' | 'pending_customer_approval' | 'changes_requested' | 'pending_payment' | 'completed' | 'cancelled' | 'paused'
+          payment_link_token?: string | null
+          payment_link_expires_at?: string | null
+          change_request_notes?: string | null
+          reminder_count?: number
+          last_reminder_sent_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          payment_plan_id?: string
+          status?: 'draft' | 'pending_customer_approval' | 'changes_requested' | 'pending_payment' | 'completed' | 'cancelled' | 'paused'
+          payment_link_token?: string | null
+          payment_link_expires_at?: string | null
+          change_request_notes?: string | null
+          reminder_count?: number
+          last_reminder_sent_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_plan_states_payment_plan_id_fkey"
+            columns: ["payment_plan_id"]
+            isOneToOne: true
+            referencedRelation: "payment_plans"
+            referencedColumns: ["id"]
+          }
         ]
       }
     }

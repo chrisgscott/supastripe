@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
-import crypto from 'crypto';
+import { NextResponse } from "next/server";
+import { createClient } from "@/utils/supabase/server";
+import crypto from "crypto";
 
 export async function POST(request: Request) {
   const supabase = createClient();
@@ -8,28 +8,28 @@ export async function POST(request: Request) {
 
   try {
     const { error: transactionError } = await supabase
-      .from('transactions')
-      .update({ status: 'failed' })
-      .eq('id', transactionId);
+      .from("transactions")
+      .update({ status: "failed" })
+      .eq("id", transactionId);
 
     if (transactionError) throw transactionError;
 
-    const { error: planError } = await supabase
-      .from('payment_plans')
-      .update({ status: 'failed' })
-      .eq('id', paymentPlanId);
+    const { error: stateError } = await supabase
+      .from("payment_plan_states")
+      .update({ status: "failed" })
+      .eq("payment_plan_id", paymentPlanId);
 
-    if (planError) throw planError;
+    if (stateError) throw stateError;
 
     const idempotencyKey = crypto.randomUUID();
     const { error: logError } = await supabase
-      .from('payment_processing_logs')
+      .from("payment_processing_logs")
       .insert({
         transaction_id: transactionId,
         payment_plan_id: paymentPlanId,
         stripe_payment_intent_id: null, // We don't have this for failed payments
-        status: 'failed',
-        idempotency_key: idempotencyKey
+        status: "failed",
+        idempotency_key: idempotencyKey,
       });
 
     if (logError) throw logError;

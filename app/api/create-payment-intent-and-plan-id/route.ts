@@ -106,6 +106,20 @@ export async function POST(request: Request) {
 
     console.log('create-payment-intent-and-plan-id: Database plan created:', dbPlan);
 
+    if (dbPlan) {
+      const { error: stateError } = await supabase
+        .from('payment_plan_states')
+        .insert({
+          payment_plan_id: dbPlan[0].payment_plan_id,
+          status: 'draft'
+        });
+
+      if (stateError) {
+        console.error('Error creating payment plan state:', stateError);
+        throw stateError;
+      }
+    }
+
     const paymentAmount = Money.fromDollars(firstPayment.amount).toCents();
     const metadata = {
       payment_plan_id: dbPlan[0].payment_plan_id,

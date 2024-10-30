@@ -21,7 +21,6 @@ export async function GET(request: Request) {
     .select('amount, due_date')
     .eq('user_id', user.id)
     .eq('status', 'pending')
-    .eq('plan_creation_status', 'completed')
     .gt('due_date', now);
 
   if (days && days !== 'all') {

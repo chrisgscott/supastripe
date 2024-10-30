@@ -8,11 +8,17 @@ export async function GET(request: Request) {
   const supabase = createClient();
 
   try {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     let query = supabase
       .from('transactions')
       .select('amount, payment_plans!inner(*)')
       .eq('status', 'paid')
-      .eq('payment_plans.plan_creation_status', 'completed');
+      .eq('user_id', user.id);
 
     if (days !== 'all') {
       const daysAgo = new Date();

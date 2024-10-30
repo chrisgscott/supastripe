@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { NextResponse } from "next/server";
+import { createClient } from "@/utils/supabase/server";
 
 export async function POST(request: Request) {
   const supabase = createClient();
@@ -7,9 +7,9 @@ export async function POST(request: Request) {
 
   try {
     const { error } = await supabase
-      .from('payment_plans')
-      .update({ status: 'cancelled' })
-      .eq('id', paymentPlanId);
+      .from("payment_plan_states")
+      .update({ status: "cancelled" })
+      .eq("payment_plan_id", paymentPlanId);
 
     if (error) throw error;
 

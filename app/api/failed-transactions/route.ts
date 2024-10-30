@@ -13,6 +13,9 @@ type FailedTransaction = {
       name: string;
       email: string;
     };
+    payment_plan_states: {
+      status: string;
+    };
   };
 };
 
@@ -36,11 +39,14 @@ export async function GET() {
           customers!inner (
             name,
             email
+          ),
+          payment_plan_states!inner (
+            status
           )
         )
       `)
       .eq('status', 'failed')
-      .eq('plan_creation_status', 'completed')
+      .eq('payment_plans.payment_plan_states.status', 'completed')
       .order('next_attempt_date', { ascending: true })
       .limit(5);
 

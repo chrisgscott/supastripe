@@ -59,7 +59,8 @@ export async function POST(request: Request) {
         *,
         notes,
         customers (name, email),
-        transactions (amount, due_date, is_downpayment)
+        transactions (amount, due_date, is_downpayment),
+        payment_plan_states (status)
       `)
       .eq('id', paymentPlanId)
       .single();

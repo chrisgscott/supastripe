@@ -24,7 +24,6 @@ export async function GET() {
     .from('transactions')
     .select('amount, due_date, status, paid_at')
     .eq('user_id', user.id)
-    .eq('plan_creation_status', 'completed')
     .in('status', ['paid', 'pending'])
     .order('due_date', { ascending: true });
 
