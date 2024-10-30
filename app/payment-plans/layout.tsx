@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PaymentPlansTable } from "./components/PaymentPlansTable"
 import { PendingPlansTable } from "./components/PendingPlansTable"
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Card, CardContent } from "@/components/ui/card"
 
 const queryClient = new QueryClient()
 
@@ -18,20 +19,23 @@ export default function PaymentPlansLayout({ children }: { children: React.React
             Manage your payment plans and view their status
           </p>
         </div>
-        <Separator className="my-6" />
         
-        <Tabs defaultValue="active" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="active">Active Plans</TabsTrigger>
-            <TabsTrigger value="pending">Pending Plans</TabsTrigger>
-          </TabsList>
-          <TabsContent value="active" className="space-y-4">
-            <PaymentPlansTable />
-          </TabsContent>
-          <TabsContent value="pending" className="space-y-4">
-            <PendingPlansTable />
-          </TabsContent>
-        </Tabs>
+        <Card>
+          <CardContent className="pt-6">
+            <Tabs defaultValue="active" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="active">Active Plans</TabsTrigger>
+                <TabsTrigger value="pending">Pending Plans</TabsTrigger>
+              </TabsList>
+              <TabsContent value="active" className="space-y-4">
+                <PaymentPlansTable />
+              </TabsContent>
+              <TabsContent value="pending" className="space-y-4">
+                <PendingPlansTable />
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
       </div>
     </QueryClientProvider>
   )
