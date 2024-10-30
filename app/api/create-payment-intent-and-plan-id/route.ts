@@ -73,6 +73,11 @@ export async function POST(request: Request) {
     }));
 
     const idempotencyKey = crypto.randomUUID();
+    console.log('Creating payment plan with notes:', {
+      hasNotes: !!paymentPlan.notes,
+      notes: paymentPlan.notes
+    });
+
     const { data: dbPlan, error: dbError } = await supabase
       .rpc('create_payment_plan_step1', {
         p_customer_name: paymentPlan.customerName,
@@ -84,8 +89,15 @@ export async function POST(request: Request) {
         p_downpayment_amount: Math.round(Money.fromDollars(firstPayment.amount).toCents()),
         p_payment_schedule: convertedPaymentSchedule,
         p_stripe_customer_id: stripeCustomer.id,
-        p_idempotency_key: idempotencyKey
+        p_idempotency_key: idempotencyKey,
+        p_notes: paymentPlan.notes || null
       });
+
+    console.log('Payment plan created:', {
+      success: !!dbPlan,
+      error: dbError,
+      planData: dbPlan
+    });
 
     if (dbError || !dbPlan) {
       console.error('create-payment-intent-and-plan-id: Database error:', dbError);

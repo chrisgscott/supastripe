@@ -1,0 +1,21 @@
+.quill {
+    background-color: white;
+    border-radius: 0.375rem;
+  }
+  
+  .quill .ql-toolbar {
+    border-top-left-radius: 0.375rem;
+    border-top-right-radius: 0.375rem;
+    border-bottom: 1px solid hsl(var(--input));
+    background-color: hsl(var(--muted));
+  }
+  
+  .quill .ql-container {
+    border-bottom-left-radius: 0.375rem;
+    border-bottom-right-radius: 0.375rem;
+    min-height: 150px;
+  }
+  
+  .quill.border-red-500 {
+    border-color: rgb(239 68 68);
+  }

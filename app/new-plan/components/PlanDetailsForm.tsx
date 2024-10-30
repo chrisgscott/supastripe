@@ -7,12 +7,27 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ReloadIcon } from "@radix-ui/react-icons";
+import dynamic from 'next/dynamic';
+import 'react-quill/dist/quill.snow.css';
+import './PlanDetailsForm.css';
+
+const ReactQuill = dynamic(() => import('react-quill'), {
+  ssr: false,
+  loading: () => <div className="h-[200px] w-full bg-muted animate-pulse rounded-md" />
+});
 
 interface FormErrors {
   [key: string]: string;
 }
 
-type PlanDetailsKeys = 'customerName' | 'customerEmail' | 'totalAmount' | 'numberOfPayments' | 'paymentInterval' | 'downpaymentAmount';
+type PlanDetailsKeys = 'customerName' | 'customerEmail' | 'totalAmount' | 'numberOfPayments' | 'paymentInterval' | 'downpaymentAmount' | 'notes';
+
+type QuillChangeHandler = (
+  content: string,
+  delta: any,
+  source: string,
+  editor: any
+) => void;
 
 export default function PlanDetailsForm() {
   const { planDetails, setPlanDetails, calculatePaymentSchedule, createPaymentIntent, setCurrentStep } = useNewPlan();
@@ -126,6 +141,24 @@ export default function PlanDetailsForm() {
     }
   };
 
+  const handleQuillChange: QuillChangeHandler = (content, delta, source, editor) => {
+    const notes = {
+      content: content,
+      delta: editor.getContents(),
+      plaintext: editor.getText()
+    };
+    
+    console.log('Quill content changed:', {
+      content,
+      notes
+    });
+    
+    setPlanDetails(prev => ({
+      ...prev,
+      notes: notes
+    }));
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -216,6 +249,28 @@ export default function PlanDetailsForm() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes</Label>
+            <div className="min-h-[200px]">
+              <ReactQuill
+                theme="snow"
+                value={planDetails.notes?.content || ''}
+                onChange={handleQuillChange}
+                className={errors.notes ? 'border-red-500' : ''}
+                modules={{
+                  toolbar: [
+                    [{ 'header': [1, 2, false] }],
+                    ['bold', 'italic', 'underline', 'strike'],
+                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    ['link'],
+                    ['clean']
+                  ],
+                }}
+              />
+            </div>
+            {errors.notes && <p className="text-red-500 text-sm">{errors.notes}</p>}
           </div>
 
           <div className="flex justify-end space-x-4 mt-6">

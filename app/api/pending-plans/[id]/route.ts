@@ -28,6 +28,9 @@ export async function GET(
         number_of_payments,
         payment_interval,
         downpayment_amount,
+        status,
+        created_at,
+        notes,
         customers (
           name,
           email

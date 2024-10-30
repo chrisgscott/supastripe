@@ -154,3 +154,21 @@
     display: none !important;
   }
 }
+
+@layer components {
+  .prose {
+    @apply text-gray-600;
+  }
+  
+  .prose h1, .prose h2 {
+    @apply text-gray-900 font-semibold;
+  }
+  
+  .prose ul, .prose ol {
+    @apply my-2;
+  }
+  
+  .prose li {
+    @apply ml-4;
+  }
+}

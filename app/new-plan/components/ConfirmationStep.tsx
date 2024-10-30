@@ -55,6 +55,11 @@ interface ConfirmationStepProps {
       brand: string;
       last4: string;
     };
+    notes?: {
+      content: string;
+      delta: any;
+      plaintext: string;
+    };
   };
   paymentIntent?: string;
 }
@@ -276,6 +281,12 @@ export default function ConfirmationStep({
     loadingStatus,
   });
 
+  console.log('ConfirmationStep planDetails:', {
+    hasNotes: !!planDetails?.notes,
+    notesContent: planDetails?.notes?.content,
+    fullNotes: planDetails?.notes
+  });
+
   return (
     <div className="space-y-6">
       <Card className="max-w-3xl mx-auto confirmation-card">
@@ -381,6 +392,16 @@ export default function ConfirmationStep({
               charged on the scheduled dates shown above.
             </p>
           </div>
+
+          {planDetails.notes?.content && (
+            <div className="space-y-2">
+              <h3 className="font-semibold">Notes</h3>
+              <div 
+                className="prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ __html: planDetails.notes.content }}
+              />
+            </div>
+          )}
         </CardContent>
 
         <CardFooter className="flex justify-between border-t pt-6 card-actions">

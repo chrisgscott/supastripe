@@ -16,6 +16,11 @@ interface PlanDetails {
   stripeCustomerId?: string;
   clientSecret?: string;
   pendingPlanId?: string;
+  notes?: {
+    content: string;
+    delta: any;
+    plaintext: string;
+  };
 }
 
 interface PaymentScheduleItem {
@@ -87,7 +92,8 @@ export const NewPlanProvider: React.FC<NewPlanProviderProps> = ({ children }) =>
             numberOfPayments: plan.numberOfPayments || 3,
             paymentInterval: plan.paymentInterval || 'monthly',
             pendingPlanId: plan.id,
-            downpaymentAmount: Money.fromCents(plan.downpaymentAmount || 0).toDollars()
+            downpaymentAmount: Money.fromCents(plan.downpaymentAmount || 0).toDollars(),
+            notes: plan.notes || undefined
           });
         } catch (error) {
           console.error('Error loading pending plan:', error);

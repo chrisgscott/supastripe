@@ -15,6 +15,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const paymentIntentId = searchParams.get('payment_intent');
 
+  console.log('handle-payment-confirmation: Fetching plan details for payment intent:', paymentIntentId);
+
   if (!paymentIntentId) {
     return NextResponse.json({
       success: false,
@@ -102,6 +104,7 @@ export async function GET(request: Request) {
       numberOfPayments: paymentPlan.number_of_payments,
       paymentInterval: paymentPlan.payment_interval,
       paymentPlanId: paymentPlan.id,
+      notes: paymentPlan.notes,
       paymentSchedule: paymentPlan.transactions.map((t: Tables<'transactions'>) => ({
         amount: t.amount,
         date: t.due_date,
@@ -137,26 +140,47 @@ export async function GET(request: Request) {
       }
     }
 
-    // After verifying the payment intent and before creating the processing log
-    if (stripePaymentIntent.status === 'succeeded') {
-      const idempotencyKey = crypto.randomUUID();
-      
-      // Call the database function to complete plan creation
-      const { error: completionError } = await supabase
-        .rpc('complete_payment_plan_creation', {
-          p_payment_plan_id: paymentPlanId,
-          p_stripe_payment_intent_id: paymentIntentId,
-          p_idempotency_key: idempotencyKey
-        });
+    // After retrieving the payment intent and before calling complete_payment_plan_creation
+    const cardLastFour = paymentMethod.type === 'card' ? paymentMethod.card?.last4 : undefined;
 
-      if (completionError) {
-        console.error('Error completing payment plan creation:', completionError);
-        return NextResponse.json({
-          success: false,
-          error: 'Failed to complete payment plan creation'
-        }, { status: 500 });
-      }
+    // Call the database function to complete plan creation
+    const { error: completionError } = await supabase
+      .rpc('complete_payment_plan_creation', {
+        p_payment_plan_id: paymentPlanId,
+        p_transaction_id: stripePaymentIntent.metadata?.transaction_id,
+        p_idempotency_key: crypto.randomUUID(),
+        p_card_last_four: cardLastFour
+      });
+
+    if (completionError) {
+      console.error('Error completing payment plan creation:', completionError);
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to complete payment plan creation'
+      }, { status: 500 });
     }
+
+    console.log('handle-payment-confirmation: Retrieved plan:', {
+      success: !!paymentPlan,
+      error: planError,
+      hasNotes: !!paymentPlan?.notes,
+      notes: paymentPlan?.notes
+    });
+
+    // Before returning the response
+    console.log('handle-payment-confirmation: Sending response:', {
+      success: true,
+      planDetails: {
+        ...formattedPlanDetails,
+        notes: paymentPlan?.notes
+      },
+      status: {
+        customerCreated: true,
+        paymentPlanCreated: true,
+        transactionsCreated: true,
+        paymentIntentCreated: true
+      }
+    });
 
     return NextResponse.json({
       success: true,

@@ -57,6 +57,7 @@ export async function POST(request: Request) {
       .from('payment_plans')
       .select(`
         *,
+        notes,
         customers (name, email),
         transactions (amount, due_date, is_downpayment)
       `)
@@ -98,7 +99,8 @@ export async function POST(request: Request) {
         total_amount: Money.fromCents(paymentPlan.total_amount).toString(),
         number_of_payments: `${paymentPlan.number_of_payments} ${paymentPlan.payment_interval} payments`,
         payment_schedule_html: formatPaymentScheduleHtml(paymentPlan.transactions),
-        card_last_four: paymentPlan.card_last_four
+        card_last_four: paymentPlan.card_last_four,
+        notes_html: paymentPlan.notes?.content || ''
       }
     };
 
