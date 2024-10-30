@@ -133,27 +133,29 @@ export default function PlanDetailsForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleNext} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="customerName">Customer Name</Label>
-            <Input
-              id="customerName"
-              value={planDetails.customerName}
-              onChange={(e) => handleChange('customerName', e.target.value)}
-              className={errors.customerName ? 'border-red-500' : ''}
-            />
-            {errors.customerName && <p className="text-red-500 text-sm">{errors.customerName}</p>}
-          </div>
+          <div className="grid grid-cols-5 gap-4">
+            <div className="col-span-2 space-y-2">
+              <Label htmlFor="customerName">Customer Name</Label>
+              <Input
+                id="customerName"
+                value={planDetails.customerName}
+                onChange={(e) => handleChange('customerName', e.target.value)}
+                className={errors.customerName ? 'border-red-500' : ''}
+              />
+              {errors.customerName && <p className="text-red-500 text-sm">{errors.customerName}</p>}
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="customerEmail">Customer Email</Label>
-            <Input
-              id="customerEmail"
-              type="email"
-              value={planDetails.customerEmail}
-              onChange={(e) => handleChange('customerEmail', e.target.value)}
-              className={errors.customerEmail ? 'border-red-500' : ''}
-            />
-            {errors.customerEmail && <p className="text-red-500 text-sm">{errors.customerEmail}</p>}
+            <div className="col-span-3 space-y-2">
+              <Label htmlFor="customerEmail">Customer Email</Label>
+              <Input
+                id="customerEmail"
+                type="email"
+                value={planDetails.customerEmail}
+                onChange={(e) => handleChange('customerEmail', e.target.value)}
+                className={errors.customerEmail ? 'border-red-500' : ''}
+              />
+              {errors.customerEmail && <p className="text-red-500 text-sm">{errors.customerEmail}</p>}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -173,6 +175,21 @@ export default function PlanDetailsForm() {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="downpaymentAmount">Down Payment Amount</Label>
+              <Input
+                id="downpaymentAmount"
+                type="number"
+                step="0.01"
+                value={planDetails.downpaymentAmount || ''}
+                onChange={(e) => handleChange('downpaymentAmount', e.target.value)}
+                className={errors.downpaymentAmount ? 'border-red-500' : ''}
+              />
+              {errors.downpaymentAmount && <p className="text-red-500 text-sm">{errors.downpaymentAmount}</p>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label htmlFor="numberOfPayments">Number of Payments</Label>
               <Input
                 id="numberOfPayments"
@@ -183,35 +200,22 @@ export default function PlanDetailsForm() {
               />
               {errors.numberOfPayments && <p className="text-red-500 text-sm">{errors.numberOfPayments}</p>}
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="paymentInterval">Payment Interval</Label>
-            <Select
-              value={planDetails.paymentInterval}
-              onValueChange={(value) => handleChange('paymentInterval', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select interval" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="weekly">Weekly</SelectItem>
-                <SelectItem value="monthly">Monthly</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="downpaymentAmount">Down Payment Amount</Label>
-            <Input
-              id="downpaymentAmount"
-              type="number"
-              step="0.01"
-              value={planDetails.downpaymentAmount || ''}
-              onChange={(e) => handleChange('downpaymentAmount', e.target.value)}
-              className={errors.downpaymentAmount ? 'border-red-500' : ''}
-            />
-            {errors.downpaymentAmount && <p className="text-red-500 text-sm">{errors.downpaymentAmount}</p>}
+            <div className="space-y-2">
+              <Label htmlFor="paymentInterval">Payment Interval</Label>
+              <Select
+                value={planDetails.paymentInterval}
+                onValueChange={(value) => handleChange('paymentInterval', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select interval" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="flex justify-end space-x-4 mt-6">
