@@ -1,217 +1,77 @@
 import { createClient } from '@/utils/supabase/server'
 import { notFound } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { format } from 'date-fns'
-import UpdateCardModalWrapper from '../components/UpdateCardModalWrapper'
-import { formatCurrency } from '@/utils/currencyUtils'
-import { Money } from '@/utils/currencyUtils'
-import Link from 'next/link'
-import { ChevronLeft } from 'lucide-react'
+import { PlanDetails } from './PlanDetails'
+import { Tables } from '@/types/supabase'
 
-interface PaymentPlanDetails {
-  id: string
-  customerName: string
-  customerEmail: string
-  totalAmount: number  // in cents
-  amountPaid: number  // in cents
-  status: string
-  createdAt: string
-  customers: { name?: string; email?: string; stripe_customer_id?: string } | { name?: string; email?: string; stripe_customer_id?: string }[] | null
-  transactions: {
-    id: string
-    amount: number  // in cents
-    dueDate: string
-    status: string
-  }[]
+type Transaction = {
+  id: string;
+  amount: number;
+  due_date: string;
+  status: string;
+  is_downpayment: boolean;
 }
 
-export default async function PaymentPlanDetails({ params }: { params: { id: string } }) {
-  const supabase = createClient();
-  
-  const { data: paymentPlan, error } = await supabase
+type PaymentPlanWithRelations = Tables<'payment_plans'> & {
+  customers: {
+    name: string;
+    email: string;
+  };
+  transactions: Transaction[];
+  notes?: {
+    content: string;
+    delta: any;
+    plaintext: string;
+  };
+};
+
+export default async function PlanPage({ params }: { params: { id: string } }) {
+  const supabase = createClient()
+
+  const { data: plan, error } = await supabase
     .from('payment_plans')
     .select(`
-      id,
-      total_amount,
-      status,
-      created_at,
-      customers (id, name, email, stripe_customer_id),
-      transactions (id, amount, due_date, status)
+      *,
+      customers (
+        name,
+        email
+      ),
+      transactions (
+        id,
+        amount,
+        due_date,
+        status,
+        is_downpayment
+      )
     `)
     .eq('id', params.id)
-    .single();
+    .single()
 
-  if (error || !paymentPlan) {
-    console.error('Error fetching payment plan:', error);
-    notFound();
+  if (error || !plan) {
+    console.error('Error fetching plan:', error)
+    notFound()
   }
 
-  const planDetails: PaymentPlanDetails = {
-    id: paymentPlan.id,
-    customerName: (() => {
-      if (Array.isArray(paymentPlan.customers)) {
-        return paymentPlan.customers[0]?.name || 'Unknown';
-      } else if (paymentPlan.customers && typeof paymentPlan.customers === 'object') {
-        return (paymentPlan.customers as { name?: string }).name || 'Unknown';
-      }
-      return 'Unknown';
-    })(),
-    customerEmail: (() => {
-      if (Array.isArray(paymentPlan.customers)) {
-        return paymentPlan.customers[0]?.email || 'Unknown';
-      } else if (paymentPlan.customers && typeof paymentPlan.customers === 'object') {
-        return (paymentPlan.customers as { email?: string }).email || 'Unknown';
-      }
-      return 'Unknown';
-    })(),
-    totalAmount: paymentPlan.total_amount,
-    amountPaid: paymentPlan.transactions.reduce((sum, t) => t.status === 'paid' ? sum + t.amount : sum, 0),
-    status: paymentPlan.status,
-    createdAt: paymentPlan.created_at,
-    customers: paymentPlan.customers,
-    transactions: paymentPlan.transactions.map((t: any) => ({
-      id: t.id,
+  const typedPlan = plan as PaymentPlanWithRelations
+  
+  const planDetails = {
+    customerName: typedPlan.customers?.name || 'Unknown',
+    customerEmail: typedPlan.customers?.email || '',
+    totalAmount: typedPlan.total_amount,
+    numberOfPayments: typedPlan.number_of_payments,
+    paymentInterval: typedPlan.payment_interval,
+    paymentPlanId: typedPlan.id,
+    notes: typedPlan.notes || undefined,
+    paymentSchedule: typedPlan.transactions.map((t: Transaction) => ({
       amount: t.amount,
-      dueDate: t.due_date,
-      status: t.status
+      date: t.due_date,
+      is_downpayment: t.is_downpayment,
+      status: t.status as 'paid' | 'pending'
     }))
-  };
-
-  // Sort transactions by due date and find the next unpaid one
-  const nextPayment = planDetails.transactions
-    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-    .find(t => t.status !== 'paid' && new Date(t.dueDate) >= new Date());
+  }
 
   return (
-    <div className="container mx-auto">
-      <div className="mb-6">
-        <Link 
-          href="/payment-plans" 
-          className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center"
-        >
-          <ChevronLeft className="h-4 w-4 mr-1" />
-          Back to All Plans
-        </Link>
-      </div>
-      
-      <h1 className="text-3xl font-bold mb-4">{planDetails.customerName}</h1>
-      <p className="text-gray-600 mb-8">
-        {planDetails.customerEmail} • Created on {format(new Date(planDetails.createdAt), 'MMMM d, yyyy')} • 
-        <span className="bg-green-100 text-green-800 px-2 py-1 rounded ml-2">
-          {planDetails.status.charAt(0).toUpperCase() + planDetails.status.slice(1)}
-        </span>
-      </p>
-      
-      <div className="grid grid-cols-3 gap-6 mb-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Plan Overview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span>Total Amount:</span>
-                <span className="font-semibold">{Money.fromCents(planDetails.totalAmount).toString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Amount Paid:</span>
-                <span className="font-semibold">{Money.fromCents(planDetails.amountPaid).toString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Amount Scheduled:</span>
-                <span className="font-semibold mb-3">
-                  {Money.fromCents(planDetails.totalAmount - planDetails.amountPaid).toString()}
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-4 mt-2">
-                <div 
-                  className="bg-blue-500 h-4 rounded-full" 
-                  style={{ 
-                    width: `${Money.fromDollars(planDetails.amountPaid)
-                      .percentageOf(Money.fromDollars(planDetails.totalAmount))}%` 
-                  }}
-                >
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Next Payment</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {nextPayment ? (
-              <>
-                <div className="text-3xl font-bold mb-2">
-                  {Money.fromCents(nextPayment.amount).toString()}
-                </div>
-                <div className="text-gray-600 mb-4">Due on {format(new Date(nextPayment.dueDate), 'MMMM d, yyyy')}</div>
-                <UpdateCardModalWrapper 
-                  stripeCustomerId={
-                    Array.isArray(planDetails.customers)
-                      ? planDetails.customers[0]?.stripe_customer_id ?? ''
-                      : planDetails.customers?.stripe_customer_id ?? ''
-                  } 
-                  paymentPlanId={planDetails.id}
-                />
-                <Button variant="outline" className="w-full">Update Payment Schedule</Button>
-              </>
-            ) : (
-              <div>No upcoming payments</div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Email Logs</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-600 mb-2">Recent emails sent to the client</p>
-            <ul className="space-y-2">
-              <li>✉️ Payment Reminder - June 25, 2023</li>
-              <li>✉️ Payment Confirmation - June 1, 2023</li>
-              <li>✉️ Payment Reminder - May 25, 2023</li>
-            </ul>
-          </CardContent>
-        </Card>
-      </div>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Transaction History</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {planDetails.transactions
-                .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-                .map((transaction) => (
-                  <TableRow key={transaction.id}>
-                    <TableCell>{format(new Date(transaction.dueDate), 'MMMM d, yyyy')}</TableCell>
-                    <TableCell>{Money.fromCents(transaction.amount).toString()}</TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 rounded ${transaction.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                        {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+    <div className="container py-10">
+      <PlanDetails planDetails={planDetails} />
     </div>
   )
 }

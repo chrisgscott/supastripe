@@ -3,7 +3,6 @@ import { useNewPlan } from '../NewPlanContext';
 import PlanDetailsForm from './PlanDetailsForm';
 import PaymentSchedule from './PaymentSchedule';
 import StripePaymentForm from './StripePaymentForm';
-import ConfirmationStep from './ConfirmationStep';
 import { Elements } from '@stripe/react-stripe-js';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -84,12 +83,6 @@ export default function NewPlanWizard() {
               <Elements stripe={stripePromise} options={options}>
                 <StripePaymentForm amount={Money.fromDollars(planDetails.downpaymentAmount).toCents()} />
               </Elements>
-            )}
-            {currentStep === 3 && (
-              <ConfirmationStep 
-                planDetails={planDetails}
-                paymentIntent={planDetails.clientSecret?.split('_secret_')[0]}
-              />
             )}
           </div>
           <div className="w-1/3">

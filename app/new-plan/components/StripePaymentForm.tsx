@@ -1,3 +1,5 @@
+"use client"
+
 import React, { useState, useEffect } from "react";
 import {
   useStripe,
@@ -18,6 +20,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Money } from "@/utils/currencyUtils";
 import { ReloadIcon } from "@radix-ui/react-icons";
+import { useRouter } from "next/navigation";
 
 interface StripePaymentFormProps {
   amount?: number;
@@ -29,6 +32,8 @@ export default function StripePaymentForm({ amount }: StripePaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const { planDetails, setError, createPaymentIntent, setIsStripeReady } = useNewPlan();
+  const router = useRouter();
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   console.log('StripePaymentForm: Rendering with amount:', amount);
   console.log('StripePaymentForm: Stripe and Elements status:', { stripe: !!stripe, elements: !!elements });
@@ -69,42 +74,84 @@ export default function StripePaymentForm({ amount }: StripePaymentFormProps) {
     );
   }
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!stripe || !elements) return;
-
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsProcessing(true);
+    setErrorMessage(null);
 
     try {
-      const { error: submitError } = await elements.submit();
-      if (submitError) throw submitError;
-
       if (!planDetails.clientSecret) {
         throw new Error('Client secret is not available');
       }
 
-      const { error: confirmError } = await stripe.confirmPayment({
-        elements,
+      const { error: submitError } = await elements!.submit();
+      if (submitError) {
+        throw new Error(submitError.message);
+      }
+
+      const { error: confirmError, paymentIntent } = await stripe!.confirmPayment({
+        elements: elements!,
         clientSecret: planDetails.clientSecret,
         confirmParams: {
-          return_url: `${window.location.origin}/payment-confirmation?payment_intent=${planDetails.clientSecret.split('_secret_')[0]}`,
-          payment_method_data: {
-            billing_details: {
-              // You can add billing details here if needed
-            },
-          },
+          return_url: `${window.location.origin}/plan/${planDetails.paymentPlanId}`,
         },
+        redirect: "if_required",
       });
 
-      if (confirmError) throw confirmError;
+      if (confirmError) {
+        throw new Error(confirmError.message);
+      }
 
+      if (paymentIntent) {
+        setIsRedirecting(true);
+        
+        // Poll for plan creation
+        let retryCount = 0;
+        const maxRetries = 10;
+        
+        while (retryCount < maxRetries) {
+          const response = await fetch(
+            `/api/handle-payment-confirmation?payment_intent=${paymentIntent.id}`
+          );
+          const data = await response.json();
+          
+          if (data.success && data.planDetails?.paymentPlanId) {
+            router.push(`/plan/${data.planDetails.paymentPlanId}`);
+            return;
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          retryCount++;
+        }
+        
+        throw new Error('Timeout waiting for plan creation');
+      }
     } catch (error) {
-      console.error('Error in handleSubmit:', error);
-      setErrorMessage(error instanceof Error ? error.message : 'An unexpected error occurred');
+      console.error('Payment error:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'An error occurred');
+      setIsRedirecting(false);
     } finally {
       setIsProcessing(false);
     }
   };
+
+  if (isRedirecting) {
+    return (
+      <Card>
+        <CardContent className="py-10">
+          <div className="flex flex-col items-center justify-center space-y-4">
+            <ReloadIcon className="h-8 w-8 animate-spin" />
+            <div className="text-center">
+              <h3 className="font-semibold">Processing Payment</h3>
+              <p className="text-sm text-muted-foreground">
+                Please wait while we finalize your payment plan...
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card>
