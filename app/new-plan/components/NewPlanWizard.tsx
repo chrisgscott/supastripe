@@ -1,64 +1,77 @@
-import React, { useEffect, useMemo } from 'react';
-import { useNewPlan } from '../NewPlanContext';
-import PlanDetailsForm from './PlanDetailsForm';
-import PaymentSchedule from './PaymentSchedule';
-import StripePaymentForm from './StripePaymentForm';
-import { Elements } from '@stripe/react-stripe-js';
+import React, { useEffect, useMemo } from "react";
+import { useNewPlan } from "../NewPlanContext";
+import PlanDetailsForm from "./PlanDetailsForm";
+import PaymentSchedule from "./PaymentSchedule";
+import PaymentMethodChoice from "./PaymentMethodChoice";
+import EmailConfirmation from "./EmailConfirmation";
+import StripePaymentForm from "./StripePaymentForm";
+import { Elements } from "@stripe/react-stripe-js";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
-import { getStripe } from '@/app/utils/stripe';
-import { Money } from '@/utils/currencyUtils';
+import { getStripe } from "@/app/utils/stripe";
+import { Money } from "@/utils/currencyUtils";
 
 export default function NewPlanWizard() {
-  const { 
+  const {
     currentStep,
-    planDetails, 
+    planDetails,
     error,
     isLoading,
     setError,
-    setIsStripeReady
+    setIsStripeReady,
   } = useNewPlan();
 
   const stripePromise = useMemo(() => getStripe(), []);
 
-  const options = useMemo(() => ({
-    mode: 'payment' as const,
-    amount: Money.fromDollars(planDetails.paymentSchedule?.[0]?.amount || 0).toCents(),
-    currency: 'usd',
-    setup_future_usage: 'off_session' as const,
-    appearance: {
-      theme: 'stripe' as const,
-      variables: {
-        colorPrimary: '#0F172A',
+  const options = useMemo(
+    () => ({
+      mode: "payment" as const,
+      amount: Money.fromDollars(
+        planDetails.paymentSchedule?.[0]?.amount || 0
+      ).toCents(),
+      currency: "usd",
+      setup_future_usage: "off_session" as const,
+      appearance: {
+        theme: "stripe" as const,
+        variables: {
+          colorPrimary: "#0F172A",
+        },
       },
-    },
-    loader: 'auto' as const,
-  }), [planDetails.paymentSchedule]);
+      loader: "auto" as const,
+    }),
+    [planDetails.paymentSchedule]
+  );
 
   useEffect(() => {
-    if (currentStep === 2) {
-      console.log('NewPlanWizard: Starting Stripe initialization');
+    if (currentStep === 3 && planDetails.paymentMethod === "collect_now") {
+      console.log("NewPlanWizard: Starting Stripe initialization");
       const loadStripeElements = async () => {
         try {
-          console.log('NewPlanWizard: Awaiting stripePromise');
+          console.log("NewPlanWizard: Awaiting stripePromise");
           const stripe = await stripePromise;
-          console.log('NewPlanWizard: Stripe loaded:', !!stripe);
+          console.log("NewPlanWizard: Stripe loaded:", !!stripe);
           if (stripe) {
             // Add a small delay to ensure Elements is ready
             setTimeout(() => {
-              console.log('NewPlanWizard: Setting isStripeReady to true');
+              console.log("NewPlanWizard: Setting isStripeReady to true");
               setIsStripeReady(true);
             }, 100);
           }
         } catch (error) {
-          console.error('NewPlanWizard: Error loading Stripe:', error);
-          setError('Failed to load payment form. Please try again.');
+          console.error("NewPlanWizard: Error loading Stripe:", error);
+          setError("Failed to load payment form. Please try again.");
         }
       };
       loadStripeElements();
     }
-  }, [currentStep, stripePromise, setIsStripeReady, setError]);
+  }, [
+    currentStep,
+    stripePromise,
+    setIsStripeReady,
+    setError,
+    planDetails.paymentMethod,
+  ]);
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -79,10 +92,19 @@ export default function NewPlanWizard() {
         <div className="flex gap-6">
           <div className="flex-grow">
             {currentStep === 1 && <PlanDetailsForm />}
-            {currentStep === 2 && (
-              <Elements stripe={stripePromise} options={options}>
-                <StripePaymentForm amount={Money.fromDollars(planDetails.downpaymentAmount).toCents()} />
-              </Elements>
+            {currentStep === 2 && <PaymentMethodChoice />}
+            {currentStep === 3 &&
+              planDetails.paymentMethod === "collect_now" && (
+                <Elements stripe={stripePromise} options={options}>
+                  <StripePaymentForm
+                    amount={Money.fromDollars(
+                      planDetails.downpaymentAmount
+                    ).toCents()}
+                  />
+                </Elements>
+              )}
+            {currentStep === 4 && planDetails.paymentMethod === "send_link" && (
+              <EmailConfirmation />
             )}
           </div>
           <div className="w-1/3">

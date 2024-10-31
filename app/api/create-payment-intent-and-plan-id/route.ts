@@ -147,7 +147,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
       stripeCustomerId: stripeCustomer.id,
-      paymentPlanId: dbPlan.payment_plan_id
+      paymentPlanId: dbPlan[0].payment_plan_id
     });
 
   } catch (error: any) {

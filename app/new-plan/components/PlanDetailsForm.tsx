@@ -112,6 +112,7 @@ export default function PlanDetailsForm() {
           paymentSchedule: newSchedule
         }));
 
+        // Create the payment plan in the database
         const response = await fetch('/api/create-payment-intent-and-plan-id', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -130,7 +131,11 @@ export default function PlanDetailsForm() {
           clientSecret: data.clientSecret,
           stripeCustomerId: data.stripeCustomerId
         }));
-        
+
+        console.log('Payment plan ID set in context:', data.paymentPlanId);
+        console.log('Updated plan details:', planDetails);
+
+        // Move to payment method choice instead of directly to payment form
         setCurrentStep(2);
       } catch (error) {
         console.error('Error creating payment plan:', error);

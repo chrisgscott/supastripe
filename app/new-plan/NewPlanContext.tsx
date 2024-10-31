@@ -21,6 +21,7 @@ interface PlanDetails {
     delta: any;
     plaintext: string;
   };
+  paymentMethod: 'collect_now' | 'send_link' | null;
 }
 
 interface PaymentScheduleItem {
@@ -42,6 +43,7 @@ interface NewPlanContextType {
   loadProgress: number;
   calculatePaymentSchedule: () => PaymentScheduleItem[];
   isStripeReady: boolean;
+  setPaymentMethod: (method: 'collect_now' | 'send_link') => void;
 }
 
 const NewPlanContext = createContext<NewPlanContextType | undefined>(undefined);
@@ -70,6 +72,7 @@ export const NewPlanProvider: React.FC<NewPlanProviderProps> = ({ children }) =>
     paymentInterval: 'monthly',
     downpaymentAmount: 0,
     paymentSchedule: [],
+    paymentMethod: null,
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -186,6 +189,13 @@ export const NewPlanProvider: React.FC<NewPlanProviderProps> = ({ children }) =>
     return schedule;
   };
 
+  const setPaymentMethod = (method: 'collect_now' | 'send_link') => {
+    setPlanDetails(prev => ({
+      ...prev,
+      paymentMethod: method
+    }));
+  };
+
   return (
     <NewPlanContext.Provider value={{
       planDetails,
@@ -199,7 +209,8 @@ export const NewPlanProvider: React.FC<NewPlanProviderProps> = ({ children }) =>
       currentStep,
       loadProgress: 0,
       calculatePaymentSchedule,
-      isStripeReady
+      isStripeReady,
+      setPaymentMethod,
     }}>
       {children}
     </NewPlanContext.Provider>
