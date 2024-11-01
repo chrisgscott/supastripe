@@ -6,10 +6,18 @@ export async function POST(request: Request) {
   const { paymentPlanId } = await request.json();
 
   try {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Update the payment plan status directly
     const { error } = await supabase
-      .from("payment_plan_states")
+      .from("payment_plans")
       .update({ status: "cancelled" })
-      .eq("payment_plan_id", paymentPlanId);
+      .eq("id", paymentPlanId)
+      .eq("user_id", user.id); // Add user check for security
 
     if (error) throw error;
 

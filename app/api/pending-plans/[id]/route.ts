@@ -1,20 +1,32 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
-import { Money } from '@/utils/currencyUtils'
-import { Tables } from '@/types/supabase'
+import { Database } from '@/types/supabase'
 
-interface Customer {
-  name?: string;
-  email?: string;
-  stripe_customer_id?: string;
+type PaymentInterval = Database['public']['Enums']['payment_interval_type']
+
+interface PendingPlanResponse {
+  id: string;
+  customerName: string;
+  customerEmail: string;
+  totalAmount: number;
+  numberOfPayments: number;
+  paymentInterval: PaymentInterval;
+  downpaymentAmount: number;
 }
 
-type PaymentPlanWithRelations = Tables<'payment_plans'> & {
-  customers: Customer | Customer[] | null;
-  payment_plan_states: {
-    status: string;
-  };
-};
+type PendingPlanWithCustomer = {
+  id: string;
+  total_amount: number;
+  number_of_payments: number;
+  payment_interval: PaymentInterval;
+  downpayment_amount: number;
+  created_at: string | null;
+  notes: any;
+  pending_customers: {
+    name: string;
+    email: string;
+  }[];
+}
 
 export async function GET(
   request: Request,
@@ -23,24 +35,29 @@ export async function GET(
   const supabase = createClient()
 
   try {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { data, error } = await supabase
-      .from('payment_plans')
+      .from('pending_payment_plans')
       .select(`
         id,
         total_amount,
         number_of_payments,
         payment_interval,
         downpayment_amount,
-        status,
         created_at,
         notes,
-        customers (
+        pending_customers!customer_id (
           name,
           email
         )
       `)
       .eq('id', params.id)
-      .eq('plan_creation_status', 'pending')
+      .eq('user_id', user.id)
       .single()
 
     if (error) throw error
@@ -49,30 +66,14 @@ export async function GET(
       return NextResponse.json({ error: 'Plan not found' }, { status: 404 })
     }
 
-    const customerName = (() => {
-      if (Array.isArray(data.customers)) {
-        return data.customers[0]?.name || 'Unknown'
-      } else if (data.customers && typeof data.customers === 'object') {
-        return (data.customers as Customer).name || 'Unknown'
-      }
-      return 'Unknown'
-    })()
-
-    const formattedData = {
+    const formattedData: PendingPlanResponse = {
       id: data.id,
-      customerName,
-      customerEmail: (() => {
-        if (Array.isArray(data.customers)) {
-          return data.customers[0]?.email || ''
-        } else if (data.customers && typeof data.customers === 'object') {
-          return (data.customers as Customer).email || ''
-        }
-        return ''
-      })(),
+      customerName: data.pending_customers[0]?.name || 'Unknown',
+      customerEmail: data.pending_customers[0]?.email || '',
       totalAmount: data.total_amount,
-      numberOfPayments: data.number_of_payments || 3,
-      paymentInterval: data.payment_interval || 'monthly',
-      downpaymentAmount: data.downpayment_amount || 0
+      numberOfPayments: data.number_of_payments,
+      paymentInterval: data.payment_interval,
+      downpaymentAmount: data.downpayment_amount
     }
 
     return NextResponse.json(formattedData)

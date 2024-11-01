@@ -116,7 +116,7 @@ export const NewPlanProvider: React.FC<NewPlanProviderProps> = ({ children }) =>
       if (!firstPayment) {
         throw new Error('Payment schedule is not available');
       }
-      const response = await fetch('/api/create-payment-intent-and-plan-id', {
+      const response = await fetch('/api/create-downpayment-intent-and-pending-records', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

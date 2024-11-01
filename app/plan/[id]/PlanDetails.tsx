@@ -65,6 +65,7 @@ interface PlanDetailsProps {
       delta: any
       plaintext: string
     }
+    status: string
   }
 }
 
@@ -75,31 +76,31 @@ export function PlanDetails({ planDetails }: PlanDetailsProps) {
 
   // Reference handleSendEmail function from ConfirmationStep.tsx (lines 148-184)
   const handleSendEmail = async () => {
-    if (!planDetails?.paymentPlanId) return
-    setIsSending(true)
+    const endpoint = planDetails.status === 'draft' 
+      ? '/api/send-payment-link'
+      : '/api/send-payment-plan-email'
+    
     try {
-      const response = await fetch("/api/send-payment-plan-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentPlanId: planDetails.paymentPlanId }),
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentPlanId: planDetails.paymentPlanId })
       })
-
-      if (response.ok) {
-        toast({
-          title: "Email Sent",
-          description: "Payment plan details have been sent to the customer's email.",
-        })
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Failed to Send Email",
-          description: "There was an error sending the payment plan email.",
-        })
-      }
+      
+      if (!response.ok) throw new Error('Failed to send email')
+      
+      toast({
+        title: "Success",
+        description: planDetails.status === 'draft'
+          ? "Payment approval link sent to customer"
+          : "Payment plan details sent to customer",
+      })
     } catch (error) {
-      console.error("Error sending payment plan email:", error)
-    } finally {
-      setIsSending(false)
+      toast({
+        title: "Error",
+        description: "Failed to send email. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 

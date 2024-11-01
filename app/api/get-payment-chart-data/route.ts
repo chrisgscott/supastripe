@@ -22,9 +22,15 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('transactions')
-    .select('amount, due_date, status, paid_at')
+    .select(`
+      amount,
+      due_date,
+      status,
+      paid_at,
+      transaction_type
+    `)
     .eq('user_id', user.id)
-    .in('status', ['paid', 'pending'])
+    .in('status', ['completed', 'pending'])
     .order('due_date', { ascending: true });
 
   if (error) {
@@ -38,12 +44,12 @@ export async function GET() {
   now.setHours(0, 0, 0, 0); // Set to start of day
 
   (data as Transaction[]).forEach((transaction) => {
-    const dueDate = new Date(transaction.due_date);
-    dueDate.setHours(0, 0, 0, 0); // Set to start of day
+    const scheduleDate = new Date(transaction.due_date);
+    scheduleDate.setHours(0, 0, 0, 0); // Set to start of day
     
     // Shift the month forward by one for display purposes
-    dueDate.setMonth(dueDate.getMonth() + 1);
-    const monthKey = format(startOfMonth(dueDate), 'yyyy-MM');
+    scheduleDate.setMonth(scheduleDate.getMonth() + 1);
+    const monthKey = format(startOfMonth(scheduleDate), 'yyyy-MM');
     
     if (!monthlyData[monthKey]) {
       monthlyData[monthKey] = {
@@ -52,16 +58,13 @@ export async function GET() {
       };
     }
 
-    if (transaction.status === 'paid') {
+    if (transaction.status === 'completed') {
       monthlyData[monthKey].collected = monthlyData[monthKey].collected.add(Money.fromCents(transaction.amount));
     } else if (transaction.status === 'pending') {
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-      // Use original date (before shift) for comparison
-      const originalDueDate = new Date(transaction.due_date);
-      originalDueDate.setHours(0, 0, 0, 0);
+      const originalScheduleDate = new Date(transaction.due_date);
+      originalScheduleDate.setHours(0, 0, 0, 0);
       
-      if (originalDueDate > now) {
+      if (originalScheduleDate > now) {
         monthlyData[monthKey].forecasted = monthlyData[monthKey].forecasted.add(Money.fromCents(transaction.amount));
       }
     }

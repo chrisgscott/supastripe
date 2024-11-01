@@ -4,8 +4,8 @@ import { format } from 'date-fns';
 
 export const formatPaymentScheduleHtml = (transactions: Tables<'transactions'>[]) => {
   const sortedTransactions = [...transactions].sort((a, b) => {
-    if (a.is_downpayment) return -1;
-    if (b.is_downpayment) return 1;
+    if (a.transaction_type === 'downpayment') return -1;
+    if (b.transaction_type === 'downpayment') return 1;
     return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
   });
 
@@ -29,11 +29,11 @@ export const formatPaymentScheduleHtml = (transactions: Tables<'transactions'>[]
             </td>
             <td style="border-bottom: 1px solid #ddd; padding: 8px; text-align: right;">
               <span style="display: inline-block; padding: 4px 8px; border-radius: 9999px; font-size: 12px; 
-                ${payment.is_downpayment 
+                ${payment.transaction_type === 'downpayment' 
                   ? 'background-color: #f0fdf4; color: #15803d;' 
                   : 'background-color: #f9fafb; color: #4b5563;'
                 }">
-                ${payment.is_downpayment ? "Paid" : "Scheduled"}
+                ${payment.transaction_type === 'downpayment' ? "Paid" : "Scheduled"}
               </span>
             </td>
           </tr>

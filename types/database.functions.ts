@@ -929,14 +929,13 @@ export type Database = {
         | "user_stripe_account_updated"
       payment_interval_type: "weekly" | "monthly"
       payment_status_type:
-        | "draft" // Initial state when plan is first created
-        | "pending_approval" // After user completes setup and sends to customer
-        | "pending_payment" // After customer approves but hasn't made first payment
-        | "active" // Plan is active and payments are being processed
-        | "paused" // Merchant has temporarily suspended payments
-        | "completed" // All payments completed successfully
-        | "cancelled" // Plan was cancelled by merchant or customer
-        | "failed" // Plan failed due to payment issues
+        | "draft"
+        | "pending_payment"
+        | "active"
+        | "paused"
+        | "completed"
+        | "cancelled"
+        | "failed"
       payout_status_type:
         | "pending"
         | "in_transit"

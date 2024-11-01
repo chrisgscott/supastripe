@@ -1,40 +1,66 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { Database } from "@/types/supabase";
 import crypto from "crypto";
+
+type TransactionStatusType = Database['public']['Enums']['transaction_status_type'];
+type PaymentStatusType = Database['public']['Enums']['payment_status_type'];
 
 export async function POST(request: Request) {
   const supabase = createClient();
   const { paymentPlanId, transactionId } = await request.json();
 
   try {
-    const { error: transactionError } = await supabase
-      .from("transactions")
-      .update({ status: "failed" })
-      .eq("id", transactionId);
+    // Begin transaction
+    await supabase.rpc('begin_transaction');
 
-    if (transactionError) throw transactionError;
+    try {
+      const { error: transactionError } = await supabase
+        .from("transactions")
+        .update({ 
+          status: 'failed' as TransactionStatusType,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", transactionId);
 
-    const { error: stateError } = await supabase
-      .from("payment_plan_states")
-      .update({ status: "failed" })
-      .eq("payment_plan_id", paymentPlanId);
+      if (transactionError) throw transactionError;
 
-    if (stateError) throw stateError;
+      const { error: planError } = await supabase
+        .from("payment_plans")
+        .update({ 
+          status: 'failed' as PaymentStatusType,
+          status_updated_at: new Date().toISOString()
+        })
+        .eq("id", paymentPlanId);
 
-    const idempotencyKey = crypto.randomUUID();
-    const { error: logError } = await supabase
-      .from("payment_processing_logs")
-      .insert({
-        transaction_id: transactionId,
-        payment_plan_id: paymentPlanId,
-        stripe_payment_intent_id: null, // We don't have this for failed payments
-        status: "failed",
-        idempotency_key: idempotencyKey,
-      });
+      if (planError) throw planError;
 
-    if (logError) throw logError;
+      const idempotencyKey = crypto.randomUUID();
+      const { error: logError } = await supabase
+        .from("email_logs")
+        .insert({
+          email_type: 'user_payment_failed_alert',
+          status: 'pending',
+          related_id: transactionId,
+          related_type: 'transaction',
+          idempotency_key: idempotencyKey,
+          recipient_email: '', // Will be populated by trigger
+          user_id: '', // Will be populated by trigger
+        });
 
-    return NextResponse.json({ success: true });
+      if (logError) throw logError;
+
+      // Commit transaction
+      await supabase.rpc('commit_transaction');
+
+      return NextResponse.json({ success: true });
+
+    } catch (innerError) {
+      // Rollback on any error
+      await supabase.rpc('rollback_transaction');
+      throw innerError;
+    }
+
   } catch (error: any) {
     console.error("Error handling failed payment:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

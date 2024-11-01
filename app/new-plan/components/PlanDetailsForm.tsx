@@ -113,7 +113,7 @@ export default function PlanDetailsForm() {
         }));
 
         // Create the payment plan in the database
-        const response = await fetch('/api/create-payment-intent-and-plan-id', {
+        const response = await fetch('/api/create-downpayment-intent-and-pending-records', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

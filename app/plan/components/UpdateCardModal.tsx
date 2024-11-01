@@ -27,16 +27,16 @@ function UpdateCardForm({ stripeCustomerId, onClose, paymentPlanId }: { stripeCu
 
   useEffect(() => {
     async function createSetupIntent() {
-      const response = await fetch('/api/create-payment-intent-and-plan-id', {
+      const response = await fetch('/api/create-setup-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentPlanId, isSetupIntent: true }),
+        body: JSON.stringify({ stripeCustomerId }),
       });
       const data = await response.json();
       setClientSecret(data.clientSecret);
     }
     createSetupIntent();
-  }, [paymentPlanId]);
+  }, [stripeCustomerId]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();

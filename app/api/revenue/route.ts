@@ -16,14 +16,14 @@ export async function GET(request: Request) {
 
     let query = supabase
       .from('transactions')
-      .select('amount, payment_plans!inner(*)')
-      .eq('status', 'paid')
+      .select('amount')
+      .eq('status', 'completed')
       .eq('user_id', user.id);
-
+      
     if (days !== 'all') {
       const daysAgo = new Date();
       daysAgo.setDate(daysAgo.getDate() - parseInt(days || '30'));
-      query = query.gte('created_at', daysAgo.toISOString());
+      query = query.gte('paid_at', daysAgo.toISOString());
     }
 
     const { data, error } = await query;

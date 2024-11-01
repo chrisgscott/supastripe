@@ -2,9 +2,13 @@
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/utils";
 
+interface AccountLinkRequest {
+  account: string;
+}
+
 export async function POST(request: Request) {
   try {
-    const { account } = await request.json();
+    const { account } = (await request.json()) as AccountLinkRequest;
 
     // Get origin from the request headers or use a default fallback
     const origin = request.headers.get("origin") || "http://localhost:3000";

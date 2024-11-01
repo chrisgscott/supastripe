@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import Stripe from 'stripe';
 import { format } from 'date-fns';
+import { Database } from '@/types/supabase';
+import { Money, formatCurrency } from '@/utils/currencyUtils';
+
+type PayoutStatusType = Database['public']['Enums']['payout_status_type'];
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -17,6 +21,24 @@ export async function GET() {
   }
 
   try {
+    // First check our database for pending payouts
+    const { data: pendingPayout } = await supabase
+      .from('payouts')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'pending')
+      .order('arrival_date', { ascending: true })
+      .limit(1)
+      .single();
+
+    if (pendingPayout) {
+      return NextResponse.json({
+        amount: formatCurrency(Money.fromCents(pendingPayout.amount)),
+        date: format(new Date(pendingPayout.arrival_date), 'MMM d, yyyy')
+      });
+    }
+
+    // If no pending payout in our database, check Stripe
     const { data: stripeAccount } = await supabase
       .from('stripe_accounts')
       .select('stripe_account_id')
@@ -39,8 +61,6 @@ export async function GET() {
       }
     );
 
-    console.log('Payouts data:', JSON.stringify(payouts, null, 2));
-
     const nextPayout = payouts.data[0];
 
     if (!nextPayout) {
@@ -50,20 +70,20 @@ export async function GET() {
       });
     }
 
-    let amount = nextPayout.amount && nextPayout.currency
-      ? new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: nextPayout.currency,
-        }).format(nextPayout.amount / 100)
-      : null;
-
-    let date = nextPayout.arrival_date
-      ? format(new Date(nextPayout.arrival_date * 1000), 'MMM d, yyyy')
-      : null;
+    // Store the payout in our database
+    await supabase.from('payouts').insert({
+      user_id: user.id,
+      amount: nextPayout.amount,
+      currency: nextPayout.currency,
+      arrival_date: new Date(nextPayout.arrival_date * 1000).toISOString(),
+      status: 'pending' as PayoutStatusType,
+      stripe_payout_id: nextPayout.id,
+      stripe_account_id: stripeAccount.stripe_account_id
+    });
 
     return NextResponse.json({
-      amount,
-      ...(date && { date }),
+      amount: formatCurrency(Money.fromCents(nextPayout.amount)),
+      date: format(new Date(nextPayout.arrival_date * 1000), 'MMM d, yyyy')
     });
   } catch (error) {
     console.error('Error fetching next payout:', error);

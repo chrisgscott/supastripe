@@ -1,17 +1,17 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { Tables } from '@/types/supabase'
-import { Money } from '@/utils/currencyUtils'
 
-type PaymentPlanWithRelations = Tables<'payment_plans'> & {
-  customers: {
-    name: string;
-    email: string;
-  };
-  payment_plan_states: {
-    status: string;
-  }[];
-};
+interface PendingPlan {
+  id: string
+  customerName: string
+  totalAmount: number
+  created_at: string
+}
+
+type PendingPlanWithCustomer = Tables<'pending_payment_plans'> & {
+  pending_customers: Tables<'pending_customers'>[]
+}
 
 export async function GET() {
   const supabase = createClient()
@@ -24,23 +24,15 @@ export async function GET() {
     }
 
     const { data, error } = await supabase
-      .from('payment_plans')
+      .from('pending_payment_plans')
       .select(`
         id,
         total_amount,
-        number_of_payments,
-        payment_interval,
-        downpayment_amount,
         created_at,
-        customers (
-          name,
-          email
-        ),
-        payment_plan_states (
-          status
+        pending_customers!customer_id (
+          name
         )
       `)
-      .eq('payment_plan_states.status', 'draft')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
@@ -49,12 +41,11 @@ export async function GET() {
       return NextResponse.json({ error: 'Failed to fetch pending plans' }, { status: 500 })
     }
 
-    const formattedData = (data as unknown as PaymentPlanWithRelations[]).map((plan) => ({
+    const formattedData: PendingPlan[] = (data as PendingPlanWithCustomer[]).map((plan) => ({
       id: plan.id,
-      customerName: plan.customers?.name || 'Unknown',
-      totalAmount: plan.total_amount,
-      status: plan.payment_plan_states?.[0]?.status || 'unknown',
-      created_at: plan.created_at
+      customerName: plan.pending_customers[0]?.name || 'Unknown',
+      totalAmount: plan.total_amount || 0,
+      created_at: plan.created_at || new Date().toISOString()
     }));
 
     return NextResponse.json(formattedData)

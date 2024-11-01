@@ -36,8 +36,11 @@ import { formatCurrency } from '@/utils/currencyUtils';
 import { Money } from '@/utils/currencyUtils';
 
 const PAYMENT_PLAN_STATUSES = [
-  "created",
+  "draft",
+  "pending_approval",
+  "pending_payment",
   "active",
+  "paused",
   "completed",
   "cancelled",
   "failed",
@@ -64,6 +67,14 @@ const getStatusColor = (status: PaymentPlanStatus): string => {
       return 'text-red-600';
     case 'failed':
       return 'text-orange-600';
+    case 'paused':
+      return 'text-yellow-600';
+    case 'pending_approval':
+      return 'text-purple-600';
+    case 'pending_payment':
+      return 'text-orange-400';
+    case 'draft':
+      return 'text-gray-600';
     default:
       return 'text-gray-600';
   }

@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import Stripe from "stripe";
 import { createClient } from "@/utils/supabase/server";
-import { Tables } from "@/types/supabase";
+import { Database } from "@/types/supabase";
 import crypto from "crypto";
-import { Money } from "@/utils/currencyUtils";
+
+type TransactionStatusType = Database['public']['Enums']['transaction_status_type'];
+type PaymentStatusType = Database['public']['Enums']['payment_status_type'];
+type PendingTransaction = Database['public']['Tables']['pending_transactions']['Row'];
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2024-06-20",
@@ -15,8 +17,6 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const paymentIntentId = searchParams.get('payment_intent');
 
-  console.log('handle-payment-confirmation: Fetching plan details for payment intent:', paymentIntentId);
-
   if (!paymentIntentId) {
     return NextResponse.json({
       success: false,
@@ -25,186 +25,118 @@ export async function GET(request: Request) {
   }
 
   try {
-    // First, get the payment plan ID from the processing logs
-    const { data: processingLog, error: logError } = await supabase
-      .from('payment_processing_logs')
-      .select('payment_plan_id, transaction_id')
-      .eq('stripe_payment_intent_id', paymentIntentId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // Begin transaction
+    await supabase.rpc('begin_transaction');
 
-    if (logError) {
-      console.error('Error fetching processing log:', logError);
-      return NextResponse.json({
-        success: false,
-        error: 'Failed to fetch payment record'
-      }, { status: 500 });
-    }
-
-    // Fetch the Stripe payment intent regardless of processing log
-    const stripePaymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
-      expand: ['payment_method']
-    });
-
-    const paymentPlanId = processingLog?.payment_plan_id || stripePaymentIntent.metadata?.payment_plan_id;
-
-    if (!paymentPlanId) {
-      return NextResponse.json({
-        success: false,
-        error: 'Payment plan ID not found'
-      }, { status: 404 });
-    }
-
-    // Fetch the payment plan with related data
-    const { data: paymentPlan, error: planError } = await supabase
-      .from('payment_plans')
-      .select(`
-        *,
-        customers (name, email),
-        transactions (
-          amount,
-          due_date,
-          is_downpayment,
-          status
-        ),
-        payment_plan_states (
-          status
-        )
-      `)
-      .eq('id', paymentPlanId)
-      .single();
-
-    if (planError) {
-      console.error('Error fetching payment plan:', planError);
-      return NextResponse.json({
-        success: false,
-        error: 'Failed to fetch payment plan details'
-      }, { status: 500 });
-    }
-
-    // Fetch business details
-    const { data: businessInfo, error: businessError } = await supabase
-      .from('profiles')
-      .select('business_name, support_email, support_phone')
-      .single();
-
-    if (businessError) {
-      console.error('Error fetching business info:', businessError);
-      return NextResponse.json({
-        success: false,
-        error: 'Failed to fetch business details'
-      }, { status: 500 });
-    }
-
-    const paymentMethod = stripePaymentIntent.payment_method as Stripe.PaymentMethod;
-
-    // Format the response data
-    const formattedPlanDetails = {
-      customerName: paymentPlan.customers.name,
-      customerEmail: paymentPlan.customers.email,
-      totalAmount: paymentPlan.total_amount,
-      numberOfPayments: paymentPlan.number_of_payments,
-      paymentInterval: paymentPlan.payment_interval,
-      paymentPlanId: paymentPlan.id,
-      notes: paymentPlan.notes,
-      paymentSchedule: paymentPlan.transactions.map((t: Tables<'transactions'>) => ({
-        amount: t.amount,
-        date: t.due_date,
-        is_downpayment: t.is_downpayment,
-        status: t.status || 'pending'
-      })),
-      businessDetails: {
-        name: businessInfo.business_name,
-        supportPhone: businessInfo.support_phone,
-        supportEmail: businessInfo.support_email
-      },
-      paymentMethod: paymentMethod && {
-        brand: paymentMethod.type === 'card' ? paymentMethod.card?.brand : undefined,
-        last4: paymentMethod.type === 'card' ? paymentMethod.card?.last4 : undefined
-      }
-    };
-
-    // If we don't have a processing log yet, create one
-    if (!processingLog) {
-      const idempotencyKey = crypto.randomUUID();
-      const { error: createLogError } = await supabase
-        .from('payment_processing_logs')
-        .insert({
-          payment_plan_id: paymentPlanId,
-          stripe_payment_intent_id: paymentIntentId,
-          status: stripePaymentIntent.status,
-          idempotency_key: idempotencyKey
-        });
-
-      if (createLogError) {
-        console.error('Error creating processing log:', createLogError);
-        // Don't return error here, as we still want to return the plan details
-      }
-    }
-
-    // After retrieving the payment intent and before calling complete_payment_plan_creation
-    const cardLastFour = paymentMethod.type === 'card' ? paymentMethod.card?.last4 : undefined;
-
-    // Call the database function to complete plan creation
-    const { error: completionError } = await supabase
-      .rpc('complete_payment_plan_creation', {
-        p_payment_plan_id: paymentPlanId,
-        p_transaction_id: stripePaymentIntent.metadata?.transaction_id,
-        p_idempotency_key: crypto.randomUUID(),
-        p_card_last_four: cardLastFour
+    try {
+      // Fetch the Stripe payment intent
+      const stripePaymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+        expand: ['payment_method']
       });
 
-    if (completionError) {
-      console.error('Error completing payment plan creation:', completionError);
+      const pendingPlanId = stripePaymentIntent.metadata?.pending_payment_plan_id;
+      
+      if (!pendingPlanId) {
+        throw new Error('Pending payment plan ID not found in payment intent metadata');
+      }
+
+      // Get the pending payment plan
+      const { data: pendingPlan, error: planError } = await supabase
+        .from('pending_payment_plans')
+        .select(`
+          *,
+          pending_customers (
+            name,
+            email
+          ),
+          pending_transactions (*)
+        `)
+        .eq('id', pendingPlanId)
+        .single();
+
+      if (planError) throw planError;
+
+      // Update the first transaction status to completed
+      const { data: firstTransaction, error: transactionError } = await supabase
+        .from('pending_transactions')
+        .update({ 
+          status: 'completed' as TransactionStatusType,
+          paid_at: new Date().toISOString(),
+          stripe_payment_intent_id: paymentIntentId
+        })
+        .eq('payment_plan_id', pendingPlanId)
+        .eq('transaction_type', 'downpayment')
+        .select()
+        .single();
+
+      if (transactionError) throw transactionError;
+
+      // Update the pending payment plan status
+      const { error: planUpdateError } = await supabase
+        .from('pending_payment_plans')
+        .update({ 
+          status: 'ready_to_migrate' as PaymentStatusType,
+          status_updated_at: new Date().toISOString()
+        })
+        .eq('id', pendingPlanId);
+
+      if (planUpdateError) throw planUpdateError;
+
+      // Create email log for successful payment
+      const idempotencyKey = crypto.randomUUID();
+      const { error: emailLogError } = await supabase
+        .from('email_logs')
+        .insert({
+          email_type: 'payment_confirmation',
+          status: 'pending',
+          related_id: firstTransaction.id,
+          related_type: 'transaction',
+          idempotency_key: idempotencyKey,
+          recipient_email: pendingPlan.pending_customers.email,
+          user_id: pendingPlan.user_id
+        });
+
+      if (emailLogError) throw emailLogError;
+
+      // Migrate the data
+      const { data: migratedPlanId, error: migrationError } = await supabase
+        .rpc('migrate_pending_payment_plan', {
+          p_pending_plan_id: pendingPlanId
+        });
+
+      if (migrationError) throw migrationError;
+
+      // Verify the migration was successful by checking the live tables
+      const { data: newPlan, error: verificationError } = await supabase
+        .from('payment_plans')
+        .select(`
+          id,
+          customers (
+            name,
+            email
+          ),
+          transactions (*)
+        `)
+        .eq('id', migratedPlanId)
+        .single();
+
+      if (verificationError || !newPlan) {
+        throw new Error('Failed to verify migrated payment plan');
+      }
+
+      // Commit transaction
+      await supabase.rpc('commit_transaction');
+
       return NextResponse.json({
-        success: false,
-        error: 'Failed to complete payment plan creation'
-      }, { status: 500 });
+        success: true,
+        redirectUrl: `/plan/${migratedPlanId}`
+      });
+
+    } catch (innerError) {
+      // Rollback on any error
+      await supabase.rpc('rollback_transaction');
+      throw innerError;
     }
-
-    const { error: stateError } = await supabase
-      .from('payment_plan_states')
-      .update({ status: 'completed' })
-      .eq('payment_plan_id', paymentPlanId);
-
-    if (stateError) {
-      console.error('Error updating payment plan state:', stateError);
-      throw stateError;
-    }
-
-    console.log('handle-payment-confirmation: Retrieved plan:', {
-      success: !!paymentPlan,
-      error: planError,
-      hasNotes: !!paymentPlan?.notes,
-      notes: paymentPlan?.notes
-    });
-
-    // Before returning the response
-    console.log('handle-payment-confirmation: Sending response:', {
-      success: true,
-      planDetails: {
-        ...formattedPlanDetails,
-        notes: paymentPlan?.notes
-      },
-      status: {
-        customerCreated: true,
-        paymentPlanCreated: true,
-        transactionsCreated: true,
-        paymentIntentCreated: true
-      }
-    });
-
-    return NextResponse.json({
-      success: true,
-      planDetails: formattedPlanDetails,
-      status: {
-        customerCreated: true,
-        paymentPlanCreated: true,
-        transactionsCreated: true,
-        paymentIntentCreated: true
-      }
-    });
 
   } catch (error) {
     console.error('Error in handle-payment-confirmation:', error);

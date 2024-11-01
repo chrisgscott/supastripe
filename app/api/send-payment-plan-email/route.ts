@@ -3,51 +3,68 @@ import { createClient } from "@/utils/supabase/server";
 import { sendEmail } from "@/utils/core-email-service";
 import { Money } from "@/utils/currencyUtils";
 import { formatPaymentScheduleHtml } from "@/app/utils/email-utils";
+import { Database } from "@/types/supabase";
+
+type PaymentPlan = Database['public']['Tables']['payment_plans']['Row'];
+type Customer = Database['public']['Tables']['customers']['Row'];
+type Transaction = Database['public']['Tables']['transactions']['Row'];
+type Profile = Database['public']['Tables']['profiles']['Row'];
+type EmailLog = Database['public']['Tables']['email_logs']['Insert'];
+type PaymentStatus = Database['public']['Enums']['payment_status_type'];
 
 export async function POST(request: Request) {
   const supabase = createClient();
   const { paymentPlanId } = await request.json();
 
   try {
-    // Update plan state to pending_payment
-    const { error: stateError } = await supabase
-      .from("payment_plan_states")
-      .update({ status: "pending_payment" })
-      .eq("payment_plan_id", paymentPlanId);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (!user || authError) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    if (stateError) throw stateError;
-
-    // Fetch payment plan details
+    // Fetch payment plan details with current status
     const { data: paymentPlan, error: paymentPlanError } = await supabase
       .from("payment_plans")
-      .select(
-        `
+      .select(`
         *,
-        notes,
-        customers (name, email),
-        transactions (amount, due_date, is_downpayment),
-        payment_plan_states (status)
-      `
-      )
+        customers (
+          name,
+          email
+        ),
+        transactions (
+          amount,
+          due_date,
+          transaction_type
+        )
+      `)
       .eq("id", paymentPlanId)
+      .eq("user_id", user.id)
       .single();
 
-    if (paymentPlanError) {
-      console.error("Error fetching payment plan:", {
-        error: paymentPlanError,
-        paymentPlanId,
-        query: "payment_plans with customers and transactions",
-      });
-      throw paymentPlanError;
+    if (paymentPlanError || !paymentPlan) {
+      console.error("Error fetching payment plan:", paymentPlanError);
+      return NextResponse.json({ error: "Payment plan not found" }, { status: 404 });
     }
 
-    if (!paymentPlan) {
-      console.error("Payment plan not found:", { paymentPlanId });
+    // Validate current status allows transition to pending_payment
+    if (!['draft', 'pending_approval'].includes(paymentPlan.status)) {
       return NextResponse.json(
-        { error: "Payment plan not found" },
-        { status: 404 }
+        { error: "Invalid status transition" },
+        { status: 400 }
       );
     }
+
+    // Update payment plan status
+    const { error: updateError } = await supabase
+      .from("payment_plans")
+      .update({ 
+        status: "pending_payment" satisfies PaymentStatus,
+        status_updated_at: new Date().toISOString()
+      })
+      .eq("id", paymentPlanId)
+      .eq("user_id", user.id);
+
+    if (updateError) throw updateError;
 
     // Fetch business details
     const { data: businessInfo, error: businessError } = await supabase

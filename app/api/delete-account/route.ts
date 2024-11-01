@@ -15,36 +15,52 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Fetch the user's Stripe account ID
-    const { data: stripeAccount } = await supabase
-      .from('stripe_accounts')
-      .select('stripe_account_id')
-      .eq('user_id', user.id)
-      .single();
+    // Begin transaction
+    await supabase.rpc('begin_transaction');
 
-    if (stripeAccount && stripeAccount.stripe_account_id) {
-      // Remove the Stripe Connect account from our platform
-      await stripe.accounts.del(stripeAccount.stripe_account_id);
+    try {
+      const { data: stripeAccount } = await supabase
+        .from('stripe_accounts')
+        .select('stripe_account_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (stripeAccount?.stripe_account_id) {
+        await stripe.accounts.del(stripeAccount.stripe_account_id);
+      }
+
+      // Delete all related records in order of dependencies
+      await supabase.from('email_logs').delete().eq('user_id', user.id);
+      
+      const { data: paymentPlans } = await supabase
+        .from('payment_plans')
+        .select('id')
+        .eq('user_id', user.id);
+        
+      if (paymentPlans) {
+        const planIds = paymentPlans.map(plan => plan.id);
+        await supabase.from('transactions').delete().in('payment_plan_id', planIds);
+        await supabase.from('payment_plans').delete().in('id', planIds);
+      }
+
+      await supabase.from('customers').delete().eq('user_id', user.id);
+      await supabase.from('profiles').delete().eq('id', user.id);
+      await supabase.from('stripe_accounts').delete().eq('user_id', user.id);
+
+      const { error: deleteUserError } = await supabase.auth.admin.deleteUser(user.id);
+      if (deleteUserError) throw deleteUserError;
+
+      // If we got here, commit the transaction
+      await supabase.rpc('commit_transaction');
+
+      return NextResponse.json({ message: 'Account deleted successfully' });
+
+    } catch (innerError) {
+      // Rollback on any error
+      await supabase.rpc('rollback_transaction');
+      throw innerError;
     }
 
-    // Delete user's profile
-    await supabase
-      .from('profiles')
-      .delete()
-      .eq('id', user.id);
-
-    // Delete user's stripe account record
-    await supabase
-      .from('stripe_accounts')
-      .delete()
-      .eq('user_id', user.id);
-
-    // Delete the user's auth account
-    const { error: deleteUserError } = await supabase.auth.admin.deleteUser(user.id);
-
-    if (deleteUserError) throw deleteUserError;
-
-    return NextResponse.json({ message: 'Account deleted successfully' });
   } catch (error) {
     console.error('Error deleting account:', error);
     return NextResponse.json({ error: 'Failed to delete account' }, { status: 500 });

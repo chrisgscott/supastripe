@@ -22,6 +22,7 @@ type PaymentPlanWithRelations = Tables<'payment_plans'> & {
     delta: any;
     plaintext: string;
   };
+  status: string;
 };
 
 export default async function PlanPage({ params }: { params: { id: string } }) {
@@ -61,6 +62,7 @@ export default async function PlanPage({ params }: { params: { id: string } }) {
     paymentInterval: typedPlan.payment_interval,
     paymentPlanId: typedPlan.id,
     notes: typedPlan.notes || undefined,
+    status: typedPlan.status,
     paymentSchedule: typedPlan.transactions.map((t: Transaction) => ({
       amount: t.amount,
       date: t.due_date,

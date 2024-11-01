@@ -1,16 +1,19 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { Money } from '@/utils/currencyUtils';
-import { Tables } from '@/types/supabase';
+import { Database } from '@/types/supabase';
+
+type Transaction = Database['public']['Tables']['transactions']['Row'];
+type TransactionStatus = Database['public']['Enums']['transaction_status_type'];
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const days = searchParams.get('days');
   const supabase = createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-  if (!user) {
+  if (!user || authError) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -20,7 +23,7 @@ export async function GET(request: Request) {
     .from('transactions')
     .select('amount, due_date')
     .eq('user_id', user.id)
-    .eq('status', 'pending')
+    .eq('status', 'pending' satisfies TransactionStatus)
     .gt('due_date', now);
 
   if (days && days !== 'all') {
@@ -35,7 +38,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Failed to fetch scheduled revenue' }, { status: 500 });
   }
 
-  const totalMoney = Money.fromCents(data.reduce((sum, transaction) => sum + transaction.amount, 0));
+  const totalMoney = Money.fromCents((data as Transaction[]).reduce((sum, transaction) => 
+    sum + (transaction.amount || 0), 0
+  ));
 
   return NextResponse.json({ 
     scheduledRevenue: totalMoney.toString(),
