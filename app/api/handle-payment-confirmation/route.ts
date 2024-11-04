@@ -124,6 +124,16 @@ export async function GET(request: Request) {
         throw new Error('Failed to verify migrated payment plan');
       }
 
+      // Clean up pending records
+      const { error: cleanupError } = await supabase.rpc('cleanup_pending_payment_records', {
+        p_pending_plan_id: pendingPlanId
+      });
+
+      if (cleanupError) {
+        console.error('Warning: Failed to cleanup pending records:', cleanupError);
+        // Don't throw error here, as migration was successful
+      }
+
       // Commit transaction
       await supabase.rpc('commit_transaction');
 

@@ -14,6 +14,7 @@ import { PaymentChart } from './components/PaymentChart';
 import { NeedsAttentionCard } from './components/NeedsAttentionCard';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { DashboardCardSkeleton } from "./components/DashboardCardSkeleton"
+import { Money } from '@/utils/currencyUtils';
 
 
 const queryClient = new QueryClient();
@@ -38,12 +39,15 @@ function Dashboard() {
   const [activePlans, setActivePlans] = useState(0);
   const [paidTimeFrame, setPaidTimeFrame] = useState('30');
   const [isLoadingRevenue, setIsLoadingRevenue] = useState(true);
-  const [revenue, setRevenue] = useState('$0');
+  const [revenue, setRevenue] = useState<Money>(Money.fromCents(0));
   const [pendingTimeFrame, setPendingTimeFrame] = useState('30');
   const [isLoadingScheduledRevenue, setIsLoadingScheduledRevenue] = useState(true);
-  const [scheduledRevenue, setScheduledRevenue] = useState('$0');
+  const [scheduledRevenue, setScheduledRevenue] = useState<Money>(Money.fromCents(0));
   const [isLoadingNextPayout, setIsLoadingNextPayout] = useState(true);
-  const [nextPayout, setNextPayout] = useState({ amount: 'None scheduled', date: null });
+  const [nextPayout, setNextPayout] = useState<{ amount: Money | null; date: string | null }>({
+    amount: null,
+    date: null
+  });
   const [failedTransactions, setFailedTransactions] = useState([]);
   const [isLoadingFailedTransactions, setIsLoadingFailedTransactions] = useState(true);
   const [userName, setUserName] = useState('');
@@ -104,7 +108,7 @@ function Dashboard() {
     try {
       const response = await fetch(`/api/revenue?days=${timeframe}`);
       const data = await response.json();
-      setRevenue(data.revenue);
+      setRevenue(Money.fromCents(data.revenue));
     } catch (error) {
       console.error('Error fetching revenue:', error);
     }
@@ -116,7 +120,7 @@ function Dashboard() {
     try {
       const response = await fetch(`/api/scheduled-revenue?days=${days}`);
       const data = await response.json();
-      setScheduledRevenue(data.scheduledRevenue);
+      setScheduledRevenue(Money.fromCents(data.scheduledRevenue));
     } catch (error) {
       console.error('Error fetching scheduled revenue:', error);
     }
@@ -185,7 +189,7 @@ function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {isLoadingRevenue ? 'Loading...' : revenue}
+                {formatCurrency(revenue)}
               </div>
             </CardContent>
           </Card>
@@ -209,12 +213,7 @@ function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {isLoadingScheduledRevenue 
-                  ? 'Loading...' 
-                  : scheduledRevenue 
-                    ? formatCurrency(Number(scheduledRevenue.replace(/[^0-9.-]+/g, '')))
-                    : formatCurrency(0)
-                }
+                {formatCurrency(scheduledRevenue)}
               </div>
             </CardContent>
           </Card>
@@ -228,7 +227,7 @@ function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {isLoadingNextPayout ? 'Loading...' : (nextPayout.amount === 'None scheduled' ? 'None scheduled' : formatCurrency(Number(nextPayout.amount.replace(/[^0-9.-]+/g, ''))))}
+                {nextPayout.amount ? formatCurrency(nextPayout.amount) : 'None scheduled'}
               </div>
               {nextPayout.date && (
                 <div className="text-xs text-muted-foreground">

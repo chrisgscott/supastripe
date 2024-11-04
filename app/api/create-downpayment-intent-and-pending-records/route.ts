@@ -76,10 +76,12 @@ export async function POST(request: Request) {
 
       // Convert payment schedule amounts to cents and ensure transaction types
       const convertedPaymentSchedule = paymentPlan.paymentSchedule.map((payment: PaymentScheduleItem, index: number) => ({
-        ...payment,
+        date: new Date(payment.date).toISOString(),
         amount: Money.fromDollars(payment.amount).toCents(),
-        transaction_type: index === 0 ? 'downpayment' : 'installment'
+        transaction_type: index === 0 ? 'downpayment' : 'installment' as const,
       }));
+
+      console.log('Converted payment schedule:', convertedPaymentSchedule);
 
       // Call the database function with our pre-generated IDs
       const { error: dbError } = await supabase
@@ -100,7 +102,10 @@ export async function POST(request: Request) {
           p_notes: paymentPlan.notes || null
         });
 
-      if (dbError) throw new Error('Failed to create pending records');
+      if (dbError) {
+        console.error('Database error creating pending records:', dbError);
+        throw new Error(`Failed to create pending records: ${dbError.message}`);
+      }
 
       const paymentAmount = Money.fromDollars(firstPayment.amount).toCents();
       const metadata = {

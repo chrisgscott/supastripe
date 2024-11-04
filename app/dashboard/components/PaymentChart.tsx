@@ -13,9 +13,8 @@ import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
 } from "@/components/ui/chart"
-import { formatCurrency } from '@/utils/currencyUtils';
+import { Money, formatCurrency } from '@/utils/currencyUtils'
 import { PaymentChartSkeleton } from "./PaymentChartSkeleton"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -44,6 +43,17 @@ const chartConfig: ChartConfig = {
 type ChartKey = keyof typeof chartConfig;
 
 export function PaymentChart({ data, isLoading }: PaymentChartProps) {
+  const [activeChart, setActiveChart] = useState<ChartKey>("forecasted");
+
+  const total = useMemo<Record<ChartKey, Money>>(() => ({
+    collected: Money.fromCents(
+      data.reduce((sum, item) => sum + (item.collected || 0), 0)
+    ),
+    forecasted: Money.fromCents(
+      data.reduce((sum, item) => sum + (item.forecasted || 0), 0)
+    ),
+  }), [data]);
+
   if (isLoading) {
     return (
       <Card>
@@ -68,16 +78,6 @@ export function PaymentChart({ data, isLoading }: PaymentChartProps) {
       </Card>
     )
   }
-
-  const [activeChart, setActiveChart] = useState<ChartKey>("forecasted");
-
-  const total = useMemo<Record<ChartKey, number>>(
-    () => ({
-      collected: Array.isArray(data) ? data.reduce((acc, curr) => acc + curr.collected, 0) : 0,
-      forecasted: Array.isArray(data) ? data.reduce((acc, curr) => acc + curr.forecasted, 0) : 0,
-    }),
-    [data]
-  );
 
   return (
     <Card>
@@ -134,27 +134,34 @@ export function PaymentChart({ data, isLoading }: PaymentChartProps) {
               }}
             />
             <YAxis
-              tickFormatter={(value) => formatCurrency(value)}
+              tickFormatter={(value) => formatCurrency(Money.fromCents(value))}
               axisLine={false}
               tickLine={false}
               tickMargin={8}
             />
             <ChartTooltip
               content={({ active, payload, label }) => {
-                if (active && payload && payload.length) {
-                  const value = payload[0].value;
+                if (active && payload?.[0]) {
+                  const value = payload[0].value as number;
                   return (
                     <div className="rounded-lg bg-white p-2 shadow-md">
-                      <p className="font-semibold">{new Date(label).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</p>
-                      <p>{`${chartConfig[activeChart].label}: ${typeof value === 'number' ? formatCurrency(value) : 'N/A'}`}</p>
+                      <p className="font-semibold">
+                        {new Date(label).toLocaleDateString("en-US", { 
+                          month: "long", 
+                          year: "numeric" 
+                        })}
+                      </p>
+                      <p>
+                        {`${chartConfig[activeChart].label}: ${formatCurrency(Money.fromCents(value))}`}
+                      </p>
                     </div>
                   );
                 }
                 return null;
               }}
             />
-            <Bar 
-              dataKey={activeChart} 
+            <Bar
+              dataKey={activeChart}
               fill={chartConfig[activeChart].color}
               radius={[4, 4, 0, 0]}
             />
