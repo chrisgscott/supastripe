@@ -4,11 +4,13 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { format } from 'date-fns';
 import { Money } from '@/utils/currencyUtils';
+import { Database } from '@/types/supabase';
+
 
 interface PaymentScheduleItem {
   date: string;
-  amount: number;
-  is_downpayment: boolean;
+  amount: Money;
+  transaction_type: Database['public']['Enums']['transaction_type'];
 }
 
 export default function PaymentSchedule() {
@@ -41,8 +43,10 @@ export default function PaymentSchedule() {
                                 <TableCell>
                                     {index === 0 ? "Due Now" : format(new Date(item.date), 'MM/dd/yyyy')}
                                 </TableCell>
-                                <TableCell>{Money.fromDollars(item.amount).toString()}</TableCell>
-                                <TableCell>{item.is_downpayment ? "Down Payment" : "Installment"}</TableCell>
+                                <TableCell>{item.amount.toString()}</TableCell>
+                                <TableCell>
+                                    {item.transaction_type === 'downpayment' ? "Down Payment" : "Installment"}
+                                </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

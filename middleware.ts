@@ -1,7 +1,11 @@
-import { type NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/utils/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
+  // Allow unauthenticated access to payment pages
+  if (request.nextUrl.pathname.startsWith('/pay/')) {
+    return NextResponse.next();
+  }
   return await updateSession(request);
 }
 

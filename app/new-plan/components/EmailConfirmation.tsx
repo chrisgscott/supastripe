@@ -4,13 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ReloadIcon, CheckCircledIcon } from "@radix-ui/react-icons";
-import { useRouter } from "next/navigation";
 
 export default function EmailConfirmation() {
   const { planDetails, setError } = useNewPlan();
   const [isSending, setIsSending] = useState(false);
   const [isSent, setIsSent] = useState(false);
-  const router = useRouter();
 
   const handleSendEmail = async () => {
     if (!planDetails.paymentPlanId) {
@@ -32,9 +30,6 @@ export default function EmailConfirmation() {
       if (!response.ok) throw new Error(data.error);
 
       setIsSent(true);
-      setTimeout(() => {
-        router.push(`/plan/${planDetails.paymentPlanId}`);
-      }, 2000);
     } catch (error) {
       console.error('Error sending payment link:', error);
       setError(error instanceof Error ? error.message : 'Failed to send payment link');
@@ -52,7 +47,10 @@ export default function EmailConfirmation() {
             <div className="text-center">
               <h3 className="font-semibold">Email Sent Successfully</h3>
               <p className="text-sm text-muted-foreground">
-                Redirecting to payment plan details...
+                The payment link has been sent to {planDetails.customerEmail}
+              </p>
+              <p className="text-sm text-muted-foreground mt-4">
+                You can now close this window or create another payment plan
               </p>
             </div>
           </div>

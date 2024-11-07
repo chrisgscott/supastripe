@@ -10,6 +10,7 @@ import { ReloadIcon } from "@radix-ui/react-icons";
 import dynamic from 'next/dynamic';
 import 'react-quill/dist/quill.snow.css';
 import './PlanDetailsForm.css';
+import { Money } from '@/utils/currencyUtils';
 
 const ReactQuill = dynamic(() => import('react-quill'), {
   ssr: false,
@@ -49,7 +50,8 @@ export default function PlanDetailsForm() {
         }
         break;
       case 'totalAmount':
-        if (typeof value === 'number' && value <= 0) {
+        const totalAmount = Money.fromDollars(Number(value));
+        if (totalAmount.toCents() <= 0) {
           error = 'Total amount must be greater than 0';
         }
         break;
@@ -59,10 +61,11 @@ export default function PlanDetailsForm() {
         }
         break;
       case 'downpaymentAmount':
-        if (typeof value === 'number' && value < 0) {
+        const downpayment = Money.fromDollars(Number(value));
+        if (downpayment.toCents() < 0) {
           error = 'Downpayment amount cannot be negative';
         }
-        if (typeof value === 'number' && value >= planDetails.totalAmount) {
+        if (downpayment.toCents() >= planDetails.totalAmount.toCents()) {
           error = 'Downpayment amount must be less than total amount';
         }
         break;
@@ -74,10 +77,13 @@ export default function PlanDetailsForm() {
     const error = validateField(name, value);
     setErrors(prev => ({ ...prev, [name]: error }));
 
-    // Handle different field types appropriately
-    const processedValue = ['totalAmount', 'downpaymentAmount', 'numberOfPayments'].includes(name)
-      ? (value === '' ? 0 : Number(value))
-      : value;
+    let processedValue: string | number | Money = value;
+
+    if (name === 'totalAmount' || name === 'downpaymentAmount') {
+      processedValue = Money.fromDollars(Number(value));
+    } else if (name === 'numberOfPayments') {
+      processedValue = value === '' ? 0 : Number(value);
+    }
 
     setPlanDetails(prev => ({
       ...prev,
@@ -97,7 +103,7 @@ export default function PlanDetailsForm() {
     return Object.values(errors).every(error => !error) &&
            planDetails.customerName &&
            planDetails.customerEmail &&
-           planDetails.totalAmount > 0 &&
+           planDetails.totalAmount.toCents() > 0 &&
            planDetails.numberOfPayments > 0;
   };
 
@@ -204,8 +210,8 @@ export default function PlanDetailsForm() {
                 type="number"
                 step="0.01"
                 min="0"
-                value={planDetails.totalAmount || ''}
-                onChange={(e) => handleChange('totalAmount', parseFloat(e.target.value))}
+                value={planDetails.totalAmount.toDollars()}
+                onChange={(e) => handleChange('totalAmount', e.target.value)}
                 className={errors.totalAmount ? 'border-red-500' : ''}
                 required
               />
@@ -218,7 +224,8 @@ export default function PlanDetailsForm() {
                 id="downpaymentAmount"
                 type="number"
                 step="0.01"
-                value={planDetails.downpaymentAmount || ''}
+                min="0"
+                value={planDetails.downpaymentAmount.toDollars()}
                 onChange={(e) => handleChange('downpaymentAmount', e.target.value)}
                 className={errors.downpaymentAmount ? 'border-red-500' : ''}
               />

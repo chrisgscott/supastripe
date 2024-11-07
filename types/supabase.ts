@@ -937,6 +937,7 @@ export type Database = {
         | "completed" // All payments completed successfully
         | "cancelled" // Plan was cancelled by merchant or customer
         | "failed" // Plan failed due to payment issues
+        | "ready_to_migrate" // First transaction successful, mark payment plan for migration to live
       payout_status_type:
         | "pending"
         | "in_transit"

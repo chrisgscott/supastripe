@@ -10,16 +10,17 @@ type Customer = Database['public']['Tables']['customers']['Row'];
 type Transaction = Database['public']['Tables']['transactions']['Row'];
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type EmailLog = Database['public']['Tables']['email_logs']['Insert'];
-type PaymentStatus = Database['public']['Enums']['payment_status_type'];
+type PaymentStatusType = Database['public']['Enums']['payment_status_type'];
 
 export async function POST(request: Request) {
   const supabase = createClient();
   const { paymentPlanId } = await request.json();
 
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (!user || authError) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Fetch payment plan details with current status
@@ -38,7 +39,6 @@ export async function POST(request: Request) {
         )
       `)
       .eq("id", paymentPlanId)
-      .eq("user_id", user.id)
       .single();
 
     if (paymentPlanError || !paymentPlan) {
@@ -46,8 +46,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Payment plan not found" }, { status: 404 });
     }
 
+    // If user is authenticated, verify they own this payment plan
+    if (user && paymentPlan.user_id !== user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     // Validate current status allows transition to pending_payment
-    if (!['draft', 'pending_approval'].includes(paymentPlan.status)) {
+    if (!['draft', 'pending_approval'].includes(paymentPlan.status as PaymentStatusType)) {
       return NextResponse.json(
         { error: "Invalid status transition" },
         { status: 400 }
@@ -55,14 +60,20 @@ export async function POST(request: Request) {
     }
 
     // Update payment plan status
-    const { error: updateError } = await supabase
+    let query = supabase
       .from("payment_plans")
       .update({ 
-        status: "pending_payment" satisfies PaymentStatus,
+        status: 'pending_payment' satisfies PaymentStatusType,
         status_updated_at: new Date().toISOString()
       })
-      .eq("id", paymentPlanId)
-      .eq("user_id", user.id);
+      .eq("id", paymentPlanId);
+
+    // Add user_id check only if user is authenticated
+    if (user) {
+      query = query.eq("user_id", user.id);
+    }
+
+    const { error: updateError } = await query;
 
     if (updateError) throw updateError;
 

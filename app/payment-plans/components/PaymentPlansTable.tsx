@@ -34,6 +34,7 @@ import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { formatCurrency } from '@/utils/currencyUtils';
 import { Money } from '@/utils/currencyUtils';
+import { StatusBadge } from "@/components/ui/status-badge"
 
 const PAYMENT_PLAN_STATUSES = [
   "draft",
@@ -56,29 +57,6 @@ interface PaymentPlan {
   status: string;
   created_at: string;
 }
-
-const getStatusColor = (status: PaymentPlanStatus): string => {
-  switch (status) {
-    case 'active':
-      return 'text-green-600';
-    case 'completed':
-      return 'text-blue-600';
-    case 'cancelled':
-      return 'text-red-600';
-    case 'failed':
-      return 'text-orange-600';
-    case 'paused':
-      return 'text-yellow-600';
-    case 'pending_approval':
-      return 'text-purple-600';
-    case 'pending_payment':
-      return 'text-orange-400';
-    case 'draft':
-      return 'text-gray-600';
-    default:
-      return 'text-gray-600';
-  }
-};
 
 const columns: ColumnDef<PaymentPlan>[] = [
   {
@@ -139,9 +117,8 @@ const columns: ColumnDef<PaymentPlan>[] = [
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => {
-      return (
-        <span className="capitalize">{row.getValue("status")}</span>
-      );
+      const status = row.getValue("status") as PaymentPlanStatus;
+      return <StatusBadge status={status} />;
     },
   },
   {
@@ -170,8 +147,30 @@ async function fetchPaymentPlans() {
     throw new Error(errorData.error || "Failed to fetch payment plans");
   }
   const data = await response.json();
-  console.log('Fetched payment plans:', JSON.stringify(data, null, 2));
-  return data;
+  
+  console.log("Raw API response:", JSON.stringify(data, null, 2));
+  
+  return data.map((plan: any) => {
+    console.log("Processing plan:", plan);
+    console.log("pending_customers:", plan.pending_customers);
+    console.log("customers:", plan.customers);
+    
+    const customerName = 
+      (plan.pending_customers?.name) || 
+      (Array.isArray(plan.customers) ? plan.customers[0]?.name : plan.customers?.name) || 
+      "Unknown";
+    
+    console.log("Extracted customer name:", customerName);
+    
+    return {
+      id: plan.id,
+      customerName,
+      totalAmount: typeof plan.totalAmount === 'string' ? plan.totalAmount : formatCurrency(plan.total_amount),
+      nextPaymentDate: plan.next_payment_date,
+      status: plan.status,
+      created_at: plan.created_at
+    };
+  });
 }
 
 export function PaymentPlansTable() {

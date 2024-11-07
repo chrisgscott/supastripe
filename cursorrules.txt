@@ -1,2 +1,202 @@
 We are using the APP ROUTER, not pages router for NextJS.
 We are using @supabase/ssr, NOT auth-helpers-nextjs. Never use auth-helpers-nextjs in our code. See docs at https://supabase.com/docs/guides/auth/server-side/nextjs for details.
+
+We recently made changes to a substantial portion of our app and I’d like your help updating our files to fit the new database structure, payment plan creation flow, API routes and backend processes.
+
+Here are the most important things to consider, please be sure to check all of them as we proceed with making our changes:
+
+## Payment Plan Creation Flow
+1. As before, the @NewPlanWizard.tsx and @NewPlanContext.tsx files control the flow of the new payment plan creation process.
+2. We start on the @PlanDetailsForm.tsx, where we fill in the form. The form validates our inputs but **does not** do any currency formatting or conversions. It’s important that we’re able to enter dollars and cents into the form without it being formatted or converted within the form.
+3. Submitting the PlanDetailsForm triggers the @create-downpayment-intent-and-pending-records API route.
+4. The create-downpayment-intent-and-pending-records API route starts a database transaction, generates our randomUUIDs for the pending customer, pending payment plan, pending transaction and the idempotency key before getting the stripe connect connected account id and checking to see if a customer already exists in the database. Finally, it convers our payment schedule amounts into cents to be stored in the database and does a final check on the transaction types.
+5. From there, the API route triggers our create_pending_payment_records function: 
+```
+
+  
+BEGIN
+    -- Create pending customer record
+    INSERT INTO pending_customers (
+        id,
+        name,
+        email,
+        user_id,
+        stripe_customer_id
+    )
+    VALUES (
+        p_customer_id,
+        p_customer_name,
+        p_customer_email,
+        p_user_id,
+        p_stripe_customer_id
+    );
+
+    -- Create pending payment plan
+    INSERT INTO pending_payment_plans (
+        id,
+        customer_id,
+        user_id,
+        total_amount,
+        number_of_payments,
+        payment_interval,
+        downpayment_amount,
+        status,
+        idempotency_key,
+        notes
+    )
+    VALUES (
+        p_payment_plan_id,
+        p_customer_id,
+        p_user_id,
+        p_total_amount,
+        p_number_of_payments,
+        p_payment_interval,
+        p_downpayment_amount,
+        'pending_payment',
+        p_idempotency_key,
+        p_notes
+    );
+
+    -- Create pending transactions from payment schedule
+    INSERT INTO pending_transactions (
+        id,
+        payment_plan_id,
+        user_id,
+        amount,
+        due_date,
+        status,
+        transaction_type
+    )
+    SELECT
+        CASE 
+            WHEN value->>'transaction_type' = 'downpayment' THEN p_transaction_id
+            ELSE gen_random_uuid()
+        END,
+        p_payment_plan_id,
+        p_user_id,
+        (value->>'amount')::INTEGER,
+        (value->>'date')::TIMESTAMP,
+        'pending',
+        value->>'transaction_type'
+    FROM jsonb_array_elements(p_payment_schedule);
+
+END;
+   $$ LANGUAGE plpgsql;
+```
+6. That database function creates all of our pending records in pending_customers, pending_payment_plans and pending_transactions.
+7. From there, our API route creates a stripe payment intent and, assuming everything works up to that point, commits the database transaction or rollsback if there are any errors.
+8. From there, we’re sent over to the new @PaymentMethodChoice.tsx file where the user chooses whether to Collect Payment Now or Send Payment Link. Collect Payment Now follows our usual payment flow, sending the user to the @StripePaymentForm step. Send Payment Link triggers the @send-payment-link API route, which sends an email to the customer with a link to the @pay page.
+9. From here, we’re sent over to the @/plan/[id] page as our confirmation page.
+10. When the first payment is processed (whether that’s a downpayment or an installment payment doesn’t matter, just whatever the first transaction is) and we get a success notification from Stripe, we fire off the @handle-payment-confirmation API route, which begins a database transaction, fetches the stripe payment intent, gets the pending payment plan, updates the first transaction status to ‘completed’, updates the pending payment plan status to ‘ready_to_migrate’, creates an email log for the payment and triggers our migrate_pending_payment_plan database function:
+```
+DECLARE
+    v_new_plan_id UUID;
+    v_new_customer_id UUID;
+    v_user_id UUID;
+BEGIN
+    -- Get the user_id first
+    SELECT user_id INTO v_user_id
+    FROM pending_payment_plans
+    WHERE id = p_pending_plan_id;
+
+    -- First, migrate the customer
+    INSERT INTO customers (
+        name,
+        email,
+        user_id,
+        created_at,
+        updated_at
+    )
+    SELECT 
+        name,
+        email,
+        v_user_id,
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP
+    FROM pending_customers
+    WHERE id = (
+        SELECT pending_customer_id 
+        FROM pending_payment_plans 
+        WHERE id = p_pending_plan_id
+    )
+    RETURNING id INTO v_new_customer_id;
+
+    -- Next, migrate the payment plan
+    INSERT INTO payment_plans (
+        user_id,
+        customer_id,
+        total_amount,
+        downpayment_amount,
+        number_of_payments,
+        payment_interval,
+        notes,
+        status,
+        card_last_four,
+        card_expiration_month,
+        card_expiration_year,
+        created_at,
+        updated_at,
+        status_updated_at
+    )
+    SELECT 
+        user_id,
+        v_new_customer_id,
+        total_amount,
+        downpayment_amount,
+        number_of_payments,
+        payment_interval,
+        notes,
+        'active'::payment_status_type,
+        card_last_four,
+        card_expiration_month,
+        card_expiration_year,
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP
+    FROM pending_payment_plans
+    WHERE id = p_pending_plan_id
+    RETURNING id INTO v_new_plan_id;
+
+    -- Finally, migrate the transactions
+    INSERT INTO transactions (
+        payment_plan_id,
+        amount,
+        due_date,
+        transaction_type,
+        status,
+        stripe_payment_intent_id,
+        created_at,
+        updated_at
+    )
+    SELECT 
+        v_new_plan_id,
+        amount,
+        due_date,
+        transaction_type,
+        status,
+        stripe_payment_intent_id,
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP
+    FROM pending_transactions
+    WHERE pending_payment_plan_id = p_pending_plan_id;
+
+    RETURN v_new_plan_id;
+END;
+```
+11. If all of that is successful, we clean up the pending records with a database function (cleanup_pending_payment_records) and commit the database transaction.
+12. We now have our new “live” customer, payment plan and transactions (along with their related email and payment logs) on our “live” database tables.
+   
+## Database Structure
+1. Check all types, database tables and column names to make sure they work seamlessly with our new database structure as detailed in @supabase.ts. This is vital. Don’t guess. Look at the file and compare it to our code.
+2. We’re no longer using “is_downpayment”. We’re now using “transaction_type”. You can find the valid types in @supabase.ts
+3. We’ve removed the payment_plan_stages table altogether since we’re now tracking status by whether the records are on the pending_ tables vs the “live” tables and within the “status” column of the given table. No need for that payment plan stage table anymore.
+4. We have detailed enum definitions in @supabase.ts. Please use this reference to be sure everything matches.
+
+## Currency Formatting and Conversion
+When possible, **always** use our @currencyUtils.ts file for doing all formatting and conversion of money. We always show dollars and cents on the frontend and always store money as cents in our database.
+
+## Misc. Notes
+- Always make sure we’re using Stripe Connect and that payments are routed to the connected stripe account and our application fee is being collected and routed to us properly.
+- Always make sure we’re using setup_future_usage as off_session so we can store the payment method (credit card details) to the stripe customer.
+
+

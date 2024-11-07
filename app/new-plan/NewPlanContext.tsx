@@ -1,16 +1,19 @@
+"use client";
+
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import { addWeeks, addMonths } from 'date-fns';
 import { Money, formatCurrency } from '@/utils/currencyUtils';
 import { useSearchParams } from 'next/navigation';
+import { Database } from '@/types/supabase';
 
 interface PlanDetails {
   id?: string;
   customerName: string;
   customerEmail: string;
-  totalAmount: number;
+  totalAmount: Money;
   numberOfPayments: number;
-  paymentInterval: string;
-  downpaymentAmount: number;
+  paymentInterval: Database['public']['Enums']['payment_interval_type'];
+  downpaymentAmount: Money;
   paymentSchedule: PaymentScheduleItem[];
   paymentPlanId?: string;
   stripeCustomerId?: string;
@@ -26,8 +29,8 @@ interface PlanDetails {
 
 interface PaymentScheduleItem {
   date: string;
-  amount: number;
-  is_downpayment: boolean;
+  amount: Money;
+  transaction_type: Database['public']['Enums']['transaction_type'];
 }
 
 interface NewPlanContextType {
@@ -67,10 +70,10 @@ export const NewPlanProvider: React.FC<NewPlanProviderProps> = ({ children }) =>
   const [planDetails, setPlanDetails] = useState<PlanDetails>({
     customerName: '',
     customerEmail: '',
-    totalAmount: 0,
+    totalAmount: Money.fromCents(0),
     numberOfPayments: 1,
     paymentInterval: 'monthly',
-    downpaymentAmount: 0,
+    downpaymentAmount: Money.fromCents(0),
     paymentSchedule: [],
     paymentMethod: null,
   });
@@ -91,11 +94,11 @@ export const NewPlanProvider: React.FC<NewPlanProviderProps> = ({ children }) =>
             ...planDetails,
             customerName: plan.customerName,
             customerEmail: plan.customerEmail || '',
-            totalAmount: Money.fromCents(plan.totalAmount).toDollars(),
+            totalAmount: Money.fromCents(plan.totalAmount),
             numberOfPayments: plan.numberOfPayments || 3,
             paymentInterval: plan.paymentInterval || 'monthly',
             pendingPlanId: plan.id,
-            downpaymentAmount: Money.fromCents(plan.downpaymentAmount || 0).toDollars(),
+            downpaymentAmount: Money.fromCents(plan.downpaymentAmount || 0),
             notes: plan.notes || undefined
           });
         } catch (error) {
@@ -148,22 +151,17 @@ export const NewPlanProvider: React.FC<NewPlanProviderProps> = ({ children }) =>
   const calculatePaymentSchedule = () => {
     const { totalAmount, numberOfPayments, paymentInterval, downpaymentAmount } = planDetails;
     
-    const totalMoney = Money.fromDollars(totalAmount);
-    const downpaymentMoney = Money.fromDollars(downpaymentAmount);
-    
-    const validDownpayment = Money.fromCents(Math.min(downpaymentMoney.toCents(), totalMoney.toCents()));
-    const remainingAmount = totalMoney.subtract(validDownpayment);
+    const validDownpayment = Money.fromCents(Math.min(downpaymentAmount.toCents(), totalAmount.toCents()));
+    const remainingAmount = totalAmount.subtract(validDownpayment);
     const regularPaymentAmount = remainingAmount.divide(numberOfPayments - (validDownpayment.toCents() > 0 ? 1 : 0));
     
     let schedule: PaymentScheduleItem[] = [];
     let currentDate = new Date();
-    // Set time to beginning of day to avoid timezone issues
-    currentDate.setHours(0, 0, 0, 0);
 
     schedule.push({ 
-      date: currentDate.toISOString().split('T')[0], // Store just the date portion
-      amount: validDownpayment.toCents() > 0 ? validDownpayment.toDollars() : regularPaymentAmount.toDollars(),
-      is_downpayment: validDownpayment.toCents() > 0
+      date: currentDate.toISOString(),
+      amount: validDownpayment.toCents() > 0 ? validDownpayment : regularPaymentAmount,
+      transaction_type: validDownpayment.toCents() > 0 ? 'downpayment' : 'installment'
     });
 
     let totalScheduled = validDownpayment.toCents() > 0 ? validDownpayment : regularPaymentAmount;
@@ -172,15 +170,14 @@ export const NewPlanProvider: React.FC<NewPlanProviderProps> = ({ children }) =>
       currentDate = paymentInterval === "weekly" ? addWeeks(currentDate, 1) : addMonths(currentDate, 1);
       let paymentAmount = regularPaymentAmount;
 
-      // Adjust the final payment
       if (i === numberOfPayments - 1) {
-        paymentAmount = totalMoney.subtract(totalScheduled);
+        paymentAmount = totalAmount.subtract(totalScheduled);
       }
 
       schedule.push({ 
-        date: currentDate.toISOString(), 
-        amount: paymentAmount.toDollars(), 
-        is_downpayment: false 
+        date: currentDate.toISOString(),
+        amount: paymentAmount,
+        transaction_type: 'installment'
       });
 
       totalScheduled = totalScheduled.add(paymentAmount);

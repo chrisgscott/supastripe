@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { Money } from '@/utils/currencyUtils';
+import { Database } from "@/types/supabase";
+
+type TransactionStatusType = Database['public']['Enums']['transaction_status_type'];
 
 type FailedTransaction = {
   id: string;
@@ -36,7 +39,7 @@ export async function GET() {
           )
         )
       `)
-      .eq('status', 'failed')
+      .eq('status', 'failed' satisfies TransactionStatusType)
       .eq('user_id', user.id)
       .order('next_attempt_date', { ascending: true })
       .limit(5);

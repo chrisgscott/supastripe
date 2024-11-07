@@ -23,10 +23,12 @@ import { ReloadIcon } from "@radix-ui/react-icons";
 import { useRouter } from "next/navigation";
 
 interface StripePaymentFormProps {
-  amount?: number;
+  amount: Money;
+  clientSecret: string;
+  paymentPlanId: string;
 }
 
-export default function StripePaymentForm({ amount }: StripePaymentFormProps) {
+export default function StripePaymentForm({ amount, clientSecret, paymentPlanId }: StripePaymentFormProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const stripe = useStripe();
@@ -46,8 +48,8 @@ export default function StripePaymentForm({ amount }: StripePaymentFormProps) {
   }, [stripe, elements]);
 
   const firstPaymentAmount = planDetails.paymentSchedule?.[0]?.amount;
-  const submitButtonText = firstPaymentAmount 
-    ? `Pay ${Money.fromDollars(firstPaymentAmount).toString()} and Create Plan`
+  const submitButtonText = amount 
+    ? `Pay ${amount.toString()} and Create Plan`
     : 'Create Payment Plan';
 
   if (!stripe || !elements) {
@@ -80,10 +82,6 @@ export default function StripePaymentForm({ amount }: StripePaymentFormProps) {
     setErrorMessage(null);
 
     try {
-      if (!planDetails.clientSecret) {
-        throw new Error('Client secret is not available');
-      }
-
       const { error: submitError } = await elements!.submit();
       if (submitError) {
         throw new Error(submitError.message);
@@ -91,9 +89,9 @@ export default function StripePaymentForm({ amount }: StripePaymentFormProps) {
 
       const { error: confirmError, paymentIntent } = await stripe!.confirmPayment({
         elements: elements!,
-        clientSecret: planDetails.clientSecret,
+        clientSecret,
         confirmParams: {
-          return_url: `${window.location.origin}/plan/${planDetails.paymentPlanId}`,
+          return_url: `${window.location.origin}/plan/${paymentPlanId}`,
         },
         redirect: "if_required",
       });
@@ -105,7 +103,6 @@ export default function StripePaymentForm({ amount }: StripePaymentFormProps) {
       if (paymentIntent) {
         setIsRedirecting(true);
         
-        // Poll for plan creation
         let retryCount = 0;
         const maxRetries = 10;
         
@@ -115,8 +112,8 @@ export default function StripePaymentForm({ amount }: StripePaymentFormProps) {
           );
           const data = await response.json();
           
-          if (data.success && data.planDetails?.paymentPlanId) {
-            router.push(`/plan/${data.planDetails.paymentPlanId}`);
+          if (data.success && data.redirectUrl) {
+            router.push(data.redirectUrl);
             return;
           }
           

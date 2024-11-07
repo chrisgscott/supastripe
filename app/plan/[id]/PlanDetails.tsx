@@ -46,8 +46,8 @@ interface PlanDetailsProps {
     paymentSchedule: {
       amount: number
       date: string
-      is_downpayment: boolean
-      status: "paid" | "pending"
+      transaction_type: 'downpayment' | 'installment'
+      status: "completed" | "pending" | "failed"
       cardLastFour?: string
     }[]
     paymentPlanId: string
@@ -130,15 +130,15 @@ export function PlanDetails({ planDetails }: PlanDetailsProps) {
   // Calculate totals
   const totalAmount = planDetails.totalAmount
   const totalCollected = planDetails.paymentSchedule
-    ?.filter(payment => payment.status === "paid")
+    ?.filter(payment => payment.status === "completed")
     .reduce((sum, payment) => sum + payment.amount, 0) || 0
   const totalScheduled = planDetails.paymentSchedule
     ?.filter(payment => payment.status === "pending")
     .reduce((sum, payment) => sum + payment.amount, 0) || 0
 
   const sortedPayments = [...planDetails.paymentSchedule].sort((a, b) => {
-    if (a.is_downpayment) return -1;
-    if (b.is_downpayment) return 1;
+    if (a.transaction_type === "downpayment") return -1;
+    if (b.transaction_type === "downpayment") return 1;
     return new Date(a.date).getTime() - new Date(b.date).getTime();
   });
 
@@ -151,8 +151,8 @@ export function PlanDetails({ planDetails }: PlanDetailsProps) {
           <p className="text-muted-foreground mt-1">{planDetails.customerEmail}</p>
         </div>
         <div className="text-right text-sm text-muted-foreground">
-          <p>Plan ID: {planDetails.paymentPlanId}</p>
-          <p>Created: {format(new Date(), "MMM dd, yyyy")}</p>
+          <p><strong>Plan ID:</strong> {planDetails.paymentPlanId}</p>
+          <p><strong>Created:</strong> {format(new Date(), "MMM dd, yyyy")}</p>
         </div>
       </div>
 
@@ -243,7 +243,7 @@ export function PlanDetails({ planDetails }: PlanDetailsProps) {
                         {formatCurrency(Money.fromCents(payment.amount))}
                       </TableCell>
                       <TableCell className="text-right">
-                        {payment.status === "paid" ? (
+                        {payment.status === "completed" ? (
                           <span className="status-badge inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-green-50 text-green-700">
                             Paid
                           </span>

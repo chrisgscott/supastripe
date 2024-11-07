@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { getStripe } from "@/app/utils/stripe";
 import { Money } from "@/utils/currencyUtils";
+import { calculateApplicationFee } from '@/utils/feeUtils';
 
 export default function NewPlanWizard() {
   const {
@@ -27,11 +28,12 @@ export default function NewPlanWizard() {
   const options = useMemo(
     () => ({
       mode: "payment" as const,
-      amount: Money.fromDollars(
-        planDetails.paymentSchedule?.[0]?.amount || 0
-      ).toCents(),
+      amount: planDetails.paymentSchedule?.[0]?.amount.toCents() || 0,
       currency: "usd",
       setup_future_usage: "off_session" as const,
+      application_fee_amount: planDetails.paymentSchedule?.[0]?.amount 
+        ? calculateApplicationFee(planDetails.paymentSchedule[0].amount)
+        : 0,
       appearance: {
         theme: "stripe" as const,
         variables: {
@@ -52,7 +54,6 @@ export default function NewPlanWizard() {
           const stripe = await stripePromise;
           console.log("NewPlanWizard: Stripe loaded:", !!stripe);
           if (stripe) {
-            // Add a small delay to ensure Elements is ready
             setTimeout(() => {
               console.log("NewPlanWizard: Setting isStripeReady to true");
               setIsStripeReady(true);
@@ -97,9 +98,9 @@ export default function NewPlanWizard() {
               planDetails.paymentMethod === "collect_now" && (
                 <Elements stripe={stripePromise} options={options}>
                   <StripePaymentForm
-                    amount={Money.fromDollars(
-                      planDetails.downpaymentAmount
-                    ).toCents()}
+                    amount={planDetails.paymentSchedule?.[0]?.amount || Money.fromCents(0)}
+                    clientSecret={planDetails.clientSecret || ''}
+                    paymentPlanId={planDetails.paymentPlanId || ''}
                   />
                 </Elements>
               )}

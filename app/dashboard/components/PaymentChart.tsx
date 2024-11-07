@@ -47,10 +47,14 @@ export function PaymentChart({ data, isLoading }: PaymentChartProps) {
 
   const total = useMemo<Record<ChartKey, Money>>(() => ({
     collected: Money.fromCents(
-      data.reduce((sum, item) => sum + (item.collected || 0), 0)
+      Array.isArray(data) 
+        ? data.reduce((sum, item) => sum + (item.collected || 0), 0)
+        : 0
     ),
     forecasted: Money.fromCents(
-      data.reduce((sum, item) => sum + (item.forecasted || 0), 0)
+      Array.isArray(data) 
+        ? data.reduce((sum, item) => sum + (item.forecasted || 0), 0)
+        : 0
     ),
   }), [data]);
 
