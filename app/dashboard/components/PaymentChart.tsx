@@ -67,7 +67,7 @@ export function PaymentChart({ data, isLoading }: PaymentChartProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[350px] flex items-end justify-between gap-2 pt-2">
+          <div className="h-[370px] flex items-end justify-between gap-2 pt-2">
             {[...Array(12)].map((_, i) => (
               <div key={i} className="w-full flex flex-col gap-2">
                 <div className="w-full flex justify-center gap-1">
@@ -110,16 +110,18 @@ export function PaymentChart({ data, isLoading }: PaymentChartProps) {
           ))}
         </div>
       </CardHeader>
-      <CardContent className="px-2 sm:p-6">
+      <CardContent className="h-[367px] px-2 sm:p-6">
         <ChartContainer
           config={chartConfig}
-          className="aspect-auto h-[250px] w-full"
+          className="aspect-auto h-[340px] w-full"
         >
           <BarChart
             data={data}
             margin={{
+              top: 20,
               left: 12,
               right: 12,
+              bottom: 20,
             }}
           >
             <CartesianGrid vertical={false} />

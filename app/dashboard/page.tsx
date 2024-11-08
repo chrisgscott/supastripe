@@ -11,10 +11,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PaymentChart } from './components/PaymentChart';
-import { NeedsAttentionCard } from './components/NeedsAttentionCard';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { DashboardCardSkeleton } from "./components/DashboardCardSkeleton"
 import { Money } from '@/utils/currencyUtils';
+import { ActivityLogsTable } from './components/ActivityLogsTable';
 
 
 const queryClient = new QueryClient();
@@ -48,8 +48,6 @@ function Dashboard() {
     amount: null,
     date: null
   });
-  const [failedTransactions, setFailedTransactions] = useState([]);
-  const [isLoadingFailedTransactions, setIsLoadingFailedTransactions] = useState(true);
   const [userName, setUserName] = useState('');
   const [isLoadingPaymentData, setIsLoadingPaymentData] = useState(true);
 
@@ -67,7 +65,6 @@ function Dashboard() {
     fetchPaymentData();
     fetchActivePlans();
     fetchNextPayout();
-    fetchFailedTransactions();
     fetchUserName();
   }, []);
 
@@ -140,18 +137,6 @@ function Dashboard() {
       console.error('Error fetching next payout:', error);
     }
     setIsLoadingNextPayout(false);
-  };
-
-  const fetchFailedTransactions = async () => {
-    setIsLoadingFailedTransactions(true);
-    try {
-      const response = await fetch('/api/failed-transactions');
-      const data = await response.json();
-      setFailedTransactions(data);
-    } catch (error) {
-      console.error('Error fetching failed transactions:', error);
-    }
-    setIsLoadingFailedTransactions(false);
   };
 
   return (
@@ -251,10 +236,9 @@ function Dashboard() {
           />
         </div>
         
-        <NeedsAttentionCard
-          failedTransactions={failedTransactions}
-          isLoading={isLoadingFailedTransactions}
-        />
+        <div>
+          <ActivityLogsTable />
+        </div>
       </div>
     </div>
   );

@@ -799,6 +799,49 @@ export type Database = {
         }
         Relationships: []
       }
+      activity_logs: {
+        Row: {
+          id: string
+          user_id: string
+          activity_type: Database['public']['Enums']['activity_type']
+          entity_type: string
+          entity_id: string
+          amount: number | null
+          metadata: Json
+          created_at: string
+          customer_name: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          activity_type: Database['public']['Enums']['activity_type']
+          entity_type: string
+          entity_id: string
+          amount?: number | null
+          metadata?: Json
+          created_at?: string
+          customer_name?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          activity_type?: Database['public']['Enums']['activity_type']
+          entity_type?: string
+          entity_id?: string
+          amount?: number | null
+          metadata?: Json
+          created_at?: string
+          customer_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -952,6 +995,17 @@ export type Database = {
         | "failed"
         | "cancelled"
       transaction_type: "downpayment" | "installment"
+      activity_type: 
+        | 'payment_success'
+        | 'payment_failed'
+        | 'plan_created'
+        | 'plan_activated'
+        | 'plan_completed'
+        | 'plan_cancelled'
+        | 'payout_scheduled'
+        | 'payout_paid'
+        | 'payout_failed'
+        | 'email_sent'
     }
     CompositeTypes: {
       [_ in never]: never
