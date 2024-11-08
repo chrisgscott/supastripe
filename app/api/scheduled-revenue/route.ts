@@ -1,49 +1,50 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { Money } from '@/utils/currencyUtils';
-import { Database } from '@/types/supabase';
-
-type Transaction = Database['public']['Tables']['transactions']['Row'];
-type TransactionStatus = Database['public']['Enums']['transaction_status_type'];
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const days = searchParams.get('days');
   const supabase = createClient();
 
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  try {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-  if (!user || authError) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-  const now = new Date().toISOString();
+    const today = new Date();
 
-  let query = supabase
-    .from('transactions')
-    .select('amount, due_date')
-    .eq('user_id', user.id)
-    .eq('status', 'pending' satisfies TransactionStatus)
-    .gt('due_date', now);
+    // Only get pending transactions from active payment plans
+    let query = supabase
+      .from('transactions')
+      .select(`
+        amount,
+        payment_plans!inner (
+          status
+        )
+      `)
+      .eq('status', 'pending')
+      .eq('user_id', user.id)
+      .eq('payment_plans.status', 'active')
+      .gte('due_date', today.toISOString());
 
-  if (days && days !== 'all') {
-    const endDate = new Date(Date.now() + (parseInt(days) + 1) * 24 * 60 * 60 * 1000);
-    query = query.lte('due_date', endDate.toISOString());
-  }
+    // Only add the upper date limit if we're not looking at all time
+    if (days !== 'all') {
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + parseInt(days || '30'));
+      query = query.lte('due_date', futureDate.toISOString());
+    }
 
-  const { data, error } = await query;
+    const { data, error } = await query;
 
-  if (error) {
-    console.error('Error fetching scheduled revenue:', error);
+    if (error) throw error;
+
+    const scheduledRevenue = data.reduce((sum, transaction) => sum + transaction.amount, 0);
+
+    return NextResponse.json({ scheduledRevenue });
+  } catch (error) {
+    console.error('Error:', error);
     return NextResponse.json({ error: 'Failed to fetch scheduled revenue' }, { status: 500 });
   }
-
-  const totalMoney = Money.fromCents((data as Transaction[]).reduce((sum, transaction) => 
-    sum + (transaction.amount || 0), 0
-  ));
-
-  return NextResponse.json({ 
-    scheduledRevenue: totalMoney.toString(),
-    rawScheduledRevenue: totalMoney.toCents()
-  });
 }

@@ -132,7 +132,10 @@ function Dashboard() {
     try {
       const response = await fetch('/api/next-payout');
       const data = await response.json();
-      setNextPayout(data);
+      setNextPayout({
+        amount: data.amount ? Money.fromCents(data.amount) : null,
+        date: data.date
+      });
     } catch (error) {
       console.error('Error fetching next payout:', error);
     }

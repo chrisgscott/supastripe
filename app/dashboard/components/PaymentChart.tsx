@@ -46,12 +46,12 @@ export function PaymentChart({ data, isLoading }: PaymentChartProps) {
   const [activeChart, setActiveChart] = useState<ChartKey>("forecasted");
 
   const total = useMemo<Record<ChartKey, Money>>(() => ({
-    collected: Money.fromCents(
+    collected: Money.fromDollars(
       Array.isArray(data) 
         ? data.reduce((sum, item) => sum + (item.collected || 0), 0)
         : 0
     ),
-    forecasted: Money.fromCents(
+    forecasted: Money.fromDollars(
       Array.isArray(data) 
         ? data.reduce((sum, item) => sum + (item.forecasted || 0), 0)
         : 0
@@ -138,7 +138,7 @@ export function PaymentChart({ data, isLoading }: PaymentChartProps) {
               }}
             />
             <YAxis
-              tickFormatter={(value) => formatCurrency(Money.fromCents(value))}
+              tickFormatter={(value) => formatCurrency(Money.fromDollars(value))}
               axisLine={false}
               tickLine={false}
               tickMargin={8}
@@ -156,7 +156,7 @@ export function PaymentChart({ data, isLoading }: PaymentChartProps) {
                         })}
                       </p>
                       <p>
-                        {`${chartConfig[activeChart].label}: ${formatCurrency(Money.fromCents(value))}`}
+                        {`${chartConfig[activeChart].label}: ${formatCurrency(Money.fromDollars(value))}`}
                       </p>
                     </div>
                   );

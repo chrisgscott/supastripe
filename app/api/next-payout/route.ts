@@ -3,7 +3,7 @@ import { createClient } from '@/utils/supabase/server';
 import Stripe from 'stripe';
 import { format } from 'date-fns';
 import { Database } from '@/types/supabase';
-import { Money, formatCurrency } from '@/utils/currencyUtils';
+import { Money } from '@/utils/currencyUtils';
 
 type PayoutStatusType = Database['public']['Enums']['payout_status_type'];
 
@@ -31,9 +31,11 @@ export async function GET() {
       .limit(1)
       .single();
 
+    console.log('Pending payout from database:', pendingPayout);
+
     if (pendingPayout) {
       return NextResponse.json({
-        amount: formatCurrency(Money.fromCents(pendingPayout.amount)),
+        amount: pendingPayout.amount,
         date: format(new Date(pendingPayout.arrival_date), 'MMM d, yyyy')
       });
     }
@@ -46,6 +48,7 @@ export async function GET() {
       .single();
 
     if (!stripeAccount) {
+      console.log('No Stripe account found for user');
       return NextResponse.json({ error: 'Stripe account not found' }, { status: 404 });
     }
 
@@ -61,11 +64,14 @@ export async function GET() {
       }
     );
 
+    console.log('Stripe payouts response:', payouts);
+
     const nextPayout = payouts.data[0];
 
     if (!nextPayout) {
+      console.log('No upcoming payouts found in Stripe');
       return NextResponse.json({ 
-        amount: 'None scheduled',
+        amount: null,
         date: null
       });
     }
@@ -82,7 +88,7 @@ export async function GET() {
     });
 
     return NextResponse.json({
-      amount: formatCurrency(Money.fromCents(nextPayout.amount)),
+      amount: nextPayout.amount,
       date: format(new Date(nextPayout.arrival_date * 1000), 'MMM d, yyyy')
     });
   } catch (error) {
