@@ -42,6 +42,17 @@ export default async function RootLayout({
             </main>
           </div>
           <Script src="https://js.stripe.com/v3/" strategy="afterInteractive" />
+          {/* Frill Script */}
+          <Script strategy="afterInteractive" dangerouslySetInnerHTML={{
+            __html: `
+              (function(t,r){function s(){var a=r.getElementsByTagName("script")[0],e=r.createElement("script");e.type="text/javascript",e.async=!0,e.src="https://widget.frill.co/v2/container.js",a.parentNode.insertBefore(e,a)}if(!t.Frill){var o=0,i={};t.Frill=function(e,p){var n,l=o++,c=new Promise(function(v,d){i[l]={params:[e,p],resolve:function(f){n=f,v(f)},reject:d}});return c.destroy=function(){delete i[l],n&&n.destroy()},c},t.Frill.q=i}r.readyState==="complete"||r.readyState==="interactive"?s():r.addEventListener("DOMContentLoaded",s)})(window,document);
+              window.Frill('container', {
+                key: '4f93f8d4-3e9e-4e8f-9bfb-eedeca9e1712',
+                // Identify your users (optional)
+                // user: { email: 'email@domain.com', name: 'my user'}
+              });
+            `
+          }} />
           <Toaster />
         </ThemeProvider>
       </body>

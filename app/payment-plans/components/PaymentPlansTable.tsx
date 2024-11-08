@@ -35,6 +35,7 @@ import { useQuery } from "@tanstack/react-query";
 import { formatCurrency } from '@/utils/currencyUtils';
 import { Money } from '@/utils/currencyUtils';
 import { StatusBadge } from "@/components/ui/status-badge"
+import { PaymentPlansTableSkeleton } from "./PaymentPlansTableSkeleton";
 
 const PAYMENT_PLAN_STATUSES = [
   "draft",
@@ -125,12 +126,16 @@ const columns: ColumnDef<PaymentPlan>[] = [
     id: "actions",
     cell: ({ row }) => {
       const plan = row.original;
+      const isPending = plan.status === 'pending_approval' || plan.status === 'pending_payment';
+      const apiPath = isPending ? `/api/get-pending-plan-details/${plan.id}` : `/api/get-plan-details/${plan.id}`;
+      const detailsPath = `/plan/${plan.id}`;
+      
       return (
         <Button
           variant="default"
           size="sm"
           className="h-8"
-          onClick={() => window.location.href = `/plan/${plan.id}`}
+          onClick={() => window.location.href = detailsPath}
         >
           View Details
           <ArrowRight className="ml-2 h-4 w-4" />
@@ -216,7 +221,7 @@ export function PaymentPlansTable() {
   }, [paymentPlans]);
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <PaymentPlansTableSkeleton />;
   }
 
   if (isError) {

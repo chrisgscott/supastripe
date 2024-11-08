@@ -66,6 +66,7 @@ interface PlanDetailsProps {
       plaintext: string
     }
     status: string
+    isPending?: boolean
   }
 }
 
@@ -76,7 +77,8 @@ export function PlanDetails({ planDetails }: PlanDetailsProps) {
 
   // Reference handleSendEmail function from ConfirmationStep.tsx (lines 148-184)
   const handleSendEmail = async () => {
-    const endpoint = planDetails.status === 'draft' 
+    setIsSending(true)
+    const endpoint = planDetails.isPending
       ? '/api/send-payment-link'
       : '/api/send-payment-plan-email'
     
@@ -91,7 +93,7 @@ export function PlanDetails({ planDetails }: PlanDetailsProps) {
       
       toast({
         title: "Success",
-        description: planDetails.status === 'draft'
+        description: planDetails.isPending
           ? "Payment approval link sent to customer"
           : "Payment plan details sent to customer",
       })
@@ -101,6 +103,8 @@ export function PlanDetails({ planDetails }: PlanDetailsProps) {
         description: "Failed to send email. Please try again.",
         variant: "destructive",
       })
+    } finally {
+      setIsSending(false)
     }
   }
 
@@ -144,10 +148,17 @@ export function PlanDetails({ planDetails }: PlanDetailsProps) {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
+      {/* Page Header with Pending Badge */}
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{planDetails.customerName}</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight">{planDetails.customerName}</h1>
+            {planDetails.isPending && (
+              <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800">
+                Pending
+              </span>
+            )}
+          </div>
           <p className="text-muted-foreground mt-1">{planDetails.customerEmail}</p>
         </div>
         <div className="text-right text-sm text-muted-foreground">
