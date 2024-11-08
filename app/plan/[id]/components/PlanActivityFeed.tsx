@@ -19,33 +19,19 @@ import { createClient } from '@/utils/supabase/client';
 
 type ActivityLog = Database['public']['Tables']['activity_logs']['Row'];
 
-interface ActivityResponse {
-  activities: ActivityLog[];
-  pagination: {
-    total: number;
-    totalPages: number;
-    currentPage: number;
-    itemsPerPage: number;
-  };
-}
-
 const formatActivityMessage = (activity: ActivityLog) => {
   const amount = activity.amount ? Money.fromCents(activity.amount) : Money.fromCents(0);
   
   switch (activity.activity_type) {
     case 'payment_success':
-      return `${activity.customer_name}'s payment of ${formatCurrency(amount)} was successful.`;
+      return `Payment of ${formatCurrency(amount)} was successful.`;
     case 'payment_failed':
-      return `${activity.customer_name}'s payment of ${formatCurrency(amount)} failed!`;
+      return `Payment of ${formatCurrency(amount)} failed!`;
     case 'plan_created':
-      return `A new plan of ${formatCurrency(amount)} was created for ${activity.customer_name}`;
-    case 'payout_scheduled':
-      return `A payout of ${formatCurrency(amount)} was scheduled`;
-    case 'payout_paid':
-      return `A payout of ${formatCurrency(amount)} was processed`;
+      return `Payment plan of ${formatCurrency(amount)} was created`;
     case 'email_sent':
       const metadata = activity.metadata as { email_type: string; recipient: string };
-      return `A payment reminder email was sent to ${metadata?.recipient || 'Unknown recipient'}`;
+      return `A payment reminder email was sent`;
     default:
       return 'Unknown activity';
   }
@@ -61,16 +47,16 @@ const getActivityIcon = (type: string) => {
       return { icon: FileText, color: 'text-blue-500' };
     case 'email_sent':
       return { icon: Mail, color: 'text-purple-500' };
-    case 'payout_scheduled':
-      return { icon: Calendar, color: 'text-yellow-500' };
-    case 'payout_paid':
-      return { icon: CreditCard, color: 'text-green-500' };
     default:
       return { icon: FileText, color: 'text-gray-500' };
   }
 };
 
-export function ActivityLogsTable() {
+interface PlanActivityFeedProps {
+  planId: string;
+}
+
+export function PlanActivityFeed({ planId }: PlanActivityFeedProps) {
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const supabase = createClient();
@@ -78,41 +64,33 @@ export function ActivityLogsTable() {
   useEffect(() => {
     fetchActivities();
 
-    // Get the current user's session
-    const initializeChannel = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
+    const channel = supabase.channel(`plan_activities_${planId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'activity_logs',
+          filter: `entity_id=eq.${planId} and entity_type=eq.payment_plan`
+        },
+        (payload) => {
+          console.log('New plan activity:', payload);
+          setActivities(prev => [payload.new as ActivityLog, ...prev]);
+        }
+      )
+      .subscribe((status) => {
+        console.log('Plan activities subscription status:', status);
+      });
 
-      const channel = supabase.channel('user_activities')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'activity_logs',
-            filter: `user_id=eq.${session.user.id}`
-          },
-          (payload) => {
-            console.log('New activity:', payload);
-            setActivities(prev => [payload.new as ActivityLog, ...prev]);
-          }
-        )
-        .subscribe((status) => {
-          console.log('Realtime subscription status:', status);
-        });
-
-      return () => {
-        channel.unsubscribe();
-      };
+    return () => {
+      channel.unsubscribe();
     };
-
-    initializeChannel();
-  }, []);
+  }, [planId]);
 
   const fetchActivities = async () => {
     try {
-      const response = await fetch('/api/activity-logs?page=1');
-      const data: ActivityResponse = await response.json();
+      const response = await fetch(`/api/activity-logs?planId=${planId}`);
+      const data = await response.json();
       setActivities(data.activities);
     } catch (error) {
       console.error('Error fetching activities:', error);
@@ -149,10 +127,10 @@ export function ActivityLogsTable() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Recent Activity</CardTitle>
+        <CardTitle>Plan Activity</CardTitle>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-[375px] pr-4">
+        <ScrollArea className="h-[250px] pr-4">
           {activities.map((activity) => {
             const { icon: Icon, color } = getActivityIcon(activity.activity_type);
             return (
