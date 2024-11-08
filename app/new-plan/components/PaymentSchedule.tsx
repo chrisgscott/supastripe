@@ -15,12 +15,18 @@ interface PaymentScheduleItem {
 
 export default function PaymentSchedule() {
     const { planDetails, calculatePaymentSchedule } = useNewPlan();
-    const [localSchedule, setLocalSchedule] = useState<PaymentScheduleItem[]>(planDetails.paymentSchedule || []);
+    const [localSchedule, setLocalSchedule] = useState<PaymentScheduleItem[]>([]);
 
     useEffect(() => {
         const schedule = calculatePaymentSchedule();
         setLocalSchedule(schedule);
-    }, [planDetails.totalAmount, planDetails.numberOfPayments, planDetails.paymentInterval, planDetails.downpaymentAmount, calculatePaymentSchedule]);
+    }, [
+        planDetails.totalAmount,
+        planDetails.numberOfPayments,
+        planDetails.paymentInterval,
+        planDetails.downpaymentAmount,
+        calculatePaymentSchedule
+    ]);
 
     return (
         <Card>

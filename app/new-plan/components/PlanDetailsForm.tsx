@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent } from 'react';
+import React, { useState, ChangeEvent, useEffect } from 'react';
 import { useNewPlan } from '../NewPlanContext';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -118,7 +118,6 @@ export default function PlanDetailsForm() {
           paymentSchedule: newSchedule
         }));
 
-        // Create the payment plan in the database
         const response = await fetch('/api/create-downpayment-intent-and-pending-records', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -138,13 +137,9 @@ export default function PlanDetailsForm() {
           stripeCustomerId: data.stripeCustomerId
         }));
 
-        console.log('Payment plan ID set in context:', data.paymentPlanId);
-        console.log('Updated plan details:', planDetails);
-
-        // Move to payment method choice instead of directly to payment form
         setCurrentStep(2);
       } catch (error) {
-        console.error('Error creating payment plan:', error);
+        console.error('Error saving payment plan:', error);
         setError(error instanceof Error ? error.message : 'An unexpected error occurred');
       } finally {
         setIsLoading(false);
@@ -280,6 +275,7 @@ export default function PlanDetailsForm() {
                     ['clean']
                   ],
                 }}
+                placeholder="Add any notes about this payment plan..."
               />
             </div>
             {errors.notes && <p className="text-red-500 text-sm">{errors.notes}</p>}

@@ -258,6 +258,10 @@ export function PlanDetails({ planDetails }: PlanDetailsProps) {
                           <span className="status-badge inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-green-50 text-green-700">
                             Paid
                           </span>
+                        ) : planDetails.isPending ? (
+                          <span className="status-badge inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-yellow-50 text-yellow-700">
+                            Pending Approval
+                          </span>
                         ) : (
                           <span className="status-badge inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-gray-50 text-gray-700">
                             Scheduled
@@ -302,7 +306,7 @@ export function PlanDetails({ planDetails }: PlanDetailsProps) {
                 disabled={isSending}
               >
                 <Mail className="h-4 w-4 mr-2" />
-                Email Plan Details
+                {planDetails.isPending ? 'Email Payment Link' : 'Email Plan Details'}
               </Button>
               <Button
                 className="w-full justify-start"
@@ -321,15 +325,17 @@ export function PlanDetails({ planDetails }: PlanDetailsProps) {
               <CardTitle>Manage Plan</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button
-                className="w-full justify-start"
-                variant="outline"
-                onClick={handlePausePlan}
-                disabled={isPausing}
-              >
-                <Clock className="h-4 w-4 mr-2" />
-                Pause Plan
-              </Button>
+              {!planDetails.isPending && (
+                <Button
+                  className="w-full justify-start"
+                  variant="outline"
+                  onClick={handlePausePlan}
+                  disabled={isPausing}
+                >
+                  <Clock className="h-4 w-4 mr-2" />
+                  Pause Plan
+                </Button>
+              )}
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
@@ -337,28 +343,30 @@ export function PlanDetails({ planDetails }: PlanDetailsProps) {
                     variant="destructive"
                   >
                     <Ban className="h-4 w-4 mr-2" />
-                    Cancel Plan
+                    {planDetails.isPending ? 'Delete Plan' : 'Cancel Plan'}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Cancel Payment Plan</AlertDialogTitle>
+                    <AlertDialogTitle>
+                      {planDetails.isPending ? 'Delete Payment Plan' : 'Cancel Payment Plan'}
+                    </AlertDialogTitle>
                     <AlertDialogDescription>
-                      Are you sure you want to cancel this payment plan? This action cannot be undone.
+                      Are you sure you want to {planDetails.isPending ? 'delete' : 'cancel'} this payment plan? This action cannot be undone.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>No, keep plan active</AlertDialogCancel>
+                    <AlertDialogCancel>No, keep plan</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => {
                         toast({
-                          title: "Plan Cancelled",
-                          description: "The payment plan has been cancelled.",
+                          title: planDetails.isPending ? "Plan Deleted" : "Plan Cancelled",
+                          description: `The payment plan has been ${planDetails.isPending ? 'deleted' : 'cancelled'}.`,
                           variant: "destructive",
                         })
                       }}
                     >
-                      Yes, cancel plan
+                      Yes, {planDetails.isPending ? 'delete' : 'cancel'} plan
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>

@@ -18,7 +18,6 @@ interface PlanDetails {
   paymentPlanId?: string;
   stripeCustomerId?: string;
   clientSecret?: string;
-  pendingPlanId?: string;
   notes?: {
     content: string;
     delta: any;
@@ -64,9 +63,7 @@ interface NewPlanProviderProps {
 }
 
 export const NewPlanProvider: React.FC<NewPlanProviderProps> = ({ children }) => {
-  const searchParams = useSearchParams();
-  const pendingPlanId = searchParams.get('pendingPlanId');
-  
+  const searchParams = useSearchParams();  
   const [planDetails, setPlanDetails] = useState<PlanDetails>({
     customerName: '',
     customerEmail: '',
@@ -81,35 +78,6 @@ export const NewPlanProvider: React.FC<NewPlanProviderProps> = ({ children }) =>
   const [error, setError] = useState<string | null>(null);
   const [isStripeReady, setIsStripeReady] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
-
-  useEffect(() => {
-    if (pendingPlanId) {
-      const loadPendingPlan = async () => {
-        try {
-          const response = await fetch(`/api/pending-plans/${pendingPlanId}`);
-          if (!response.ok) throw new Error('Failed to fetch plan details');
-          const plan = await response.json();
-          
-          setPlanDetails({
-            ...planDetails,
-            customerName: plan.customerName,
-            customerEmail: plan.customerEmail || '',
-            totalAmount: Money.fromCents(plan.totalAmount),
-            numberOfPayments: plan.numberOfPayments || 3,
-            paymentInterval: plan.paymentInterval || 'monthly',
-            pendingPlanId: plan.id,
-            downpaymentAmount: Money.fromCents(plan.downpaymentAmount || 0),
-            notes: plan.notes || undefined
-          });
-        } catch (error) {
-          console.error('Error loading pending plan:', error);
-          setError('Failed to load pending plan details');
-        }
-      };
-      
-      loadPendingPlan();
-    }
-  }, [pendingPlanId]);
 
   const createPaymentIntent = useCallback(async () => {
     console.log('Creating payment intent with details:', planDetails);
