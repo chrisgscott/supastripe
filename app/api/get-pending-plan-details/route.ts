@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { Database } from "@/types/supabase";
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'edge'
+
 type PendingTransaction = Database['public']['Tables']['pending_transactions']['Row'];
 
 export async function GET(
