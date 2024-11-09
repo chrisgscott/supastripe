@@ -230,12 +230,12 @@ function Dashboard() {
       {/* New row of cards */}
       <div className="grid gap-4 md:grid-cols-3 mt-4">
         <div className="md:col-span-2">
-          <PaymentChart 
-            data={paymentData} 
-            isLoading={isLoadingPaymentData} 
+          <PaymentChart
+            data={paymentData}
+            isLoading={isLoadingPaymentData}
           />
         </div>
-        
+
         <div>
           <ActivityLogsTable />
         </div>

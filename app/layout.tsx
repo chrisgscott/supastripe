@@ -1,4 +1,4 @@
-import { Noto_Sans } from 'next/font/google';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import Header from "@/components/Header";
@@ -8,7 +8,12 @@ import { Metadata } from 'next'
 import Script from 'next/script'
 import { Toaster } from "@/components/ui/toaster"
 
-const notoSans = Noto_Sans({ subsets: ['latin'] });
+const plusJakarta = Plus_Jakarta_Sans({ 
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  display: 'swap',
+  variable: '--font-plus-jakarta-sans',
+});
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -31,7 +36,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={notoSans.className}>
+      <body className={`${plusJakarta.variable} antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <div className="flex flex-col min-h-screen">
             {user && <Header />}

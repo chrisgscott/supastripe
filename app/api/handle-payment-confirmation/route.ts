@@ -128,6 +128,28 @@ export async function GET(request: Request) {
       throw new Error('Failed to verify migrated payment plan');
     }
 
+    // Log the successful payment
+    const activityLog = {
+      activity_type: 'payment_success',
+      entity_id: result.migrated_plan_id,
+      entity_type: 'payment_plan',
+      amount: pendingPlan.total_amount,
+      customer_name: pendingPlan.pending_customers.name,
+      user_id: pendingPlan.user_id,
+      metadata: {
+        payment_intent_id: paymentIntentId,
+        customer_email: pendingPlan.pending_customers.email
+      }
+    };
+
+    const { error: logError } = await supabase
+      .from('activity_logs')
+      .insert(activityLog);
+
+    if (logError) {
+      console.error('Error logging payment activity:', logError);
+    }
+
     console.log('handle-payment-confirmation: Successfully completed migration');
     return NextResponse.json({
       success: true,

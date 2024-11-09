@@ -87,7 +87,7 @@ export function PaymentChart({ data, isLoading }: PaymentChartProps) {
     <Card>
       <CardHeader className="flex flex-col items-stretch space-y-0 border-b p-0 sm:flex-row">
         <div className="flex flex-1 flex-col justify-center gap-1 px-6 py-5 sm:py-6">
-          <CardTitle>Cash Flow</CardTitle>
+          <CardTitle className="mb-1">Cash Flow</CardTitle>
           <CardDescription>
             Your collected and forecasted payments
           </CardDescription>
@@ -110,16 +110,16 @@ export function PaymentChart({ data, isLoading }: PaymentChartProps) {
           ))}
         </div>
       </CardHeader>
-      <CardContent className="h-[367px] px-2 sm:p-6">
+      <CardContent className="h-[350px] px-2 sm:p-6">
         <ChartContainer
           config={chartConfig}
-          className="aspect-auto h-[340px] w-full"
+          className="aspect-auto h-[330px] w-full"
         >
           <BarChart
             data={data}
             margin={{
               top: 20,
-              left: 12,
+              left: 0,
               right: 12,
               bottom: 20,
             }}
@@ -140,10 +140,16 @@ export function PaymentChart({ data, isLoading }: PaymentChartProps) {
               }}
             />
             <YAxis
-              tickFormatter={(value) => formatCurrency(Money.fromDollars(value))}
+              tickFormatter={(value) => new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+              }).format(value)}
               axisLine={false}
               tickLine={false}
               tickMargin={8}
+              width={75}
             />
             <ChartTooltip
               content={({ active, payload, label }) => {
