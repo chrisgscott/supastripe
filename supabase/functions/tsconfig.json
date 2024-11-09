@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+      "target": "esnext",
+      "lib": ["esnext"],
+      "types": ["@supabase/supabase-js"],
+      "module": "esnext",
+      "moduleResolution": "bundler",
+      "noEmit": true,
+      "strict": true,
+      "jsx": "react-jsx",
+      "esModuleInterop": true,
+      "skipLibCheck": true,
+      "isolatedModules": true
+    }
+  }
