@@ -39,40 +39,36 @@ import { CheckCircle2, XCircle, FileText } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Database } from "@/types/supabase"
 import { createClient } from '@/utils/supabase/client';
+import { CreditCard } from 'lucide-react';
+import { UpdateCardDialog } from './UpdateCardDialog';
 
 // Reference the interface from ConfirmationStep.tsx (lines 34-65)
 interface PlanDetailsProps {
   planDetails: {
-    customerName: string
-    customerEmail: string
-    totalAmount: number
-    numberOfPayments: number
-    paymentInterval: string
-    paymentSchedule: {
-      amount: number
-      date: string
-      transaction_type: 'downpayment' | 'installment'
-      status: "completed" | "pending" | "failed"
-      cardLastFour?: string
-    }[]
-    paymentPlanId: string
-    businessDetails?: {
-      name: string
-      supportPhone: string
-      supportEmail: string
-    }
+    customerName: string;
+    customerEmail: string;
+    totalAmount: number;
+    numberOfPayments: number;
+    paymentInterval: string;
+    paymentSchedule: Array<{
+      amount: number;
+      date: string;
+      transaction_type: 'downpayment' | 'installment';
+      status: 'completed' | 'pending' | 'failed';
+      cardLastFour?: string;
+    }>;
+    paymentPlanId: string;
     paymentMethod?: {
-      brand: string
-      last4: string
-    }
-    notes?: {
-      content: string
-      delta: any
-      plaintext: string
-    }
-    status: string
-    isPending?: boolean
-  }
+      brand: string;
+      last4: string;
+      cardExpiration: string;
+    };
+    notes?: { content: string };
+    status: string;
+    isPending: boolean;
+    cardLastFour?: string;
+    cardExpiration?: string;
+  };
 }
 
 // Add after imports
@@ -80,7 +76,7 @@ type ActivityLog = Database['public']['Tables']['activity_logs']['Row'];
 
 const formatActivityMessage = (activity: ActivityLog) => {
   const amount = activity.amount ? Money.fromCents(activity.amount) : Money.fromCents(0);
-  
+
   switch (activity.activity_type) {
     case 'payment_success':
       return `Payment of ${formatCurrency(amount)} was successful.`;
@@ -222,6 +218,8 @@ export function PlanDetails({ planDetails }: PlanDetailsProps) {
   const [isSending, setIsSending] = useState(false)
   const [isPausing, setIsPausing] = useState(false)
   const { toast } = useToast()
+  const [isUpdatePaymentMethodOpen, setIsUpdatePaymentMethodOpen] = useState(false);
+  const [isUpdateCardDialogOpen, setIsUpdateCardDialogOpen] = useState(false);
 
   // Reference handleSendEmail function from ConfirmationStep.tsx (lines 148-184)
   const handleSendEmail = async () => {
@@ -229,16 +227,16 @@ export function PlanDetails({ planDetails }: PlanDetailsProps) {
     const endpoint = planDetails.isPending
       ? '/api/send-payment-link'
       : '/api/send-payment-plan-email'
-    
+
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ paymentPlanId: planDetails.paymentPlanId })
       })
-      
+
       if (!response.ok) throw new Error('Failed to send email')
-      
+
       toast({
         title: "Success",
         description: planDetails.isPending
@@ -382,6 +380,14 @@ export function PlanDetails({ planDetails }: PlanDetailsProps) {
               <CardDescription>
                 Payments will be automatically processed on this schedule:
               </CardDescription>
+              <div className="mt-4 text-sm text-gray-500">
+                {planDetails.cardLastFour && (
+                  <p>Card ending in: {planDetails.cardLastFour}</p>
+                )}
+                {planDetails.cardExpiration && (
+                  <p>Expires: {planDetails.cardExpiration}</p>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <Table>
@@ -430,7 +436,7 @@ export function PlanDetails({ planDetails }: PlanDetailsProps) {
                 <CardTitle>Notes</CardTitle>
               </CardHeader>
               <CardContent>
-                <div 
+                <div
                   className="prose prose-sm max-w-none"
                   dangerouslySetInnerHTML={{ __html: planDetails.notes.content }}
                 />
@@ -487,6 +493,19 @@ export function PlanDetails({ planDetails }: PlanDetailsProps) {
                   Pause Plan
                 </Button>
               )}
+              <Button
+                className="w-full justify-start"
+                variant="outline"
+                onClick={() => setIsUpdateCardDialogOpen(true)}
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                Update Payment Method
+              </Button>
+              <UpdateCardDialog 
+                open={isUpdateCardDialogOpen}
+                onOpenChange={setIsUpdateCardDialogOpen}
+                planId={planDetails.paymentPlanId}
+              />
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button

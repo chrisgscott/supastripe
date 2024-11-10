@@ -88,12 +88,21 @@ export async function GET(request: Request) {
     }
     console.log('handle-payment-confirmation: Retrieved pending plan:', pendingPlan);
 
+    // Get card details from the payment method
+    const paymentMethod = stripePaymentIntent.payment_method as Stripe.PaymentMethod;
+    const cardDetails = {
+      card_last_four: paymentMethod.card?.last4,
+      card_expiration: `${paymentMethod.card?.exp_month}/${paymentMethod.card?.exp_year}`
+    };
+
     console.log('handle-payment-confirmation: Calling handle_payment_confirmation RPC');
     const { data: result, error: migrationError } = await supabase
       .rpc('handle_payment_confirmation', {
         p_pending_plan_id: pendingPlanId,
         p_payment_intent_id: paymentIntentId,
-        p_idempotency_key: crypto.randomUUID()
+        p_idempotency_key: crypto.randomUUID(),
+        p_card_last_four: cardDetails.card_last_four,
+        p_card_expiration: cardDetails.card_expiration
       });
 
     console.log('handle-payment-confirmation: RPC result:', result);

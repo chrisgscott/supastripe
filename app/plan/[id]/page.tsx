@@ -74,7 +74,8 @@ export default async function PlanPage({
         paymentPlanId: pendingPlan.id,
         paymentMethod: pendingPlan.card_last_four ? {
           brand: 'card',
-          last4: pendingPlan.card_last_four
+          last4: pendingPlan.card_last_four,
+          cardExpiration: pendingPlan.card_expiration
         } : undefined,
         notes: pendingPlan.notes,
         status: pendingPlan.status,
@@ -101,11 +102,14 @@ export default async function PlanPage({
       paymentPlanId: plan.id,
       paymentMethod: plan.card_last_four ? {
         brand: 'card',
-        last4: plan.card_last_four
+        last4: plan.card_last_four,
+        cardExpiration: plan.card_expiration
       } : undefined,
       notes: plan.notes,
       status: plan.status,
-      isPending: false
+      isPending: false,
+      cardLastFour: plan.card_last_four,
+      cardExpiration: plan.card_expiration
     }
 
     return <PlanDetails planDetails={transformedPlan} />

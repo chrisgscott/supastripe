@@ -32,6 +32,9 @@ const formatActivityMessage = (activity: ActivityLog) => {
     case 'email_sent':
       const metadata = activity.metadata as { email_type: string; recipient: string };
       return `A payment reminder email was sent`;
+    case 'payment_method_updated':
+      const cardMetadata = activity.metadata as { card_last_four: string; card_brand: string };
+      return `Payment method updated to ${cardMetadata.card_brand} card ending in ${cardMetadata.card_last_four}`;
     default:
       return 'Unknown activity';
   }
@@ -47,6 +50,8 @@ const getActivityIcon = (type: string) => {
       return { icon: FileText, color: 'text-blue-500' };
     case 'email_sent':
       return { icon: Mail, color: 'text-purple-500' };
+    case 'payment_method_updated':
+      return { icon: CreditCard, color: 'text-blue-500' };
     default:
       return { icon: FileText, color: 'text-gray-500' };
   }

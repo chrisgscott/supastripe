@@ -1002,6 +1002,7 @@ export type Database = {
         | 'plan_activated'
         | 'plan_completed'
         | 'plan_cancelled'
+        | 'payment_method_updated'
         | 'payout_scheduled'
         | 'payout_paid'
         | 'payout_failed'
