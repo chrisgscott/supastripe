@@ -35,7 +35,7 @@ export async function GET(request: Request) {
       .select('*')
       .eq('user_id', user.id)
       .eq('entity_id', planId)
-      .eq('entity_type', 'payment_plan')
+      .or('entity_type.eq.payment_plan,entity_type.eq.pending_payment_plan')
       .order('created_at', { ascending: false });
 
     if (error) {

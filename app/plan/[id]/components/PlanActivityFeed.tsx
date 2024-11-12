@@ -68,9 +68,16 @@ const formatActivityMessage = (activity: ActivityLog) => {
       return `Payment plan of ${formatCurrency(amount)} was created`;
     case ACTIVITY_TYPES.EMAIL_SENT: {
       const metadata = activity.metadata as { email_type?: string; recipient?: string };
-      return metadata.email_type ? 
-        `A ${metadata.email_type} email was sent` : 
-        'A payment reminder email was sent';
+      switch (metadata.email_type) {
+        case 'payment_link':
+          return 'Payment link was sent to customer';
+        case 'payment_reminder':
+          return 'Payment reminder email was sent to customer';
+        case 'payment_confirmation':
+          return 'Payment confirmation email was sent to customer';
+        default:
+          return `Email was sent to customer`;
+      }
     }
     case ACTIVITY_TYPES.PLAN_ACTIVATED:
       return 'Payment plan was activated';

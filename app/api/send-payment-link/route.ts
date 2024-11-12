@@ -254,12 +254,31 @@ async function handleEmailSend(
     user_id: userId
   };
 
-  const { error: logError } = await supabase
+  const { error: emailLogError } = await supabase
     .from('email_logs')
     .insert(emailLog);
 
-  if (logError) {
-    console.error('Error logging email:', logError);
+  if (emailLogError) {
+    console.error('Error logging email:', emailLogError);
+  }
+
+  // Create activity log entry
+  const { error: activityLogError } = await supabase
+    .from('activity_logs')
+    .insert({
+      activity_type: 'email_sent',
+      entity_id: plan.id,
+      entity_type: isPendingPlan ? 'pending_payment_plan' : 'payment_plan',
+      user_id: userId,
+      customer_name: customerName,
+      metadata: {
+        email_type: 'payment_link',
+        recipient: customerEmail
+      }
+    });
+
+  if (activityLogError) {
+    console.error('Error logging activity:', activityLogError);
   }
 
   if (success) {

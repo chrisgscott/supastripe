@@ -43,9 +43,19 @@ const formatActivityMessage = (activity: ActivityLog) => {
       return `A payout of ${formatCurrency(amount)} was scheduled`;
     case 'payout_paid':
       return `A payout of ${formatCurrency(amount)} was processed`;
-    case 'email_sent':
+    case 'email_sent': {
       const metadata = activity.metadata as { email_type: string; recipient: string };
-      return `A payment reminder email was sent to ${metadata?.recipient || 'Unknown recipient'}`;
+      switch (metadata.email_type) {
+        case 'payment_link':
+          return `Payment link was sent to ${activity.customer_name}`;
+        case 'payment_reminder':
+          return `Payment reminder email was sent to ${activity.customer_name}`;
+        case 'payment_confirmation':
+          return `Payment confirmation email was sent to ${activity.customer_name}`;
+        default:
+          return `Email was sent to ${activity.customer_name}`;
+      }
+    }
     case 'payment_method_updated':
       const cardMetadata = activity.metadata as { card_last_four: string; card_brand: string };
       return `${activity.customer_name}'s payment method updated to card ending in ${cardMetadata.card_last_four}`;
