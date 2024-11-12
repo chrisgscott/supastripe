@@ -41,7 +41,7 @@ type PaymentPlanWithRelations = PaymentPlan & {
 };
 
 type PendingPlanWithRelations = Database['public']['Tables']['pending_payment_plans']['Row'] & {
-  pending_customer: {
+  pending_customers: {
     id: string;
     name: string;
     email: string;
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
         .from('pending_payment_plans')
         .select(`
           *,
-          pending_customer!customer_id (
+          pending_customers!customer_id (
             id,
             name,
             email
@@ -120,17 +120,17 @@ export async function POST(request: Request) {
 
       console.log('Pending plan data:', {
         id: pendingPlan?.id,
-        hasCustomers: !!pendingPlan?.pending_customer,
-        customersType: typeof pendingPlan?.pending_customer,
-        customersLength: pendingPlan?.pending_customer?.length,
-        rawCustomers: pendingPlan?.pending_customer,
+        hasCustomers: !!pendingPlan?.pending_customers,
+        customersType: typeof pendingPlan?.pending_customers,
+        customersLength: pendingPlan?.pending_customers?.length,
+        rawCustomers: pendingPlan?.pending_customers,
         hasTransactions: !!pendingPlan?.pending_transactions,
         transactionsLength: pendingPlan?.pending_transactions?.length
       });
-
+      
       // Transform pending plan data to match payment plan structure
       console.log('Transforming pending plan:', {
-        customersBeforeMap: pendingPlan.pending_customer,
+        customersBeforeMap: pendingPlan.pending_customers,
         transactionsBeforeMap: pendingPlan.pending_transactions
       });
 
@@ -138,8 +138,8 @@ export async function POST(request: Request) {
         return handleEmailSend({
           ...pendingPlan,
           customer: {
-            name: pendingPlan.pending_customer.name,
-            email: pendingPlan.pending_customer.email
+            name: pendingPlan.pending_customers.name,
+            email: pendingPlan.pending_customers.email
           },
           transactions: pendingPlan.pending_transactions.map((t: PendingTransaction) => ({
             ...t,
@@ -186,16 +186,16 @@ async function handleEmailSend(
     return NextResponse.json({ error: 'Business profile not found' }, { status: 404 });
   }
 
-  const isPendingPlan = 'pending_customer' in plan;
+  const isPendingPlan = 'pending_customers' in plan;
   console.log('Plan type:', isPendingPlan ? 'pending' : 'active');
-  console.log('Customers:', isPendingPlan ? plan.pending_customer : plan.customer);
+  console.log('Customers:', isPendingPlan ? plan.pending_customers : plan.customer);
 
   const customerName = isPendingPlan 
-    ? plan.pending_customer.name
+    ? plan.pending_customers.name
     : plan.customer.name;
 
   const customerEmail = isPendingPlan
-    ? plan.pending_customer.email
+    ? plan.pending_customers.email
     : plan.customer.email;
 
   console.log('Customer details:', { customerName, customerEmail });
