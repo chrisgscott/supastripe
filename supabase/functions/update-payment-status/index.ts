@@ -2,8 +2,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Stripe } from 'https://esm.sh/stripe@12.18.0'
-import { Money } from '@/utils/currencyUtils';
-import { Tables } from '@/types/supabase';
+
+// Remove these imports as they're not needed or accessible in the edge function
+// import { Money } from '@/utils/currencyUtils';
+// import { Tables } from '@/types/supabase';
+
+// Instead, we can define the types we need directly here
+type TransactionStatusType = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+type TransactionType = 'downpayment' | 'installment';
 
 const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
@@ -79,7 +85,7 @@ serve(async (req: Request) => {
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent, supabase: any) {
   console.log('Handling successful PaymentIntent:', paymentIntent);
 
-  const transactionId = paymentIntent.metadata.transaction_id;
+  const transactionId = paymentIntent.metadata.transaction_id || paymentIntent.metadata.pending_transaction_id;
 
   if (!transactionId) {
     console.error('No transaction ID found in metadata:', paymentIntent.metadata);
@@ -117,13 +123,13 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
 }
 
 async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent, supabase: any) {
-  const transactionId = paymentIntent.metadata.transaction_id
+  const transactionId = paymentIntent.metadata.transaction_id || paymentIntent.metadata.pending_transaction_id;
 
   if (!transactionId) {
-    throw new Error('No transaction ID found in metadata')
+    throw new Error('No transaction ID found in metadata');
   }
 
-  console.log(`Processing failed payment for transaction ${transactionId}`)
+  console.log(`Processing failed payment for transaction ${transactionId}`);
 
   const { error: updateError } = await supabase
     .from('transactions')

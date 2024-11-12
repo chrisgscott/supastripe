@@ -92,6 +92,7 @@ serve(async (req: Request) => {
           metadata: {
             transaction_id: transaction.id,
             payment_plan_id: transaction.payment_plan_id,
+            transaction_type: 'installment'
           },
         });
 
@@ -125,8 +126,15 @@ serve(async (req: Request) => {
             transaction_id: transaction.id,
             status: 'failed',
             error_message: err.message,
+            error_details: JSON.stringify(err),
             idempotency_key: idempotencyKey
           });
+
+        // Update the transaction status to 'failed'
+        await supabase
+          .from('transactions')
+          .update({ status: 'failed' })
+          .eq('id', transaction.id);
       }
     }));
 
