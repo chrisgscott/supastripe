@@ -1,8 +1,23 @@
+"use client"
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { BadgePlus } from "lucide-react";
+import { BadgePlus, Bell, LogOut } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { createClient } from '@/utils/supabase/client';
 
 export default function Header() {
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  };
+
   return (
     <header className="bg-background shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -32,7 +47,22 @@ export default function Header() {
               </Link>
             </nav>
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center space-x-4">
+            <Button variant="ghost" size="icon" className="frill-launcher">
+              <Bell className="h-5 w-5" />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <LogOut className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleLogout}>
+                  Log Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Link href="/new-plan">
               <Button variant="default">
                 <BadgePlus className="w-4 h-4 mr-2" />
