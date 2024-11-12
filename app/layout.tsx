@@ -40,7 +40,7 @@ export default async function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <div className="flex flex-col min-h-screen">
             {user && <Header />}
-            <main className="flex-1 p-4 bg-gray-50">
+            <main className="flex-1 p-4 bg-background">
               <div className="max-w-7xl mx-auto">
                 {children}
               </div>

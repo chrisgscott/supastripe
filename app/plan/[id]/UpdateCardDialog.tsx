@@ -69,6 +69,17 @@ function UpdateCardForm({ onOpenChange, planId }: UpdateCardDialogProps) {
 export function UpdateCardDialog(props: UpdateCardDialogProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
 
+  const appearance = {
+    rules: {
+      '.Label': {
+        color: 'rgba(255, 255, 255, 0.9)'  // Almost white, but not stark white
+      },
+      '.Text': {
+        color: 'rgba(255, 255, 255, 0.7)'  // Slightly dimmer for secondary text
+      }
+    }
+  };
+
   useEffect(() => {
     if (!props.open) return;
 
@@ -89,7 +100,13 @@ export function UpdateCardDialog(props: UpdateCardDialogProps) {
           <DialogTitle>Update Payment Method</DialogTitle>
         </DialogHeader>
         {clientSecret && (
-          <Elements stripe={stripePromise} options={{ clientSecret }}>
+          <Elements 
+            stripe={stripePromise} 
+            options={{ 
+              clientSecret,
+              appearance 
+            }}
+          >
             <UpdateCardForm {...props} />
           </Elements>
         )}
