@@ -341,19 +341,23 @@ export function PlanDetails({ planDetails }: PlanDetailsProps) {
                   Pause Plan
                 </Button>
               )}
-              <Button
-                className="w-full justify-start"
-                variant="outline"
-                onClick={() => setIsUpdateCardDialogOpen(true)}
-              >
-                <CreditCard className="h-4 w-4 mr-2" />
-                Update Payment Method
-              </Button>
-              <UpdateCardDialog 
-                open={isUpdateCardDialogOpen}
-                onOpenChange={setIsUpdateCardDialogOpen}
-                planId={planDetails.paymentPlanId}
-              />
+              {!planDetails.isPending && (
+                <>
+                  <Button
+                    className="w-full justify-start"
+                    variant="outline"
+                    onClick={() => setIsUpdateCardDialogOpen(true)}
+                  >
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Update Payment Method
+                  </Button>
+                  <UpdateCardDialog 
+                    open={isUpdateCardDialogOpen}
+                    onOpenChange={setIsUpdateCardDialogOpen}
+                    planId={planDetails.paymentPlanId}
+                  />
+                </>
+              )}
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
