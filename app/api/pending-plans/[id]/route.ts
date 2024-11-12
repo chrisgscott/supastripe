@@ -29,7 +29,7 @@ interface PendingPlanResponse {
   reminder_count: number | null;
   status_updated_at: string | null;
   updated_at: string | null;
-  pending_customers: {
+  pending_customer: {
     id: string;
     name: string;
     email: string;
@@ -86,7 +86,7 @@ export async function GET(
         reminder_count,
         status_updated_at,
         updated_at,
-        pending_customers!customer_id (
+        pending_customer!customer_id (
           id,
           name,
           email,
@@ -117,7 +117,7 @@ export async function GET(
 
     const formattedData: PendingPlanResponse = {
       ...data,
-      pending_customers: data.pending_customers[0]
+      pending_customer: data.pending_customer[0]
     };
 
     return NextResponse.json(formattedData);

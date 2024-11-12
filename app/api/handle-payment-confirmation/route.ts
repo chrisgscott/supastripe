@@ -64,7 +64,7 @@ export async function GET(request: Request) {
 
     const pendingPlanId = stripePaymentIntent.metadata?.pending_payment_plan_id;
     console.log('handle-payment-confirmation: Extracted pending_plan_id:', pendingPlanId);
-    
+
     if (!pendingPlanId) {
       throw new Error('Pending payment plan ID not found in payment intent metadata');
     }
@@ -74,9 +74,10 @@ export async function GET(request: Request) {
       .from('pending_payment_plans')
       .select(`
         *,
-        pending_customers (
+        pending_customers!customer_id (
           name,
-          email
+          email,
+          stripe_customer_id
         )
       `)
       .eq('id', pendingPlanId)
@@ -92,7 +93,8 @@ export async function GET(request: Request) {
     const paymentMethod = stripePaymentIntent.payment_method as Stripe.PaymentMethod;
     const cardDetails = {
       card_last_four: paymentMethod.card?.last4,
-      card_expiration: `${paymentMethod.card?.exp_month}/${paymentMethod.card?.exp_year}`
+      card_expiration_month: paymentMethod.card?.exp_month,
+      card_expiration_year: paymentMethod.card?.exp_year
     };
 
     console.log('handle-payment-confirmation: Calling handle_payment_confirmation RPC');
@@ -102,7 +104,8 @@ export async function GET(request: Request) {
         p_payment_intent_id: paymentIntentId,
         p_idempotency_key: crypto.randomUUID(),
         p_card_last_four: cardDetails.card_last_four,
-        p_card_expiration: cardDetails.card_expiration
+        p_card_expiration_month: cardDetails.card_expiration_month,
+        p_card_expiration_year: cardDetails.card_expiration_year
       });
 
     console.log('handle-payment-confirmation: RPC result:', result);
@@ -167,17 +170,17 @@ export async function GET(request: Request) {
 
   } catch (error) {
     console.error('Error in handle-payment-confirmation:', error);
-    
-    const isPgError = (err: unknown): err is PostgrestError => 
-      err !== null && 
-      typeof err === 'object' && 
+
+    const isPgError = (err: unknown): err is PostgrestError =>
+      err !== null &&
+      typeof err === 'object' &&
       'code' in err &&
       'details' in err;
-    
+
     // If it's a "no rows returned" error and we've already processed this payment
     if (isPgError(error) && error.code === 'PGRST116') {
       console.log('handle-payment-confirmation: Pending plan not found, checking for existing processed payment');
-      
+
       try {
         // Try to find the processed payment plan using transactions
         const { data: processedPlan, error: lookupError } = await supabase
@@ -210,9 +213,9 @@ export async function GET(request: Request) {
         details: error.details
       })
     };
-    
+
     console.error('Error details:', errorDetails);
-    
+
     return NextResponse.json({
       success: false,
       error: errorDetails.message,

@@ -7,8 +7,69 @@ export type Json =
   | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          operationName?: string
+          query?: string
+          variables?: Json
+          extensions?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          activity_type: Database["public"]["Enums"]["activity_type"]
+          amount: number | null
+          created_at: string | null
+          customer_name: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          metadata: Json | null
+          user_id: string
+        }
+        Insert: {
+          activity_type: Database["public"]["Enums"]["activity_type"]
+          amount?: number | null
+          created_at?: string | null
+          customer_name?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          metadata?: Json | null
+          user_id: string
+        }
+        Update: {
+          activity_type?: Database["public"]["Enums"]["activity_type"]
+          amount?: number | null
+          created_at?: string | null
+          customer_name?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          metadata?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           created_at: string | null
@@ -192,7 +253,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "payment_plans_customer_id_fkey"
+            foreignKeyName: "fk_payment_plan_customer"
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
@@ -430,7 +491,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "pending_payment_plans_customer_id_fkey"
+            foreignKeyName: "fk_pending_payment_plan_customer"
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "pending_customers"
@@ -446,6 +507,7 @@ export type Database = {
           error_message: string | null
           id: string
           next_attempt_date: string | null
+          paid_at: string | null
           payment_plan_id: string | null
           status: Database["public"]["Enums"]["transaction_status_type"]
           stripe_payment_intent_id: string | null
@@ -458,6 +520,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           next_attempt_date?: string | null
+          paid_at?: string | null
           payment_plan_id?: string | null
           status: Database["public"]["Enums"]["transaction_status_type"]
           stripe_payment_intent_id?: string | null
@@ -470,6 +533,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           next_attempt_date?: string | null
+          paid_at?: string | null
           payment_plan_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status_type"]
           stripe_payment_intent_id?: string | null
@@ -740,6 +804,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_payment_plan"
+            columns: ["payment_plan_id"]
+            isOneToOne: false
+            referencedRelation: "payment_plans"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "transactions_last_reminder_email_log_id_fkey"
             columns: ["last_reminder_email_log_id"]
             isOneToOne: false
@@ -799,66 +870,21 @@ export type Database = {
         }
         Relationships: []
       }
-      activity_logs: {
-        Row: {
-          id: string
-          user_id: string
-          activity_type: Database['public']['Enums']['activity_type']
-          entity_type: string
-          entity_id: string
-          amount: number | null
-          metadata: Json
-          created_at: string
-          customer_name: string | null
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          activity_type: Database['public']['Enums']['activity_type']
-          entity_type: string
-          entity_id: string
-          amount?: number | null
-          metadata?: Json
-          created_at?: string
-          customer_name?: string | null
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          activity_type?: Database['public']['Enums']['activity_type']
-          entity_type?: string
-          entity_id?: string
-          amount?: number | null
-          metadata?: Json
-          created_at?: string
-          customer_name?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "activity_logs_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      begin_transaction: {
-        Args: Record<PropertyKey, never>
+      cleanup_pending_payment_records: {
+        Args: {
+          p_pending_plan_id: string
+        }
         Returns: undefined
       }
       cleanup_pending_plans: {
         Args: {
           older_than: string
         }
-        Returns: undefined
-      }
-      commit_transaction: {
-        Args: Record<PropertyKey, never>
         Returns: undefined
       }
       complete_payment_plan_creation:
@@ -926,6 +952,43 @@ export type Database = {
               first_transaction_id: string
             }[]
           }
+      create_pending_payment_records:
+        | {
+            Args: {
+              p_customer_id: string
+              p_payment_plan_id: string
+              p_transaction_id: string
+              p_customer_name: string
+              p_customer_email: string
+              p_user_id: string
+              p_total_amount: number
+              p_number_of_payments: number
+              p_payment_interval: string
+              p_downpayment_amount: number
+              p_payment_schedule: Json
+              p_stripe_customer_id: string
+              p_idempotency_key: string
+              p_notes: Json
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              payment_data: Json
+            }
+            Returns: Json
+          }
+      handle_payment_confirmation: {
+        Args: {
+          p_pending_plan_id: string
+          p_payment_intent_id: string
+          p_idempotency_key: string
+          p_card_last_four: string
+          p_card_expiration_month: number
+          p_card_expiration_year: number
+        }
+        Returns: Json
+      }
       handle_successful_payment: {
         Args: {
           p_transaction_id: string
@@ -933,12 +996,26 @@ export type Database = {
         }
         Returns: Json
       }
-      rollback_transaction: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
+      migrate_pending_payment_plan: {
+        Args: {
+          p_pending_plan_id: string
+        }
+        Returns: string
       }
     }
     Enums: {
+      activity_type:
+        | "payment_success"
+        | "payment_failed"
+        | "plan_created"
+        | "plan_activated"
+        | "plan_completed"
+        | "plan_cancelled"
+        | "payout_scheduled"
+        | "payout_paid"
+        | "payout_failed"
+        | "email_sent"
+        | "payment_method_updated"
       email_status_type: "sent" | "failed" | "bounced"
       email_type:
         | "customer_payment_plan_created"
@@ -972,15 +1049,14 @@ export type Database = {
         | "user_stripe_account_updated"
       payment_interval_type: "weekly" | "monthly"
       payment_status_type:
-        | "draft" // Initial state when plan is first created
-        | "pending_approval" // After user completes setup and sends to customer
-        | "pending_payment" // After customer approves but hasn't made first payment
-        | "active" // Plan is active and payments are being processed
-        | "paused" // Merchant has temporarily suspended payments
-        | "completed" // All payments completed successfully
-        | "cancelled" // Plan was cancelled by merchant or customer
-        | "failed" // Plan failed due to payment issues
-        | "ready_to_migrate" // First transaction successful, mark payment plan for migration to live
+        | "draft"
+        | "pending_payment"
+        | "active"
+        | "paused"
+        | "completed"
+        | "cancelled"
+        | "failed"
+        | "ready_to_migrate"
       payout_status_type:
         | "pending"
         | "in_transit"
@@ -995,18 +1071,6 @@ export type Database = {
         | "failed"
         | "cancelled"
       transaction_type: "downpayment" | "installment"
-      activity_type: 
-        | 'payment_success'
-        | 'payment_failed'
-        | 'plan_created'
-        | 'plan_activated'
-        | 'plan_completed'
-        | 'plan_cancelled'
-        | 'payment_method_updated'
-        | 'payout_scheduled'
-        | 'payout_paid'
-        | 'payout_failed'
-        | 'email_sent'
     }
     CompositeTypes: {
       [_ in never]: never

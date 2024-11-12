@@ -157,12 +157,12 @@ async function fetchPaymentPlans() {
   
   return data.map((plan: any) => {
     console.log("Processing plan:", plan);
-    console.log("pending_customers:", plan.pending_customers);
-    console.log("customers:", plan.customers);
+    console.log("pending_customer:", plan.pending_customer);
+    console.log("customer:", plan.customer);
     
     const customerName = 
-      (plan.pending_customers?.name) || 
-      (Array.isArray(plan.customers) ? plan.customers[0]?.name : plan.customers?.name) || 
+      (plan.pending_customer?.name) || 
+      plan.customer?.name || 
       "Unknown";
     
     console.log("Extracted customer name:", customerName);

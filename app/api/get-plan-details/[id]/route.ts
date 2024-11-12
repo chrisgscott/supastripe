@@ -74,7 +74,7 @@ export async function GET(
         .from('pending_payment_plans')
         .select(`
           *,
-          pending_customers (
+          pending_customer:pending_customers!customer_id (
             name,
             email
           ),

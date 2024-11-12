@@ -43,7 +43,7 @@ export async function GET(
       .from('pending_payment_plans')
       .select(`
         *,
-        pending_customers (
+        pending_customer:pending_customers!customer_id (
           name,
           email
         ),
@@ -74,9 +74,7 @@ export async function GET(
     }
 
     // Extract the first customer from the array
-    const customer = Array.isArray(pendingPlan.pending_customers) 
-      ? pendingPlan.pending_customers[0] 
-      : pendingPlan.pending_customers;
+    const customer = pendingPlan.pending_customer;
 
     return NextResponse.json({
       success: true,

@@ -86,7 +86,7 @@ export async function POST(request: Request) {
 
     console.log('Converted payment schedule:', convertedPaymentSchedule);
 
-    // Call the database function with our pre-generated IDs
+    // Proceed with creating the pending payment records
     const { error: dbError } = await supabase
       .rpc('create_pending_payment_records', {
         p_customer_id: pendingCustomerId,

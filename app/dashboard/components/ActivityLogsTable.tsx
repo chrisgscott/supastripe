@@ -160,6 +160,9 @@ export function ActivityLogsTable() {
         <ScrollArea className="h-[375px] pr-4">
           {activities.map((activity) => {
             const { icon: Icon, color } = getActivityIcon(activity.activity_type);
+            const formattedDate = activity.created_at 
+              ? format(new Date(activity.created_at), 'MMM d, yyyy h:mm a')
+              : 'Unknown date';
             return (
               <div key={activity.id} className="flex items-start space-x-4 mb-6">
                 <div className="mt-0.5 bg-muted rounded-full p-2">
@@ -168,7 +171,7 @@ export function ActivityLogsTable() {
                 <div className="flex-1 space-y-1">
                   <p className="text-sm">{formatActivityMessage(activity)}</p>
                   <p className="text-xs text-muted-foreground">
-                    {format(new Date(activity.created_at), 'MMM d, h:mm a')}
+                    {formattedDate}
                   </p>
                 </div>
               </div>

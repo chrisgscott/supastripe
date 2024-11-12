@@ -1,18 +1,16 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState } from "react"
 import {
   Card,
   CardHeader,
   CardTitle,
   CardContent,
-  CardFooter,
   CardDescription,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { formatCurrency, Money } from "@/utils/currencyUtils"
-import { Mail, Printer, Clock, Ban, AlertCircle, DollarSign, PiggyBank, CalendarClock } from "lucide-react"
-import { Separator } from "@/components/ui/separator"
+import { Mail, Printer, Clock, Ban, DollarSign, PiggyBank, CalendarClock } from "lucide-react"
 import { format } from "date-fns"
 import {
   Table,
@@ -34,15 +32,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/components/ui/use-toast"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { CheckCircle2, XCircle, FileText } from "lucide-react"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Database } from "@/types/supabase"
-import { createClient } from '@/utils/supabase/client';
-import { CreditCard } from 'lucide-react';
-import { UpdateCardDialog } from './UpdateCardDialog';
+import { CreditCard } from 'lucide-react'
+import { UpdateCardDialog } from './UpdateCardDialog'
+import { PlanActivityFeed } from './components/PlanActivityFeed'
 
-// Reference the interface from ConfirmationStep.tsx (lines 34-65)
 interface PlanDetailsProps {
   planDetails: {
     customerName: string;
@@ -71,157 +64,12 @@ interface PlanDetailsProps {
   };
 }
 
-// Add after imports
-type ActivityLog = Database['public']['Tables']['activity_logs']['Row'];
-
-const formatActivityMessage = (activity: ActivityLog) => {
-  const amount = activity.amount ? Money.fromCents(activity.amount) : Money.fromCents(0);
-
-  switch (activity.activity_type) {
-    case 'payment_success':
-      return `Payment of ${formatCurrency(amount)} was successful.`;
-    case 'payment_failed':
-      return `Payment of ${formatCurrency(amount)} failed!`;
-    case 'plan_created':
-      return `Payment plan of ${formatCurrency(amount)} was created`;
-    case 'email_sent':
-      const metadata = activity.metadata as { email_type: string; recipient: string };
-      return `A payment reminder email was sent`;
-    default:
-      return 'Unknown activity';
-  }
-};
-
-const getActivityIcon = (type: string) => {
-  switch (type) {
-    case 'payment_success':
-      return { icon: CheckCircle2, color: 'text-green-500' };
-    case 'payment_failed':
-      return { icon: XCircle, color: 'text-red-500' };
-    case 'plan_created':
-      return { icon: FileText, color: 'text-blue-500' };
-    case 'email_sent':
-      return { icon: Mail, color: 'text-purple-500' };
-    default:
-      return { icon: FileText, color: 'text-gray-500' };
-  }
-};
-
-function PlanActivityFeed({ planId }: { planId: string }) {
-  const [activities, setActivities] = useState<ActivityLog[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const supabase = createClient();
-
-  useEffect(() => {
-    fetchActivities();
-
-    // Set up realtime subscription
-    const channel = supabase.channel('activity_logs')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'activity_logs',
-          filter: `payment_plan_id=eq.${planId}`
-        },
-        (payload) => {
-          console.log('Received new activity:', payload);
-          setActivities(prev => [payload.new as ActivityLog, ...prev]);
-        }
-      )
-      .subscribe((status) => {
-        console.log('Subscription status:', status);
-      });
-
-    // Cleanup subscription
-    return () => {
-      supabase.channel('activity_logs').unsubscribe();
-    };
-  }, [planId]);
-
-  const fetchActivities = async () => {
-    try {
-      const response = await fetch(`/api/plan-activity-logs?planId=${planId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch activities');
-      }
-      const data = await response.json();
-      setActivities(data.activities || []);
-    } catch (error) {
-      console.error('Error fetching activities:', error);
-      setActivities([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Plan Activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-start space-x-4 animate-pulse">
-                <div className="mt-0.5 bg-muted rounded-full p-2 w-8 h-8" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-muted rounded w-3/4" />
-                  <div className="h-3 bg-muted rounded w-1/4" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Plan Activity</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ScrollArea className="h-[250px] pr-4">
-          {activities.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              No activity recorded yet
-            </div>
-          ) : (
-            activities.map((activity) => {
-              const { icon: Icon, color } = getActivityIcon(activity.activity_type);
-              return (
-                <div key={activity.id} className="flex items-start space-x-4 mb-6">
-                  <div className="mt-0.5 bg-muted rounded-full p-2">
-                    <Icon className={`w-4 h-4 ${color}`} />
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <p className="text-sm">{formatActivityMessage(activity)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(new Date(activity.created_at), 'MMM d, h:mm a')}
-                    </p>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </ScrollArea>
-      </CardContent>
-    </Card>
-  );
-}
-
 export function PlanDetails({ planDetails }: PlanDetailsProps) {
   const [isSending, setIsSending] = useState(false)
   const [isPausing, setIsPausing] = useState(false)
   const { toast } = useToast()
-  const [isUpdatePaymentMethodOpen, setIsUpdatePaymentMethodOpen] = useState(false);
-  const [isUpdateCardDialogOpen, setIsUpdateCardDialogOpen] = useState(false);
+  const [isUpdateCardDialogOpen, setIsUpdateCardDialogOpen] = useState(false)
 
-  // Reference handleSendEmail function from ConfirmationStep.tsx (lines 148-184)
   const handleSendEmail = async () => {
     setIsSending(true)
     const endpoint = planDetails.isPending

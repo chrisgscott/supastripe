@@ -93,8 +93,8 @@ export async function POST(request: Request) {
         business_email: businessInfo.support_email,
         plan_id: paymentPlan.id,
         date: new Date().toLocaleDateString(),
-        customer_name: paymentPlan.customers.name,
-        customer_email: paymentPlan.customers.email,
+        customer_name: paymentPlan.customer.name,
+        customer_email: paymentPlan.customer.email,
         total_amount: Money.fromCents(paymentPlan.total_amount).toString(),
         number_of_payments: `${paymentPlan.number_of_payments} ${paymentPlan.payment_interval} payments`,
         payment_schedule_html: formatPaymentScheduleHtml(
@@ -112,7 +112,7 @@ export async function POST(request: Request) {
     );
 
     const success = await sendEmail(
-      paymentPlan.customers.email,
+      paymentPlan.customer.email,
       emailTemplate.templateId,
       emailTemplate.params
     );
@@ -125,7 +125,7 @@ export async function POST(request: Request) {
     // Prepare log data
     const logData = {
       email_type: "payment_plan",
-      recipient_email: paymentPlan.customers.email,
+      recipient_email: paymentPlan.customer.email,
       status: success ? "sent" : "failed",
       related_id: paymentPlanId,
       related_type: "payment_plan",

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import Stripe from 'stripe';
+import { PaymentPlan } from '@/types/payment-plans';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2024-06-20" });
 
@@ -27,19 +28,29 @@ export async function GET(request: Request) {
         .from('payment_plans')
         .select(`
           user_id,
-          customers (
-            name
+          customer:customers!inner (
+            name,
+            stripe_customer_id
           )
         `)
         .eq('id', planId)
-        .single();
+        .single() as unknown as {
+          data: {
+            user_id: string;
+            customer: {
+              name: string;
+              stripe_customer_id: string;
+            };
+          };
+          error: any;
+        };
 
       if (planError || !plan) {
         console.error('Error fetching payment plan:', planError);
         return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/error?message=Payment plan not found`);
       }
 
-      const customerName = plan.customers?.[0]?.name || 'Unknown';
+      const customerName = plan.customer.name;
 
       // Update the customer's default payment method
       await stripe.customers.update(intent.customer as string, {
@@ -72,7 +83,7 @@ export async function GET(request: Request) {
           entity_id: planId,
           entity_type: 'payment_plan',
           user_id: plan.user_id,
-          customer_name: customerName,
+          customer_name: plan.customer.name,
           metadata: {
             card_last_four: paymentMethod.card?.last4,
             card_brand: paymentMethod.card?.brand
