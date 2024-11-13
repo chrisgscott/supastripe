@@ -15,6 +15,8 @@ import { formatCurrency } from '@/utils/currencyUtils';
 import { DashboardCardSkeleton } from "./components/DashboardCardSkeleton"
 import { Money } from '@/utils/currencyUtils';
 import { ActivityLogsTable } from './components/ActivityLogsTable';
+import { createClient } from '@/utils/supabase/client';
+import OnboardingProgress from '@/components/OnboardingProgress';
 
 
 const queryClient = new QueryClient();
@@ -50,6 +52,7 @@ function Dashboard() {
   });
   const [userName, setUserName] = useState('');
   const [isLoadingPaymentData, setIsLoadingPaymentData] = useState(true);
+  const [isOnboarded, setIsOnboarded] = useState<boolean | null>(null);
 
   const fetchUserName = async () => {
     try {
@@ -66,6 +69,7 @@ function Dashboard() {
     fetchActivePlans();
     fetchNextPayout();
     fetchUserName();
+    checkOnboardingStatus();
   }, []);
 
   useEffect(() => {
@@ -137,6 +141,16 @@ function Dashboard() {
       console.error('Error fetching next payout:', error);
     }
     setIsLoadingNextPayout(false);
+  };
+
+  const checkOnboardingStatus = async () => {
+    const supabase = createClient();
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_onboarded')
+      .single();
+    
+    setIsOnboarded(!!profile?.is_onboarded);
   };
 
   return (
@@ -237,7 +251,7 @@ function Dashboard() {
         </div>
 
         <div>
-          <ActivityLogsTable />
+          {isOnboarded ? <ActivityLogsTable /> : <OnboardingProgress />}
         </div>
       </div>
     </div>
