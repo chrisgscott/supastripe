@@ -1,4 +1,4 @@
-// app/account/route.ts
+// / app/account/route.ts
 import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/utils';
 import { createClient } from '@/utils/supabase/server';

@@ -114,7 +114,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Settings sections with proper typing */}
+      {/* Settings section with proper typing */}
       <div className="flex-grow space-y-10">
         <section id="profile" className="space-y-4">
           <h3 className="text-lg font-semibold">Profile Settings</h3>
