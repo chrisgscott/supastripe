@@ -24,6 +24,27 @@ export default function SettingsPage() {
   const [stripeAccount, setStripeAccount] = useState<StripeAccount | null>(null)
   
   useEffect(() => {
+    console.log('Settings page mounted');
+    console.log('Current URL:', window.location.href);
+    console.log('Current hash:', window.location.hash);
+    
+    // Wait for the page to fully render
+    const timer = setTimeout(() => {
+      const section = window.location.hash.slice(1);
+      if (section) {
+        console.log('Attempting to scroll to section:', section);
+        const element = document.getElementById(section);
+        console.log('Found element:', element);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    }, 500); // Give the page time to render
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
     async function loadData() {
       try {
         const { data: { user }, error: userError } = await supabase.auth.getUser()
@@ -99,7 +120,7 @@ export default function SettingsPage() {
             <Button 
               variant="ghost"
               className="justify-start"
-              onClick={() => document.getElementById('email')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() => document.getElementById('notifications')?.scrollIntoView({ behavior: 'smooth' })}
             >
               Email
             </Button>
@@ -131,7 +152,7 @@ export default function SettingsPage() {
           />
         </section>
 
-        <section id="email" className="space-y-4">
+        <section id="notifications" className="space-y-4">
           <h3 className="text-lg font-semibold">Email Settings</h3>
           <EmailSettings user={userData} />
         </section>

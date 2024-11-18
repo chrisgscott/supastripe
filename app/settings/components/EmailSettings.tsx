@@ -4,7 +4,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
 interface EmailSettingsProps {
-  user: User;
+  user: User;  // Supabase user object passed from parent
 }
 
 export default function EmailSettings({ user }: EmailSettingsProps) {

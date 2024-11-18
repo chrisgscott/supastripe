@@ -26,7 +26,7 @@ export default function OnboardingProgress() {
       id: 'confirm-account',
       title: 'Confirm Your Account',
       description: 'Verify your email address',
-      completed: true, // Always true since they've already done this
+      completed: true,
       href: '#'
     },
     {
@@ -34,14 +34,14 @@ export default function OnboardingProgress() {
       title: 'Connect Stripe Account',
       description: 'Link your Stripe account for payments',
       completed: false,
-      href: '/api/account'
+      href: '/settings#payments'
     },
     {
       id: 'complete-stripe',
       title: 'Complete Stripe Setup',
       description: 'Verify your identity and add business details',
       completed: false,
-      href: '/api/get-onboarding-link'
+      href: '/settings#payments'
     },
     {
       id: 'create-plan',
@@ -109,10 +109,20 @@ export default function OnboardingProgress() {
   }
 
   const handleStepClick = (step: OnboardingStep) => {
+    console.log('Step clicked:', step);
+    console.log('Current URL:', window.location.href);
+    
     if (!step.completed && isStepAvailable(steps.indexOf(step))) {
-      router.push(step.href)
+      console.log('Step is available, navigating to:', step.href);
+      router.push(step.href);
+      
+      // Log after navigation attempt
+      setTimeout(() => {
+        console.log('New URL after navigation:', window.location.href);
+        console.log('Current hash:', window.location.hash);
+      }, 100);
     }
-  }
+  };
 
   const isStepAvailable = (index: number) => {
     if (index === 0) return true

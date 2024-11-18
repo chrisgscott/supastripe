@@ -68,12 +68,16 @@ export default function StripeSettings({ stripeAccount, profile, user, error }: 
     try {
       const response = await fetch('/api/disconnect-stripe', { method: 'POST' });
       const data = await response.json();
-      if (!data.success) {
-        throw new Error('Failed to disconnect Stripe account');
+      
+      if (response.ok) {
+        window.location.reload();
+      } else {
+        throw new Error(data.error || 'Failed to disconnect Stripe account');
       }
-      window.location.reload();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error disconnecting Stripe account:', err);
+      // Show error to user
+      alert('Error disconnecting account: ' + (err.message || 'Unknown error'));
     }
   };
 
@@ -161,4 +165,4 @@ export default function StripeSettings({ stripeAccount, profile, user, error }: 
       </CardContent>
     </Card>
   );
-}
+}// Test write
