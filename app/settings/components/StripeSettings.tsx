@@ -4,11 +4,11 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import StripeAccountInfo from '@/app/account/stripe-account-info';
+import { StripeSettingsProps } from './types';
 import { Database } from '@/types/supabase';
-import { User } from '@supabase/supabase-js';
 
-type StripeAccount = Database['public']['Tables']['stripe_accounts']['Row'];
 type Profile = Database['public']['Tables']['profiles']['Row'];
+type StripeAccount = Database['public']['Tables']['stripe_accounts']['Row'];
 
 interface FormattedStripeAccount {
   id: string;
@@ -26,44 +26,7 @@ interface FormattedProfile {
   business_email: string | null;
 }
 
-interface StripeSettingsProps {
-  stripeAccount: StripeAccount | null;
-  profile: Profile;
-  user: User | null;
-  error: string | null;
-}
-
 export default function StripeSettings({ stripeAccount, profile, user, error }: StripeSettingsProps) {
-  const handleConnect = async () => {
-    try {
-      const accountResponse = await fetch('/api/account', { 
-        method: 'POST',
-      });
-      const accountData = await accountResponse.json();
-      
-      if (accountData.error) {
-        throw new Error(accountData.error);
-      }
-
-      const linkResponse = await fetch('/api/account_link', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ account: accountData.account }),
-      });
-      const linkData = await linkResponse.json();
-
-      if (linkData.url) {
-        window.location.href = linkData.url;
-      } else {
-        throw new Error('Failed to get Stripe onboarding URL');
-      }
-    } catch (err) {
-      console.error('Error connecting Stripe account:', err);
-    }
-  };
-
   const handleDisconnect = async () => {
     try {
       const response = await fetch('/api/disconnect-stripe', { method: 'POST' });
@@ -76,7 +39,6 @@ export default function StripeSettings({ stripeAccount, profile, user, error }: 
       }
     } catch (err: any) {
       console.error('Error disconnecting Stripe account:', err);
-      // Show error to user
       alert('Error disconnecting account: ' + (err.message || 'Unknown error'));
     }
   };
@@ -105,9 +67,6 @@ export default function StripeSettings({ stripeAccount, profile, user, error }: 
   const formattedStripeAccount = formatStripeAccount(stripeAccount);
   const formattedProfile = formatProfile(profile);
 
-  // Show connect card if no stripe account or if there's a specific error
-  const shouldShowConnectCard = !formattedStripeAccount || error === 'Stripe account not connected';
-
   return (
     <Card>
       <CardHeader>
@@ -118,41 +77,42 @@ export default function StripeSettings({ stripeAccount, profile, user, error }: 
       </CardHeader>
       
       <CardContent>
-        {shouldShowConnectCard ? (
-          <Card className="bg-muted">
-            <CardHeader>
-              <CardTitle className="text-lg">Connect Your Stripe Account</CardTitle>
-              <CardDescription>
-                To start accepting payments, you'll need to connect your Stripe account. 
-                This will allow you to receive payments directly to your bank account.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                onClick={handleConnect} 
-                className="w-full sm:w-auto"
-              >
-                Connect Stripe Account
-              </Button>
-            </CardContent>
-          </Card>
+        {!formattedStripeAccount ? (
+          <Alert>
+            <AlertDescription>
+              You haven't connected a Stripe account yet. Visit the onboarding page to get started.
+            </AlertDescription>
+          </Alert>
+        ) : !formattedStripeAccount.stripe_onboarding_completed ? (
+          <>
+            <Alert>
+              <AlertDescription>
+                Your Stripe account is connected but pending verification. This process typically takes 5-7 business days.
+                You can check the status or submit additional verification documents through your Stripe dashboard.
+              </AlertDescription>
+            </Alert>
+            <Button 
+              className="mt-4"
+              onClick={() => window.open(formattedStripeAccount.stripe_account_details_url || 'https://dashboard.stripe.com', '_blank')}
+            >
+              Open Stripe Dashboard
+            </Button>
+          </>
         ) : (
           <>
             <StripeAccountInfo 
-              account={formattedStripeAccount!} 
+              account={formattedStripeAccount} 
               profile={formattedProfile}
               accountEmail={user?.email || null}
               error={error}
             />
-            {formattedStripeAccount && (
-              <Button 
-                onClick={handleDisconnect} 
-                variant="destructive" 
-                className="mt-4"
-              >
-                Disconnect Stripe Account
-              </Button>
-            )}
+            <Button 
+              onClick={handleDisconnect} 
+              variant="destructive" 
+              className="mt-4"
+            >
+              Disconnect Stripe Account
+            </Button>
           </>
         )}
         
@@ -165,4 +125,4 @@ export default function StripeSettings({ stripeAccount, profile, user, error }: 
       </CardContent>
     </Card>
   );
-}// Test write
+}

@@ -1,37 +1,68 @@
 // app/api/account_link/route.ts
-import { NextResponse } from "next/server";
-import { stripe } from "@/lib/utils";
-
-interface AccountLinkRequest {
-  account: string;
-}
+import { createClient } from '@/utils/supabase/server';
+import { stripe } from '@/lib/utils';
+import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
+  console.log('POST /api/account_link - Starting...');
   try {
-    const { account } = (await request.json()) as AccountLinkRequest;
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    // Get origin from the request headers or use a default fallback
-    const origin = request.headers.get("origin") || "http://localhost:3000";
+    if (!user) {
+      console.log('POST /api/account_link - No authenticated user found');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    // Create the account link using the provided account and valid URLs
+    const body = await request.json();
+    console.log('POST /api/account_link - Request body:', body);
+
+    if (!body.account) {
+      console.log('POST /api/account_link - No account ID provided');
+      return NextResponse.json(
+        { error: 'No account ID provided' },
+        { status: 400 }
+      );
+    }
+
+    // Use the URLs from the request if provided, otherwise use environment variables
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const refreshUrl = body.refresh_url || `${baseUrl}/settings`;
+    const returnUrl = body.return_url || `${baseUrl}/settings`;
+
+    console.log('POST /api/account_link - Creating account link with URLs:', {
+      refreshUrl,
+      returnUrl
+    });
+
     const accountLink = await stripe.accountLinks.create({
-      account: account,
-      refresh_url: `${origin}/refresh/${account}`,
-      return_url: `${origin}/return/${account}`,
-      type: "account_onboarding",
+      account: body.account,
+      refresh_url: refreshUrl,
+      return_url: returnUrl,
+      type: body.type || 'account_onboarding',
+      collect: 'eventually_due',
     });
 
-    // Sync Stripe data
-    await fetch(`${origin}/api/sync-stripe-data`, { method: 'POST' });
+    console.log('POST /api/account_link - Account link created:', accountLink);
 
-    return NextResponse.json({
-      url: accountLink.url,
-    });
+    // Store the account link URL in the database
+    const { error: dbError } = await supabase
+      .from('stripe_accounts')
+      .update({
+        stripe_account_details_url: accountLink.url,
+      })
+      .eq('stripe_account_id', body.account);
+
+    if (dbError) {
+      console.error('POST /api/account_link - Database error:', dbError);
+    }
+
+    return NextResponse.json({ url: accountLink.url });
   } catch (error: any) {
-    console.error(
-      "An error occurred when calling the Stripe API to create an account link:",
-      error
+    console.error('POST /api/account_link - Error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to create account link' },
+      { status: 500 }
     );
-    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -15,7 +15,7 @@ export default function Header() {
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
-    window.location.href = '/login';
+    window.location.href = '/sign-in';
   };
 
   return (
