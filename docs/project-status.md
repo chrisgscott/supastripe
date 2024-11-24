@@ -46,6 +46,7 @@ PayKit is a payment management system that integrates Stripe with Supabase, allo
 
 ## Known Issues
 - UTF-8 encoding issues in task-cli (being addressed separately)
+- Quill editor XSS vulnerability (GHSA-4943-9vgg-gr5r) - mitigated through proper HTML sanitization
 
 ## Recent Changes
 - Implemented payment confirmation handling
