@@ -6,6 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@chrisgscott/task-cli": "^1.4.2",
     "@getbrevo/brevo": "^1.0.1",
     "@radix-ui/react-alert-dialog": "^1.1.2",
     "@radix-ui/react-avatar": "^1.1.1",

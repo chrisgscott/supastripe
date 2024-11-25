@@ -1,94 +1,127 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { CheckCircle, Circle, AlertCircle, Loader2 } from 'lucide-react'
+import { createClient } from '@/utils/supabase/client'
+import { User } from '@supabase/supabase-js'
+import { OnboardingStep, VerificationStatus } from '@/types/onboarding'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { createClient } from '@/utils/supabase/client'
-import { useRouter } from 'next/navigation'
-import { User } from '@supabase/supabase-js'
-import LoadingOverlay from './LoadingOverlay'
-import { Database } from '@/types/supabase'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { CheckCircle2, ArrowRight } from "lucide-react"
+import { Loader2, CheckCircle, AlertCircle, Circle, ArrowRight, Clock, FileText } from 'lucide-react'
+import { useToast } from '@/components/ui/use-toast'
+import { format } from 'date-fns'
+import { useRouter } from 'next/navigation'
 
-type StripeAccount = Database['public']['Tables']['stripe_accounts']['Row']
-
-interface OnboardingProgressProps {
+export interface OnboardingProgressProps {
   user: User
-}
-
-interface OnboardingStep {
-  id: string
-  title: string
-  description: string
-  completed: boolean
-  href: string
-}
-
-interface FormattedStripeAccount {
-  id: string
-  user_id: string
-  stripe_account_id: string
-  stripe_onboarding_completed: boolean
-  stripe_account_created_at: string
-  stripe_account_details_url: string | null
 }
 
 export default function OnboardingProgress({ user }: OnboardingProgressProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [loadingStep, setLoadingStep] = useState<string | null>(null)
   const [steps, setSteps] = useState<OnboardingStep[]>([
     {
       id: 'confirm-account',
       title: 'Confirm Your Account',
-      description: 'Verify your email address',
+      description: 'Quick email verification (1-2 minutes)',
       completed: true,
-      href: '#'
+      href: '#',
+      timeEstimate: '2 min',
+      requiredInfo: ['Email address'],
+      status: 'completed'
     },
     {
       id: 'connect-stripe',
       title: 'Connect Stripe Account',
-      description: 'Set up your Stripe account',
+      description: 'Set up payment processing (5-10 minutes)',
       completed: false,
-      href: '#'
+      href: '#',
+      timeEstimate: '10 min',
+      requiredInfo: [
+        'Business name',
+        'Business address',
+        'Tax ID or SSN',
+        'Bank account details'
+      ],
+      status: 'not_started'
     },
     {
       id: 'verify-stripe',
       title: 'Verify Stripe Account',
-      description: 'Pending verification. This process typically takes 5-7 business days.',
+      description: 'Verification process (5-7 business days)',
       completed: false,
-      href: '#'
+      href: '#',
+      timeEstimate: '5-7 days',
+      verificationChecklist: [
+        'Business documentation',
+        'Identity verification',
+        'Bank account verification'
+      ],
+      status: 'not_started'
     },
     {
       id: 'create-plan',
       title: 'Create Your First Plan',
       description: 'Set up a payment plan for your customers',
       completed: false,
-      href: '/payment-plans/new'
+      href: '/payment-plans/new',
+      timeEstimate: '5 min',
+      requiredInfo: ['Plan details', 'Payment terms'],
+      status: 'not_started'
     }
   ])
+  
   const [connecting, setConnecting] = useState(false)
-  const [stripeAccount, setStripeAccount] = useState<StripeAccount | null>(null)
-  const [stripeData, setStripeData] = useState<{ stripeAccount: StripeAccount | null }>({ stripeAccount: null })
+  const [stripeAccount, setStripeAccount] = useState<any>(null)
+  const [verificationStatus, setVerificationStatus] = useState<VerificationStatus | null>(null)
 
-  const isStepAvailable = (index: number): boolean => {
-    if (index === 0) return true
-    if (index === 2) { // verify-stripe step
-      return !!stripeAccount && !stripeAccount.stripe_onboarding_completed
+  useEffect(() => {
+    checkProgress()
+    const interval = setInterval(checkVerificationStatus, 3600000) // Check every hour
+    return () => clearInterval(interval)
+  }, [])
+
+  const checkVerificationStatus = async () => {
+    try {
+      const response = await fetch('/api/stripe-status')
+      const data = await response.json()
+      
+      if (data.stripeAccount) {
+        setStripeAccount(data.stripeAccount)
+        
+        if (data.verificationStatus) {
+          setVerificationStatus(data.verificationStatus)
+          
+          // Show notification if action is required
+          if (data.verificationStatus.actionItems.length > 0) {
+            const highPriorityItems = data.verificationStatus.actionItems
+              .filter(item => item.priority === 'high')
+            
+            if (highPriorityItems.length > 0) {
+              toast({
+                title: "Action Required",
+                description: highPriorityItems[0].description,
+                action: {
+                  label: "Take Action",
+                  onClick: highPriorityItems[0].action
+                }
+              })
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking verification status:', error)
     }
-    return steps.slice(0, index).every(step => step.completed)
   }
 
   const handleStripeConnect = async () => {
-    console.log('Starting Stripe connection...')
     setConnecting(true)
-    console.log('Connecting state:', connecting)
-
+    setLoadingStep('connect-stripe')
+    
     try {
-      console.log('Making account request...')
       const accountResponse = await fetch('/api/account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -100,13 +133,11 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
       })
 
       const accountData = await accountResponse.json()
-      console.log('Account response:', accountData)
-
+      
       if (accountData.error) {
         throw new Error(accountData.error)
       }
 
-      console.log('Making link request...')
       const linkResponse = await fetch('/api/account_link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -119,95 +150,23 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
       })
 
       const linkData = await linkResponse.json()
-      console.log('Link response:', linkData)
-
+      
       if (linkData.error) {
         throw new Error(linkData.error)
       }
 
-      console.log('Redirecting to:', linkData.url)
       window.location.href = linkData.url
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error in handleStripeConnect:', error)
-      setConnecting(false)
+      toast({
+        title: "Connection Failed",
+        description: error.message,
+        variant: "destructive",
+      })
     } finally {
       setConnecting(false)
-      checkStripeStatus()
-    }
-  }
-
-  const checkProgress = async () => {
-    try {
-      const supabase = createClient()
-      const { data: stripeAccount } = await supabase
-        .from('stripe_accounts')
-        .select('stripe_account_id, stripe_onboarding_completed, stripe_account_details_url')
-        .single()
-
-      setSteps(steps => steps.map(step => {
-        if (step.id === 'connect-stripe') {
-          return {
-            ...step,
-            completed: !!stripeAccount?.stripe_onboarding_completed,
-            href: stripeAccount?.stripe_account_details_url || '#'
-          }
-        }
-        if (step.id === 'verify-stripe') {
-          return {
-            ...step,
-            completed: stripeAccount?.stripe_onboarding_completed,
-            href: stripeAccount?.stripe_account_details_url || '#'
-          }
-        }
-        if (step.id === 'create-plan') {
-          return {
-            ...step,
-            completed: stripeAccount?.stripe_onboarding_completed,
-            href: stripeAccount?.stripe_account_details_url || '#'
-          }
-        }
-        return step
-      }))
-    } catch (error) {
-      console.error('Error checking progress:', error)
-    } finally {
       setLoadingStep(null)
     }
-  }
-
-  const getStepIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle className="h-6 w-6 text-primary" />
-      case 'pending':
-        return <AlertCircle className="h-6 w-6 text-yellow-500" />
-      default:
-        return <Circle className="h-6 w-6 text-muted-foreground" />
-    }
-  }
-
-  const getStepButton = (step: OnboardingStep) => {
-    if (loadingStep === step.id) {
-      return (
-        <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Connecting...
-        </>
-      )
-    }
-
-    // For connect-stripe step, show completed when account exists
-    if (step.id === 'connect-stripe' && stripeAccount) {
-      return 'Completed'
-    }
-    
-    // For verify-stripe step
-    if (step.id === 'verify-stripe') {
-      return 'Check Status'
-    }
-    
-    if (step.completed) return 'Completed'
-    return 'Start'
   }
 
   const handleStepClick = (step: OnboardingStep) => {
@@ -217,12 +176,15 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
     
     if (!step.completed && isStepAvailable(steps.indexOf(step))) {
       if (step.id === 'verify-stripe') {
-        // Always use the account-specific dashboard URL
         if (stripeAccount?.stripe_account_id) {
-          window.open(`https://dashboard.stripe.com/connect/accounts/${stripeAccount.stripe_account_id}`, '_blank');
+          window.open(`https://dashboard.stripe.com/connect/accounts/${stripeAccount.stripe_account_id}`, '_blank')
         } else {
-          console.error('No Stripe account ID available');
-          window.open('https://dashboard.stripe.com', '_blank');
+          console.error('No Stripe account ID available')
+          toast({
+            title: "Error",
+            description: "Unable to access Stripe dashboard. Please try again later.",
+            variant: "destructive",
+          })
         }
       } else if (step.id === 'connect-stripe') {
         handleStripeConnect()
@@ -232,180 +194,132 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
     }
   }
 
-  useEffect(() => {
-    checkProgress()
-  }, [])
+  const renderVerificationStatus = () => {
+    if (!verificationStatus) return null
 
-  useEffect(() => {
-    checkStripeStatus()
-  }, [])
-
-  const checkStripeStatus = async () => {
-    try {
-      const response = await fetch('/api/stripe-status')
-      const data = await response.json()
-      
-      if (data.stripeAccount) {
-        setStripeAccount(data.stripeAccount)
-      }
-    } catch (error) {
-      console.error('Error checking Stripe status:', error)
-    }
-  }
-
-  const getStepStatus = (stepId: string) => {
-    if (stepId === 'connect-stripe') {
-      return stripeAccount ? 'completed' : 'not_started'
-    }
-    if (stepId === 'verify-stripe') {
-      if (!stripeAccount) return 'not_started'
-      return stripeAccount.stripe_onboarding_completed ? 'completed' : 'pending'
-    }
-    return 'completed' // For email verification step
-  }
-
-  // Start with 1 completed step (email confirmation)
-  const completedSteps = steps.filter(step => step.completed).length
-  const progress = (completedSteps / steps.length) * 100
-
-  useEffect(() => {
-    const checkStatus = async () => {
-      try {
-        const response = await fetch('/api/stripe-status')
-        const data = await response.json()
-        console.log('Stripe Status Response:', data)
-        setStripeData(data)
-      } catch (error) {
-        console.error('Error fetching stripe status:', error)
-      }
-    }
-
-    checkStatus()
-  }, [])
-
-  const formatStripeAccount = (account: StripeAccount | null): FormattedStripeAccount | null => {
-    if (!account) return null
-    return {
-      id: account.id,
-      user_id: account.user_id || '',
-      stripe_account_id: account.stripe_account_id || '',
-      stripe_onboarding_completed: account.stripe_onboarding_completed || false,
-      stripe_account_created_at: account.stripe_account_created_at || new Date().toISOString(),
-      stripe_account_details_url: account.stripe_account_details_url
-    }
-  }
-
-  const formattedStripeAccount = formatStripeAccount(stripeData.stripeAccount)
-
-  const getStripeStatus = () => {
-    if (!formattedStripeAccount) return 'not_started'
-    if (!formattedStripeAccount.stripe_onboarding_completed) return 'pending'
-    return 'completed'
-  }
-
-  const getStripeDetailsUrl = () => {
-    return formattedStripeAccount?.stripe_account_details_url || 'https://dashboard.stripe.com'
-  }
-
-  const renderStripeConnectButton = () => {
-    if (!stripeData?.stripeAccount) {
-      return (
-        <Button onClick={() => window.location.href = '/onboarding'}>
-          Start <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    }
-    
-    if (!stripeData.stripeAccount.stripe_onboarding_completed) {
-      return (
-        <Button 
-          variant="outline"
-          onClick={() => window.open(getStripeDetailsUrl(), '_blank')}
-        >
-          Check Status <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    }
-    
-    return null // No button needed if completed
-  }
-
-  if (loadingStep) {
-    return null
-  }
-
-  return (
-    <>
-      <LoadingOverlay visible={connecting} message="Connecting to Stripe..." />
-      <Card className="relative shadow-xl">
+    return (
+      <Card className="mt-6">
         <CardHeader>
-          <CardTitle>Complete Your Setup</CardTitle>
-          <CardDescription className="text-muted-foreground">Finish these steps to start using your account</CardDescription>
+          <CardTitle>Verification Status</CardTitle>
+          <CardDescription>
+            Estimated completion: {verificationStatus.estimatedCompletionDate 
+              ? format(new Date(verificationStatus.estimatedCompletionDate), 'MMMM d, yyyy')
+              : 'Calculating...'}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <Progress value={progress} className="mb-4 [&>div]:bg-[#0D89CA]" />
-          <p className="text-sm text-foreground mb-6">
-            {completedSteps} of {steps.length} steps completed
-          </p>
-          <div className="space-y-4">
-            {steps.map((step, index) => (
-              <div key={step.id} className="flex items-start space-x-3">
-                <div className="mt-0.5">
-                  {getStepIcon(getStepStatus(step.id))}
+          <Progress value={verificationStatus.overallProgress} className="mb-4" />
+          
+          {verificationStatus.remainingSteps.length > 0 && (
+            <div className="space-y-4">
+              <h4 className="font-medium">Remaining Steps:</h4>
+              {verificationStatus.remainingSteps.map((step, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  {step.status === 'completed' ? (
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                  ) : step.status === 'in_progress' ? (
+                    <Clock className="h-5 w-5 text-blue-500" />
+                  ) : (
+                    <Circle className="h-5 w-5 text-gray-400" />
+                  )}
+                  <span>{step.name}</span>
                 </div>
-                <div className="flex-grow min-w-0">
-                  <h3 className="text-sm mb-1 font-medium">{step.title}</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {getStepStatus(step.id) === 'pending' ? 'Pending verification...' : step.description}
-                  </p>
+              ))}
+            </div>
+          )}
+
+          {verificationStatus.requiredDocuments.length > 0 && (
+            <div className="mt-4">
+              <h4 className="font-medium mb-2">Required Documents:</h4>
+              {verificationStatus.requiredDocuments.map((doc, index) => (
+                <div key={index} className="flex items-center gap-2 text-sm">
+                  <FileText className="h-4 w-4" />
+                  <span>{doc.description}</span>
                 </div>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div>
-                        <Button 
-                          variant={getStepStatus(step.id) === 'completed' ? "outline" : "default"} 
-                          size="sm" 
-                          onClick={() => handleStepClick(step)}
-                          disabled={getStepStatus(step.id) === 'completed' || (step.id === 'connect-stripe' && !!stripeAccount)}
-                        >
-                          {getStepButton(step)}
-                        </Button>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {getStepStatus(step.id) === 'completed' 
-                        ? "You've completed this step" 
-                        : "Complete previous steps to unlock"}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            ))}
-          </div>
-          {completedSteps === steps.length && (
-            <div className="mt-6 text-center">
-              <h3 className="text-lg font-semibold text-primary">All Set!</h3>
-              <p className="text-sm text-muted-foreground">You're ready to start creating payment plans.</p>
+              ))}
             </div>
           )}
         </CardContent>
       </Card>
-      <Card>
+    )
+  }
+
+  const renderStep = (step: OnboardingStep, index: number) => {
+    const isAvailable = isStepAvailable(index)
+    const stepStatus = getStepStatus(step.id)
+    
+    return (
+      <Card 
+        key={step.id}
+        className={`mb-4 ${!isAvailable ? 'opacity-50' : ''}`}
+        onClick={() => isAvailable && handleStepClick(step)}
+      >
         <CardHeader>
-          <CardTitle>Onboarding Progress</CardTitle>
-          <CardDescription>Debug View</CardDescription>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {getStepIcon(stepStatus)}
+              <CardTitle>{step.title}</CardTitle>
+            </div>
+            <div className="flex items-center text-sm text-muted-foreground">
+              <Clock className="h-4 w-4 mr-1" />
+              {step.timeEstimate}
+            </div>
+          </div>
+          <CardDescription>{step.description}</CardDescription>
         </CardHeader>
         <CardContent>
-          <Alert>
-            <AlertDescription>
-              <pre className="whitespace-pre-wrap">
-                {JSON.stringify(stripeData, null, 2)}
-              </pre>
-            </AlertDescription>
-          </Alert>
+          {step.requiredInfo && (
+            <div className="text-sm">
+              <h4 className="font-medium mb-2">Required Information:</h4>
+              <ul className="list-disc list-inside space-y-1">
+                {step.requiredInfo.map((info, i) => (
+                  <li key={i}>{info}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {step.verificationChecklist && (
+            <div className="text-sm mt-4">
+              <h4 className="font-medium mb-2">Verification Checklist:</h4>
+              <ul className="list-disc list-inside space-y-1">
+                {step.verificationChecklist.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {isAvailable && !step.completed && (
+            <Button 
+              className="mt-4"
+              disabled={connecting || loadingStep === step.id}
+              onClick={() => handleStepClick(step)}
+            >
+              {loadingStep === step.id ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                <>
+                  {getStepButton(step)}
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
+          )}
         </CardContent>
       </Card>
-    </>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-6">
+        {steps.map((step, index) => renderStep(step, index))}
+      </div>
+      {renderVerificationStatus()}
+    </div>
   )
 }

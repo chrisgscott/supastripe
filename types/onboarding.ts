@@ -12,12 +12,47 @@ export interface OnboardingData {
   business_url: string;
   address_line1: string;
   address_line2: string;
-  address_city: string;
+  address_city: string;  
   address_state: string;
   address_postal_code: string;
   address_country: string;
   support_email: string;
   support_phone: string;
+}
+
+export interface RequiredDocument {
+  type: string;
+  description: string;
+  required: boolean;
+}
+
+export interface VerificationStatus {
+  overallProgress: number;
+  remainingSteps: Array<{
+    name: string;
+    status: 'pending' | 'in_progress' | 'completed' | 'failed';
+    description: string;
+  }>;
+  estimatedCompletionDate: string | null;
+  actionItems: Array<{
+    type: string;
+    description: string;
+    action: () => void;
+    priority: 'high' | 'medium' | 'low';
+  }>;
+  requiredDocuments: RequiredDocument[];
+}
+
+export interface OnboardingStep {
+  id: string;
+  title: string;
+  description: string;
+  completed: boolean;
+  href: string;
+  timeEstimate: string;
+  requiredInfo: string[];
+  verificationChecklist?: string[];
+  status: 'not_started' | 'in_progress' | 'completed' | 'failed';
 }
 
 export interface StepProps {
@@ -29,6 +64,15 @@ export interface OnboardingFlowProps {
   user: User;
   profile: Profile;
   stripeAccount: StripeAccount | null;
+}
+
+export interface ErrorWithRecovery {
+  code: string;
+  message: string;
+  recoverySteps: Array<{
+    label: string;
+    action: () => void;
+  }>;
 }
 
 export type { Profile, StripeAccount };

@@ -1,0 +1,19 @@
+statuses:
+  - name: "backlog"
+    color: "#808080"  # Gray
+    order: 1
+  - name: "planned"
+    color: "#0051CC"  # Blue
+    order: 2
+  - name: "in progress"
+    color: "#F5CD47"  # Yellow/Orange
+    order: 3
+  - name: "review"
+    color: "#A352CC"  # Purple
+    order: 4
+  - name: "done"
+    color: "#60B515"  # Green
+    order: 5
+  - name: "bug"
+    color: "#E8384F"  # Red
+    order: 6

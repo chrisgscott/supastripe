@@ -1,0 +1,86 @@
+name: "Set up Brevo email templates"
+description: |
+  Create and configure email templates in Brevo for various system notifications.
+
+  Required Templates:
+
+  1. Payment Plan Creation (PAYMENT_PLAN_CREATED)
+     - Sent when: New payment plan is created
+     - Parameters:
+       - customer_name
+       - total_amount
+       - number_of_payments
+       - payment_schedule
+       - business_name
+
+  2. Payment Link (PAYMENT_LINK)
+     - Sent when: "Send Payment Link" option is chosen
+     - Parameters:
+       - customer_name
+       - payment_amount
+       - payment_link
+       - payment_plan_details
+       - business_contact_info
+
+  3. Payment Confirmation (PAYMENT_CONFIRMATION)
+     - Sent when: Payment is successful
+     - Parameters:
+       - customer_name
+       - payment_amount
+       - payment_date
+       - transaction_id
+       - remaining_balance
+
+  4. Upcoming Payment Reminder (PAYMENT_REMINDER)
+     - Sent when: Before scheduled payments
+     - Parameters:
+       - customer_name
+       - due_date
+       - payment_amount
+       - payment_link
+
+  5. Payment Failed (PAYMENT_FAILED)
+     - Sent when: Payment attempt fails
+     - Parameters:
+       - customer_name
+       - payment_amount
+       - failure_reason
+       - retry_link
+       - support_contact
+
+  6. Payment Plan Completed (PLAN_COMPLETED)
+     - Sent when: All payments are completed
+     - Parameters:
+       - customer_name
+       - total_amount_paid
+       - completion_date
+       - thank_you_message
+
+  7. Card Update Required (CARD_UPDATE_REQUIRED)
+     - Sent when: Payment method needs updating
+     - Parameters:
+       - customer_name
+       - update_link
+       - next_payment_date
+       - payment_amount
+
+  8. Payment Method Updated (PAYMENT_METHOD_UPDATED)
+     - Sent when: Payment method is updated
+     - Parameters:
+       - customer_name
+       - last_four
+       - next_payment_date
+       - payment_amount
+
+  Implementation Steps:
+  1. Create templates in Brevo with proper styling and branding
+  2. Set up template variables using the parameters listed
+  3. Test each template with sample data
+  4. Document template IDs in environment variables
+  5. Update email sending code to use new templates
+
+status: "planned"
+priority: 2
+tags: 
+  - "backend"
+  - "improvement"

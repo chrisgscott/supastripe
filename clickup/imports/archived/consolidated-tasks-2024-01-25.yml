@@ -1,0 +1,527 @@
+tasks:
+  - name: "Admin Portal"
+    description: "Comprehensive admin portal for PayKit team to manage users, monitor system health, and analyze business metrics."
+    status: "planned"
+    priority: 1
+    tags: ["feature", "admin"]
+    subtasks:
+      - name: "User Management"
+        description: |
+          User management interface for the admin portal.
+
+          Features:
+          - User list with advanced search and filters
+          - Detailed user profiles and history
+          - Account status management
+          - Activity logs
+          - Manual account actions
+          - Stripe Connect status monitoring
+          - User impersonation
+
+          Technical Requirements:
+          - Role-based access control
+          - Real-time updates
+          - Audit logging
+        status: "planned"
+        priority: 1
+        tags: ["feature", "admin"]
+
+      - name: "Monitoring Dashboard"
+        description: |
+          Real-time system monitoring dashboard.
+
+          Features:
+          - System status overview
+          - Job queue monitoring
+          - Error rate tracking
+          - Performance metrics
+          - Resource usage monitoring
+          - API usage tracking
+          - Alert configuration
+
+          Technical Requirements:
+          - Real-time data updates
+          - Metric aggregation
+          - Alert system
+        status: "planned"
+        priority: 1
+        tags: ["feature", "admin"]
+
+      - name: "Analytics Suite"
+        description: |
+          Business analytics and reporting tools.
+
+          Features:
+          - Revenue metrics and forecasting
+          - User growth analysis
+          - Payment plan analytics
+          - Conversion tracking
+          - Churn analysis
+          - Custom report builder
+          - Export capabilities
+
+          Technical Requirements:
+          - Data warehouse integration
+          - Report generation engine
+          - Export functionality
+        status: "planned"
+        priority: 1
+        tags: ["feature", "admin", "analytics"]
+
+      - name: "System Configuration"
+        description: |
+          System-wide configuration management.
+
+          Features:
+          - Email template management
+          - Payment settings
+          - Security settings
+          - Feature flags
+          - Business hours
+          - API key management
+          - Webhook configuration
+
+          Technical Requirements:
+          - Configuration validation
+          - Change tracking
+          - Version control
+        status: "planned"
+        priority: 1
+        tags: ["feature", "admin"]
+
+  - name: "Email System"
+    description: "Enterprise-grade email system using Brevo for all customer communications."
+    status: "in progress"
+    priority: 1
+    tags: ["feature", "integration"]
+    subtasks:
+      - name: "Brevo Integration Setup"
+        description: |
+          Core Brevo email service integration.
+
+          Features:
+          - API integration
+          - Webhook handling
+          - Error recovery
+          - Event logging
+          - Rate limiting
+          - Retry mechanism
+          - Idempotency handling
+
+          Technical Requirements:
+          - Secure API key management
+          - Error handling
+          - Monitoring
+        status: "in progress"
+        priority: 1
+        tags: ["feature", "integration"]
+
+      - name: "Template System"
+        description: |
+          Email template management system.
+
+          Features:
+          - Template creation interface
+          - Dynamic content blocks
+          - Variable management
+          - Template testing
+          - Version control
+          - Preview functionality
+
+          Templates to Create:
+          - Payment plan creation
+          - Payment link delivery
+          - Payment confirmation
+          - Payment reminders
+          - Failed payment notifications
+          - Plan completion
+          - Card update requests
+          - Method update confirmation
+
+          Technical Requirements:
+          - Template validation
+          - Variable validation
+          - Preview rendering
+        status: "in progress"
+        priority: 1
+        tags: ["feature", "integration"]
+
+      - name: "Delivery Management"
+        description: |
+          Email delivery and tracking system.
+
+          Features:
+          - Delivery tracking
+          - Bounce handling
+          - Spam monitoring
+          - Analytics dashboard
+          - A/B testing
+          - Blacklist management
+
+          Technical Requirements:
+          - Event tracking
+          - Analytics integration
+          - Testing framework
+        status: "planned"
+        priority: 2
+        tags: ["feature", "integration"]
+
+  - name: "Payment Plan System"
+    description: "State-of-the-art payment plan management system with advanced features."
+    status: "in progress"
+    priority: 1
+    tags: ["feature", "core"]
+    subtasks:
+      - name: "Core Management"
+        description: |
+          Core payment plan management features.
+
+          Features:
+          - Plan creation wizard
+          - Schedule management
+          - Early payoff handling
+          - Pause/Resume functionality
+          - Bulk operations
+          - Cancel/Delete operations
+          - Refund processing
+          - Invoice attachments
+          - Stripe integration
+
+          Technical Requirements:
+          - Data validation
+          - Transaction management
+          - Audit logging
+        status: "in progress"
+        priority: 1
+        tags: ["feature", "core"]
+
+      - name: "Smart Optimization"
+        description: |
+          AI-powered payment plan optimization.
+
+          Features:
+          - Plan recommendations
+          - Payment date optimization
+          - Risk assessment
+          - Success rate analysis
+          - Default prevention
+          - Retry strategy
+
+          Technical Requirements:
+          - ML model integration
+          - Real-time scoring
+          - Performance monitoring
+        status: "backlog"
+        priority: 2
+        tags: ["feature", "ai"]
+
+      - name: "UI Components"
+        description: |
+          Payment plan interface components.
+
+          Features:
+          - Schedule builder
+          - Payment calculator
+          - Status dashboard
+          - Table views
+          - CSV export
+          - Bulk actions
+          - Mobile interface
+
+          Technical Requirements:
+          - Component library
+          - Responsive design
+          - Accessibility
+        status: "in progress"
+        priority: 1
+        tags: ["feature", "frontend"]
+
+  - name: "Customer Portal"
+    description: "Feature-rich customer portal providing self-service capabilities."
+    status: "planned"
+    priority: 1
+    tags: ["feature", "frontend"]
+    subtasks:
+      - name: "Payment Management"
+        description: |
+          Customer payment management interface.
+
+          Features:
+          - Payment method updates
+          - Payment history
+          - Receipt downloads
+          - Schedule modifications
+          - Early payoff calculator
+          - Refund requests
+
+          Technical Requirements:
+          - Secure payment handling
+          - Real-time updates
+          - PDF generation
+        status: "planned"
+        priority: 1
+        tags: ["feature", "frontend"]
+
+      - name: "Account Management"
+        description: |
+          Customer account management features.
+
+          Features:
+          - Profile settings
+          - Notification preferences
+          - Communication history
+          - Document access
+          - Activity timeline
+          - Security settings
+
+          Technical Requirements:
+          - Data validation
+          - Security controls
+          - Audit logging
+        status: "planned"
+        priority: 1
+        tags: ["feature", "frontend"]
+
+      - name: "Mobile Experience"
+        description: |
+          Mobile-optimized customer interface.
+
+          Features:
+          - Responsive design
+          - Touch interface
+          - Mobile payments
+          - Push notifications
+          - Offline support
+          - App-like experience
+
+          Technical Requirements:
+          - PWA implementation
+          - Service workers
+          - Push notifications
+        status: "planned"
+        priority: 2
+        tags: ["feature", "frontend"]
+
+  - name: "Document Management"
+    description: "Advanced document processing and management system with AI capabilities."
+    status: "backlog"
+    priority: 2
+    tags: ["feature", "backend"]
+    subtasks:
+      - name: "Processing Engine"
+        description: |
+          Document processing and OCR system.
+
+          Features:
+          - Invoice scanning
+          - OCR processing
+          - Data extraction
+          - Categorization
+          - Batch processing
+          - Quality control
+
+          Technical Requirements:
+          - OCR accuracy
+          - Processing speed
+          - Error handling
+        status: "backlog"
+        priority: 2
+        tags: ["feature", "backend"]
+
+      - name: "Contract Management"
+        description: |
+          Contract management system.
+
+          Features:
+          - Template generation
+          - E-signature integration
+          - Version control
+          - Compliance checking
+          - Approval workflows
+          - Audit trailing
+
+          Technical Requirements:
+          - Template engine
+          - Signature validation
+          - Storage management
+        status: "backlog"
+        priority: 2
+        tags: ["feature", "backend"]
+
+  - name: "Multi-Currency Support"
+    description: "Comprehensive multi-currency payment handling system supporting global transactions."
+    status: "backlog"
+    priority: 2
+    tags: ["feature", "backend"]
+    subtasks:
+      - name: "Core Implementation"
+        description: |
+          Core multi-currency support.
+
+          Features:
+          - Currency management
+          - Exchange rates
+          - Conversion engine
+          - Fee optimization
+          - Risk management
+          - Settlement options
+
+          Technical Requirements:
+          - Exchange rate accuracy
+          - Real-time updates
+          - Compliance handling
+        status: "backlog"
+        priority: 2
+        tags: ["feature", "backend"]
+
+      - name: "Payment Processing"
+        description: |
+          Multi-currency payment handling.
+
+          Features:
+          - Local payment methods
+          - Currency rules
+          - Cross-border payments
+          - Fee structure
+          - Compliance handling
+          - Settlement options
+
+          Technical Requirements:
+          - Payment processing
+          - Fee calculation
+          - Compliance checks
+        status: "backlog"
+        priority: 2
+        tags: ["feature", "backend"]
+
+  - name: "System Hardening"
+    description: "Comprehensive system hardening and performance optimization initiative."
+    status: "planned"
+    priority: 1
+    tags: ["technical"]
+    subtasks:
+      - name: "Database Optimization"
+        description: |
+          Database performance optimization.
+
+          Features:
+          - Transaction management
+          - Commit verification
+          - Batch processing
+          - Query optimization
+          - Index management
+          - Connection pooling
+
+          Technical Requirements:
+          - Performance metrics
+          - Monitoring system
+          - Backup strategy
+        status: "planned"
+        priority: 1
+        tags: ["technical"]
+
+      - name: "Error Handling"
+        description: |
+          Comprehensive error handling system.
+
+          Features:
+          - Error messages
+          - Recovery flows
+          - Error boundaries
+          - Retry mechanisms
+          - Fallback handling
+          - Error tracking
+
+          Technical Requirements:
+          - Error monitoring
+          - Recovery testing
+          - User feedback
+        status: "planned"
+        priority: 1
+        tags: ["technical"]
+
+      - name: "Job Processing"
+        description: |
+          Background job processing system.
+
+          Features:
+          - Payment processing
+          - Email sending
+          - Batch processing
+          - Job scheduling
+          - Queue management
+          - Failure handling
+
+          Technical Requirements:
+          - Queue management
+          - Error recovery
+          - Monitoring
+        status: "planned"
+        priority: 1
+        tags: ["technical"]
+
+  - name: "Third-Party Integrations"
+    description: "Comprehensive integration hub for connecting with external services."
+    status: "backlog"
+    priority: 2
+    tags: ["feature", "integration"]
+    subtasks:
+      - name: "CRM Systems"
+        description: |
+          CRM system integrations.
+
+          Features:
+          - Data synchronization
+          - Activity tracking
+          - Contact management
+          - Lead scoring
+          - Opportunity tracking
+          - Analytics sharing
+
+          Technical Requirements:
+          - API compatibility
+          - Data mapping
+          - Sync management
+        status: "backlog"
+        priority: 2
+        tags: ["feature", "integration"]
+
+      - name: "Accounting Systems"
+        description: |
+          Accounting system integrations.
+
+          Features:
+          - Transaction sync
+          - Invoice management
+          - Financial reporting
+          - Tax calculation
+          - Reconciliation
+          - Audit trails
+
+          Technical Requirements:
+          - Data accuracy
+          - Sync validation
+          - Error handling
+        status: "backlog"
+        priority: 2
+        tags: ["feature", "integration"]
+
+      - name: "Authentication"
+        description: |
+          Authentication provider integrations.
+
+          Features:
+          - Multiple auth methods
+          - SSO integration
+          - Identity management
+          - Access control
+          - Security monitoring
+          - Compliance handling
+
+          Technical Requirements:
+          - Security standards
+          - Token management
+          - Session handling
+        status: "backlog"
+        priority: 2
+        tags: ["feature", "integration", "auth"]

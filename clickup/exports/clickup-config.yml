@@ -1,0 +1,29 @@
+tags:
+  - name: "feature"
+    bg_color: "#0051CC"  # Blue
+    fg_color: "#FFFFFF"
+  - name: "improvement"
+    bg_color: "#60B515"  # Green
+    fg_color: "#FFFFFF"
+  - name: "technical"
+    bg_color: "#A352CC"  # Purple
+    fg_color: "#FFFFFF"
+  - name: "frontend"
+    bg_color: "#00C2E0"  # Light Blue
+    fg_color: "#FFFFFF"
+  - name: "backend"
+    bg_color: "#60B515"  # Light Green
+    fg_color: "#FFFFFF"
+  - name: "stripe"
+    bg_color: "#A352CC"  # Purple
+    fg_color: "#FFFFFF"
+  - name: "auth"
+    bg_color: "#F5CD47"  # Orange
+    fg_color: "#000000"
+
+tasks:
+  - name: "Status Configuration"
+    description: "Configure the following statuses in order:\n1. backlog (Gray #808080)\n2. planned (Blue #0051CC)\n3. ready (Cyan #00C2E0)\n4. in progress (Yellow/Orange #F5CD47)\n5. review (Purple #A352CC)\n6. done (Green #60B515)\n7. bug (Red #E8384F)"
+    priority: 1
+    status: "in progress"
+    tags: ["technical"]

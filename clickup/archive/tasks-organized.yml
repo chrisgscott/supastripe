@@ -1,0 +1,407 @@
+tasks:
+  - name: "Implement Email Notification System"
+    description: "Comprehensive email system implementation using Brevo for transactional and marketing emails. This system will handle all customer communications including payment reminders, plan approvals, and account notifications.
+
+    Technical Requirements:
+    - Brevo API integration with proper error handling and retries
+    - Idempotency key implementation to prevent duplicate emails
+    - Proper parameter validation before sending to Brevo templates
+    - Comprehensive logging of all email activities and delivery status
+    
+    Example Implementation:
+    ```typescript
+    async function sendTemplatedEmail(to: string, templateId: number, params: BrevoTemplateParams): Promise<boolean> {
+      const idempotencyKey = `email_${templateId}_${to}_${Date.now()}`;
+      try {
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'api-key': process.env.BREVO_API_KEY
+          },
+          body: JSON.stringify({
+            to: [{ email: to }],
+            templateId,
+            params,
+            idempotencyKey
+          })
+        });
+        return response.ok;
+      } catch (error) {
+        logger.error('Failed to send email', { templateId, to, error });
+        throw new EmailSendError('Failed to send email', { cause: error });
+      }
+    }
+    ```
+    status: "in progress"
+    priority: 2
+    tags: ["backend", "feature", "integration"]
+    subtasks:
+      - name: "Configure Brevo Integration"
+        description: "Set up and configure Brevo API integration with proper error handling:
+          - API key management in environment variables
+          - Webhook configuration for email events
+          - Email sending service with retry logic
+          - Error logging and monitoring
+          
+        Implementation Example:
+        ```typescript
+        const RETRY_ATTEMPTS = 3;
+        const RETRY_DELAY = 1000;
+
+        async function sendWithRetry(emailData: EmailData): Promise<boolean> {
+          let attempts = RETRY_ATTEMPTS;
+          while (attempts > 0) {
+            try {
+              // Implementation details...
+            } catch (error) {
+              attempts--;
+              if (attempts === 0) throw error;
+              await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+            }
+          }
+        }
+        ```
+        status: "in progress"
+        priority: 2
+        tags: ["backend", "integration"]
+
+      - name: "Set up Email Templates"
+        description: "Configure and test Brevo email templates for various notifications:
+          - Payment reminder emails with dynamic payment amount and due date
+          - Plan approval requests with secure approval links
+          - Payment confirmation receipts with transaction details
+          - Account updates and notifications
+          - Welcome emails with getting started information
+          
+        Implementation Focus:
+        - Template ID management and validation
+        - Parameter validation for each template type
+        - Testing templates with various parameter combinations
+        - Monitoring template performance and delivery rates
+        
+        Example Usage:
+        ```typescript
+        interface PaymentReminderParams {
+          customer_name: string;
+          amount: string;
+          due_date: string;
+          payment_link: string;
+        }
+        
+        const TEMPLATES = {
+          PAYMENT_REMINDER: 1234,
+          PLAN_APPROVAL: 5678,
+          PAYMENT_CONFIRMATION: 9012
+        } as const;
+        
+        // Validate and send payment reminder
+        await sendTemplatedEmail(
+          customer.email,
+          TEMPLATES.PAYMENT_REMINDER,
+          {
+            customer_name: customer.name,
+            amount: formatCurrency(payment.amount),
+            due_date: formatDate(payment.dueDate),
+            payment_link: generatePaymentLink(payment.id)
+          }
+        );
+        ```
+        status: "planned"
+        priority: 2
+        tags: ["frontend", "improvement"]
+
+      - name: "Implement Email Settings UI"
+        description: "Create user interface for managing email settings and preferences"
+        status: "planned"
+        priority: 3
+        tags: ["frontend", "improvement"]
+
+      - name: "Add Email Sending Service"
+        description: "Implement service layer for handling email sending operations with proper error handling and retry logic"
+        status: "in progress"
+        priority: 2
+        tags: ["backend", "technical"]
+
+      - name: "Configure Contact List Management"
+        description: "Implement contact list management in Brevo including:
+          - Automatic list updates
+          - Contact synchronization
+          - List segmentation
+          - Unsubscribe handling"
+        status: "backlog"
+        priority: 3
+        tags: ["backend", "improvement"]
+
+  - name: "Payment Plan Interface Components"
+    description: "Complete UI implementation for payment plan management, including creation, viewing, and modification of payment plans.
+    
+    Technical Stack:
+    - React with TypeScript
+    - Stripe Elements integration
+    - TailwindCSS for styling
+    - React Query for data fetching
+    
+    Key Features:
+    - Interactive payment schedule builder
+    - Real-time payment calculations
+    - Stripe payment form integration
+    - Error handling and validation"
+    status: "in progress"
+    priority: 1
+    tags: ["frontend", "feature"]
+    subtasks:
+      - name: "Plan Creation Flow"
+        description: "Implement step-by-step flow for creating new payment plans:
+          - Basic plan details form with validation
+          - Payment schedule configuration
+          - Customer information collection
+          - Payment method setup with Stripe Elements
+          - Final review and activation process
+          
+        Implementation Example:
+        ```typescript
+        const handleSubmit = async (e: React.FormEvent) => {
+          e.preventDefault();
+          if (isFormValid()) {
+            setIsLoading(true);
+            try {
+              const newSchedule = calculatePaymentSchedule();
+              const response = await fetch('/api/create-payment-plan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  customerDetails,
+                  paymentSchedule: newSchedule,
+                  stripeToken
+                })
+              });
+              // Handle response...
+            } catch (error) {
+              handleError(error);
+            }
+          }
+        };
+        ```
+        status: "in progress"
+        priority: 1
+        tags: ["frontend", "feature"]
+
+      - name: "Plan Details View"
+        description: "Comprehensive plan details page showing:
+          - Plan summary
+          - Payment schedule
+          - Customer information
+          - Payment history
+          - Direct link to Stripe record"
+        status: "review"
+        priority: 1
+        tags: ["frontend", "feature"]
+
+      - name: "Payment Schedule Component"
+        description: "Interactive component for viewing and managing payment schedules:
+          - Visual timeline of payments
+          - Payment modification interface
+          - Schedule adjustment tools"
+        status: "planned"
+        priority: 2
+        tags: ["frontend", "feature"]
+
+      - name: "Plan Actions Implementation"
+        description: "Implement core plan management actions:
+          - Cancel plan functionality
+          - Delete plan option
+          - Refund payment processing
+          - Payment schedule modifications"
+        status: "planned"
+        priority: 2
+        tags: ["frontend", "backend", "feature"]
+
+      - name: "Export Functionality"
+        description: "Implement data export features:
+          - CSV export of payment plans
+          - Transaction history export
+          - Custom column selection
+          - Filtered data export"
+        status: "backlog"
+        priority: 3
+        tags: ["frontend", "improvement"]
+
+  - name: "System Hardening & Performance"
+    description: "Comprehensive system hardening and performance optimization initiatives.
+    
+    Focus Areas:
+    - Database transaction management
+    - Payment processing optimization
+    - Error handling and recovery
+    - Performance monitoring
+    
+    Technical Requirements:
+    - Implement proper database transaction boundaries
+    - Add comprehensive error logging
+    - Set up performance metrics tracking
+    - Implement proper retry strategies"
+    status: "planned"
+    priority: 1
+    tags: ["technical", "improvement"]
+    subtasks:
+      - name: "Payment Processing Optimization"
+        description: "Optimize payment processing job for better performance:
+          - Implement batch processing (100 records per batch)
+          - Add proper error handling and recovery
+          - Implement job monitoring
+          - Add performance metrics tracking
+          
+        Implementation Example:
+        ```typescript
+        const MAX_BATCH_SIZE = 100;
+        
+        async function processPaymentBatch() {
+          const { data: transactions } = await supabase
+            .from('transactions')
+            .select('*')
+            .eq('status', 'pending')
+            .limit(MAX_BATCH_SIZE);
+            
+          const results = await Promise.allSettled(
+            transactions.map(async (transaction) => {
+              const idempotencyKey = `payment_${transaction.id}_${Date.now()}`;
+              try {
+                // Process payment...
+              } catch (error) {
+                // Handle error...
+              }
+            })
+          );
+          
+          // Log results...
+        }
+        ```
+        status: "planned"
+        priority: 1
+        tags: ["backend", "technical", "stripe"]
+
+      - name: "Database Transaction Management"
+        description: "Improve database transaction handling:
+          - Verify COMMIT process
+          - Implement proper transaction boundaries
+          - Add error recovery mechanisms
+          - Implement proper locking strategies
+          
+        Implementation Example:
+        ```sql
+        CREATE OR REPLACE FUNCTION process_payment(
+          p_transaction_id UUID,
+          p_amount INTEGER,
+          p_stripe_payment_intent_id TEXT
+        )
+        RETURNS JSON AS $$
+        BEGIN
+          -- Start transaction
+          BEGIN;
+            -- Update transaction status
+            UPDATE transactions
+            SET status = 'processing',
+                stripe_payment_intent_id = p_stripe_payment_intent_id
+            WHERE id = p_transaction_id;
+            
+            -- Additional processing...
+            
+            -- Commit transaction
+            COMMIT;
+          EXCEPTION WHEN OTHERS THEN
+            -- Rollback on error
+            ROLLBACK;
+            RAISE;
+        END;
+        $$ LANGUAGE plpgsql;"
+        status: "planned"
+        priority: 1
+        tags: ["backend", "technical"]
+
+      - name: "Frontend Error Handling"
+        description: "Enhance frontend error handling:
+          - Implement detailed error messages
+          - Add error tracking and logging
+          - Improve error recovery mechanisms
+          - Add user-friendly error displays"
+        status: "planned"
+        priority: 2
+        tags: ["frontend", "technical"]
+
+      - name: "Payment Retry Strategy"
+        description: "Implement comprehensive payment retry strategy:
+          - Configure retry intervals
+          - Add failure notifications
+          - Implement automatic retry limits
+          - Add manual retry options"
+        status: "planned"
+        priority: 1
+        tags: ["backend", "technical", "stripe"]
+
+  - name: "User Settings & Configuration"
+    description: "Complete user settings and configuration management system"
+    status: "in progress"
+    priority: 2
+    tags: ["feature", "frontend"]
+    subtasks:
+      - name: "Profile Management"
+        description: "Implement complete profile management:
+          - Personal information updates
+          - Business details
+          - Contact preferences
+          - Account deletion process"
+        status: "in progress"
+        priority: 2
+        tags: ["frontend", "feature", "auth"]
+
+      - name: "Stripe Integration Settings"
+        description: "Comprehensive Stripe integration configuration:
+          - API key management
+          - Webhook configuration
+          - Payment method settings
+          - Account linking process"
+        status: "in progress"
+        priority: 1
+        tags: ["frontend", "feature", "stripe"]
+
+      - name: "Notification Preferences"
+        description: "User notification settings:
+          - Email notification toggles
+          - Payment alert preferences
+          - System notification settings
+          - Communication preferences"
+        status: "planned"
+        priority: 3
+        tags: ["frontend", "improvement"]
+
+  - name: "Client Portal"
+    description: "Customer-facing portal for payment plan management:
+      - Plan approval/rejection
+      - Payment schedule viewing
+      - Payment method updates
+      - Document access
+      - Communication history"
+    status: "backlog"
+    priority: 2
+    tags: ["feature", "frontend", "backend"]
+
+  - name: "Payment Plan Templates"
+    description: "Template system for common payment plan configurations:
+      - Template creation interface
+      - Template management
+      - Quick plan creation from templates
+      - Template sharing options"
+    status: "backlog"
+    priority: 3
+    tags: ["feature", "improvement"]
+
+  - name: "Mobile Responsiveness"
+    description: "Address responsive design issues:
+      - Fix layout problems on small screens
+      - Implement mobile-first components
+      - Optimize touch interactions
+      - Improve mobile navigation"
+    status: "in progress"
+    priority: 1
+    tags: ["frontend", "improvement"]
