@@ -81,3 +81,48 @@ export async function PUT(request: Request) {
     return new NextResponse('Internal Server Error', { status: 500 })
   }
 }
+
+export async function GET(request: Request) {
+  const cookieStore = cookies()
+  
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+      },
+    }
+  )
+
+  try {
+    console.log('GET /api/profile - Starting...')
+    const { data: { user } } = await supabase.auth.getUser()
+    console.log('Current user:', user?.id)
+
+    if (!user) {
+      return new NextResponse('Unauthorized', { status: 401 })
+    }
+
+    // Get the profile
+    const { data: profile, error: fetchError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+    
+    console.log('Retrieved profile:', profile)
+
+    if (fetchError) {
+      console.error('Error fetching profile:', fetchError)
+      return new NextResponse('Failed to fetch profile', { status: 500 })
+    }
+
+    return NextResponse.json({ profile })
+  } catch (err) {
+    console.error('Error in profile fetch:', err)
+    return new NextResponse('Internal Server Error', { status: 500 })
+  }
+}

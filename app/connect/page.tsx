@@ -2,6 +2,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { EventTracker } from '@/components/EventTracker';
+import { useSearchParams } from 'react-router-dom';
 
 export default function ConnectPage() {
   const [accountCreatePending, setAccountCreatePending] = useState(false);
@@ -9,6 +11,8 @@ export default function ConnectPage() {
   const [error, setError] = useState(false);
   const [connectedAccountId, setConnectedAccountId] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(true);
+  const searchParams = useSearchParams();
+  const track = searchParams.get('track');
 
   useEffect(() => {
     fetchConnectedAccount();
@@ -36,6 +40,12 @@ export default function ConnectPage() {
 
   return (
     <div className="container">
+      {track === 'stripe_connected' && (
+        <EventTracker 
+          event="stripe_connected"
+          description="User connected their Stripe account"
+        />
+      )}
       <div className="banner">
         <h2>PayKit, LLC</h2>
       </div>

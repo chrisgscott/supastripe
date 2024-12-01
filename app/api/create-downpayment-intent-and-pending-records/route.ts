@@ -34,12 +34,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Generate unique IDs first
-    pendingPaymentPlanId = crypto.randomUUID();
-    const pendingCustomerId = crypto.randomUUID();
-    const pendingTransactionId = crypto.randomUUID();
-    const idempotencyKey = crypto.randomUUID();
-
     const paymentPlan = await request.json();
     const firstPayment = paymentPlan.paymentSchedule[0];
     firstPayment.transaction_type = 'downpayment';
@@ -89,9 +83,9 @@ export async function POST(request: Request) {
     // Proceed with creating the pending payment records
     const { error: dbError } = await supabase
       .rpc('create_pending_payment_records', {
-        p_customer_id: pendingCustomerId,
-        p_payment_plan_id: pendingPaymentPlanId,
-        p_transaction_id: pendingTransactionId,
+        p_customer_id: crypto.randomUUID(),
+        p_payment_plan_id: crypto.randomUUID(),
+        p_transaction_id: crypto.randomUUID(),
         p_customer_name: paymentPlan.customerName,
         p_customer_email: paymentPlan.customerEmail,
         p_user_id: user.id,
@@ -101,7 +95,7 @@ export async function POST(request: Request) {
         p_downpayment_amount: paymentPlan.downpaymentAmount.cents,
         p_payment_schedule: convertedPaymentSchedule,
         p_stripe_customer_id: stripeCustomer.id,
-        p_idempotency_key: idempotencyKey,
+        p_idempotency_key: crypto.randomUUID(),
         p_notes: paymentPlan.notes || null
       });
 
@@ -115,11 +109,31 @@ export async function POST(request: Request) {
 
     console.log('create-downpayment-intent-and-pending-records: Successfully created pending records');
 
+    // Track first payment plan creation
+    const { data: existingPlans, error: plansError } = await supabase
+      .from('payment_plans')
+      .select('id')
+      .eq('user_id', user.id)
+      .limit(1);
+
+    let trackingData = {};
+    if (!plansError && (!existingPlans || existingPlans.length === 0)) {
+      // This is their first plan, include tracking info in response
+      trackingData = {
+        track: 'first_plan_created',
+        metadata: {
+          plan_amount: paymentPlan.totalAmount.cents,
+          payment_frequency: paymentPlan.paymentInterval,
+          number_of_payments: paymentPlan.numberOfPayments
+        }
+      };
+    }
+
     const paymentAmount = firstPayment.amount.cents;
     const metadata = {
-      pending_payment_plan_id: pendingPaymentPlanId,
-      pending_transaction_id: pendingTransactionId,
-      pending_customer_id: pendingCustomerId,
+      pending_payment_plan_id: crypto.randomUUID(),
+      pending_transaction_id: crypto.randomUUID(),
+      pending_customer_id: crypto.randomUUID(),
       transaction_type: 'downpayment'
     };
 
@@ -136,15 +150,15 @@ export async function POST(request: Request) {
       },
       metadata
     }, {
-      idempotencyKey
+      idempotencyKey: crypto.randomUUID()
     });
 
     console.log('create-downpayment-intent-and-pending-records: Created PaymentIntent:', paymentIntent.id);
 
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
-      stripeCustomerId: stripeCustomer.id,
-      paymentPlanId: pendingPaymentPlanId
+      paymentIntentId: paymentIntent.id,
+      ...trackingData
     });
 
   } catch (error) {

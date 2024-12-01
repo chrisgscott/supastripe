@@ -37,15 +37,44 @@ export const updateSession = async (request: NextRequest) => {
 
     // This will refresh session if expired - required for Server Components
     // https://supabase.com/docs/guides/auth/server-side/nextjs
-    const user = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // Check if user has completed onboarding
+    let isOnboarded = false;
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('stripe_account_id, is_onboarded')
+        .eq('id', user.id)
+        .single();
+      
+      isOnboarded = profile?.is_onboarded || false;
+    }
+
+    // Redirect authenticated users away from auth pages
+    if ((request.nextUrl.pathname.startsWith("/sign-in") || 
+         request.nextUrl.pathname.startsWith("/sign-up")) && 
+        user) {
+      return NextResponse.redirect(new URL(isOnboarded ? "/dashboard" : "/onboarding", request.url));
+    }
 
     // protected routes
-    if (request.nextUrl.pathname.startsWith("/dashboard") && user.error) {
+    if (request.nextUrl.pathname.startsWith("/dashboard") && !user) {
       return NextResponse.redirect(new URL("/sign-in", request.url));
     }
 
-    if (request.nextUrl.pathname === "/" && !user.error) {
+    // Redirect non-onboarded users to onboarding
+    if (request.nextUrl.pathname.startsWith("/dashboard") && user && !isOnboarded) {
+      return NextResponse.redirect(new URL("/onboarding", request.url));
+    }
+
+    // Redirect onboarded users away from onboarding
+    if (request.nextUrl.pathname.startsWith("/onboarding") && user && isOnboarded) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    if (request.nextUrl.pathname === "/" && user) {
+      return NextResponse.redirect(new URL(isOnboarded ? "/dashboard" : "/onboarding", request.url));
     }
 
     return response;

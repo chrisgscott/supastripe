@@ -2,7 +2,13 @@ import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 import { PaymentSuccessClient } from './PaymentSuccessClient';
 
-export default async function PaymentSuccessPage({ params }: { params: { id: string } }) {
+export default async function PaymentSuccessPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams: { payment_intent: string };
+}) {
   const supabase = createClient();
 
   // First try to fetch from payment_plans
@@ -36,26 +42,42 @@ export default async function PaymentSuccessPage({ params }: { params: { id: str
       return redirect('/404');
     }
 
+    const { payment_intent: paymentIntentId } = searchParams;
+  
+    // Get payment intent details from Stripe
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const { track, metadata } = paymentIntent.metadata || {};
+
     return (
       <PaymentSuccessClient 
         planId={pendingPlan.id}
-        customerName={pendingPlan.pending_customers.name}
-        customerEmail={pendingPlan.pending_customers.email}
-        totalAmount={pendingPlan.total_amount}
-        numberOfPayments={pendingPlan.number_of_payments}
-        paymentInterval={pendingPlan.payment_interval}
+        customerName={paymentIntent.metadata.customer_name}
+        customerEmail={paymentIntent.metadata.customer_email}
+        totalAmount={paymentIntent.amount}
+        numberOfPayments={parseInt(paymentIntent.metadata.number_of_payments)}
+        paymentInterval={paymentIntent.metadata.payment_interval}
+        track={track}
+        metadata={metadata}
       />
     );
   }
 
+  const { payment_intent: paymentIntentId } = searchParams;
+  
+  // Get payment intent details from Stripe
+  const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+  const { track, metadata } = paymentIntent.metadata || {};
+
   return (
     <PaymentSuccessClient 
       planId={paymentPlan.id}
-      customerName={paymentPlan.customers[0].name}
-      customerEmail={paymentPlan.customers[0].email}
-      totalAmount={paymentPlan.total_amount}
-      numberOfPayments={paymentPlan.number_of_payments}
-      paymentInterval={paymentPlan.payment_interval}
+      customerName={paymentIntent.metadata.customer_name}
+      customerEmail={paymentIntent.metadata.customer_email}
+      totalAmount={paymentIntent.amount}
+      numberOfPayments={parseInt(paymentIntent.metadata.number_of_payments)}
+      paymentInterval={paymentIntent.metadata.payment_interval}
+      track={track}
+      metadata={metadata}
     />
   );
 }
