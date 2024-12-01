@@ -50,9 +50,8 @@ export interface OnboardingStep {
   completed: boolean;
   href: string;
   timeEstimate: string;
-  requiredInfo: string[];
-  verificationChecklist?: string[];
-  status: 'not_started' | 'in_progress' | 'completed' | 'failed';
+  requiredInfo?: string[];
+  status: 'not_started' | 'in_progress' | 'completed' | 'error';
 }
 
 export interface StepProps {
