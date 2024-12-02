@@ -35,6 +35,15 @@ export async function POST(req: Request) {
       case 'account.updated': {
         const account = event.data.object as Stripe.Account;
 
+        // Log the entire account object and specific fields we're interested in
+        console.log('Stripe Account Details:', JSON.stringify({
+          id: account.id,
+          business_type: account.business_type,
+          individual: account.individual,
+          company: account.company,
+          business_profile: account.business_profile
+        }, null, 2));
+
         // Update stripe_accounts table
         const { error: stripeError } = await supabase
           .from('stripe_accounts')
@@ -58,8 +67,8 @@ export async function POST(req: Request) {
             .single();
 
           if (stripeAccount) {
-            // Get the account owner's details from Stripe
-            const accountOwner = account.individual || account.company?.owners_provided && account.company.executives?.[0];
+            // Get the account representative's details from Stripe
+            const representative = account.representative;
             
             const profileUpdate: any = {
               business_name: account.business_profile?.name,
@@ -68,9 +77,9 @@ export async function POST(req: Request) {
               support_phone: account.business_profile?.support_phone,
               stripe_account_id: account.id,
               updated_at: new Date().toISOString(),
-              // Add first and last name from account owner
-              first_name: accountOwner?.first_name,
-              last_name: accountOwner?.last_name,
+              // Add first and last name from account representative
+              first_name: representative?.first_name,
+              last_name: representative?.last_name,
             };
 
             // Add address if available
