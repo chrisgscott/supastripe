@@ -81,11 +81,16 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
   const checkProgress = async () => {
     try {
       // Check if user has a Stripe account
-      const { data: profile } = await supabase
+      const { data: profile, error } = await supabase
         .from('profiles')
         .select('stripe_account_id, is_onboarded')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
+
+      if (error) {
+        console.error('Error fetching profile:', error)
+        return
+      }
 
       if (profile?.stripe_account_id) {
         setSteps((prevSteps: OnboardingStep[]) => {
@@ -101,13 +106,19 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
       }
 
       // Check if user has any payment plans
-      const { data: plans } = await supabase
+      const { data: plans, error: plansError } = await supabase
         .from('payment_plans')
         .select('id')
         .eq('user_id', user.id)
         .limit(1)
+        .maybeSingle()
 
-      if (plans && plans.length > 0) {
+      if (plansError) {
+        console.error('Error fetching payment plans:', plansError)
+        return
+      }
+
+      if (plans) {
         setSteps((prevSteps: OnboardingStep[]) => {
           const newSteps = [...prevSteps]
           newSteps[2] = { ...newSteps[2], completed: true, status: 'completed' as const }
@@ -126,7 +137,19 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
         throw new Error('Failed to fetch Stripe status');
       }
 
-      const data = await response.json();
+      // Log the raw response
+      const responseText = await response.text();
+      console.log('Raw response from /api/stripe-status:', responseText);
+      
+      // Try to parse as JSON
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Failed to parse response as JSON:', e);
+        throw new Error('Invalid JSON response from server');
+      }
+
       console.log('Stripe Account Status (raw):', data);
       console.log('Current step index:', currentStepIndex);
       console.log('Current steps:', steps);
@@ -214,7 +237,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
 
       if (error) {
         console.error('Error fetching profile:', error)

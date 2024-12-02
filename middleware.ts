@@ -194,6 +194,9 @@ function redirectToPath(path: string, requestUrl: string) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Match all paths except:
+    // - API routes (/api/*)
+    // - Static files (_next/static/*, _next/image/*, favicon.ico, *.svg, *.png, etc)
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

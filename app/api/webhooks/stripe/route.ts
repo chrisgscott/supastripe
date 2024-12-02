@@ -67,42 +67,79 @@ export async function POST(req: Request) {
             .single();
 
           if (stripeAccount) {
-            // Get the account representative's details from Stripe
-            const representative = account.representative;
-            
-            const profileUpdate: any = {
-              business_name: account.business_profile?.name,
-              business_url: account.business_profile?.url,
-              support_email: account.business_profile?.support_email,
-              support_phone: account.business_profile?.support_phone,
-              stripe_account_id: account.id,
+            // Get the business or individual details from Stripe
+            let profileUpdate: any = {
               updated_at: new Date().toISOString(),
-              // Add first and last name from account representative
-              first_name: representative?.first_name,
-              last_name: representative?.last_name,
+              stripe_account_id: account.id,
             };
 
-            // Add address if available
-            if (account.business_profile?.support_address) {
-              const address = account.business_profile.support_address;
-              profileUpdate.address_line1 = address.line1;
-              profileUpdate.address_line2 = address.line2;
-              profileUpdate.address_city = address.city;
-              profileUpdate.address_state = address.state;
-              profileUpdate.address_postal_code = address.postal_code;
-              profileUpdate.address_country = address.country;
+            // Add business profile details if available
+            if (account.business_profile) {
+              profileUpdate = {
+                ...profileUpdate,
+                business_name: account.business_profile.name,
+                business_url: account.business_profile.url,
+                support_email: account.business_profile.support_email,
+                support_phone: account.business_profile.support_phone,
+                business_description: account.business_profile.product_description,
+              };
             }
 
+            // Add individual details if available
+            if (account.individual) {
+              profileUpdate = {
+                ...profileUpdate,
+                first_name: account.individual.first_name,
+                last_name: account.individual.last_name,
+                phone: account.individual.phone,
+                email: account.individual.email,
+              };
+
+              // Add address from individual
+              if (account.individual.address) {
+                profileUpdate = {
+                  ...profileUpdate,
+                  address_line1: account.individual.address.line1,
+                  address_line2: account.individual.address.line2,
+                  address_city: account.individual.address.city,
+                  address_state: account.individual.address.state,
+                  address_postal_code: account.individual.address.postal_code,
+                  address_country: account.individual.address.country,
+                };
+              }
+            }
+
+            // Add company details if available
+            if (account.company) {
+              profileUpdate = {
+                ...profileUpdate,
+                business_name: account.company.name || profileUpdate.business_name,
+                phone: account.company.phone || profileUpdate.phone,
+              };
+
+              // Add address from company
+              if (account.company.address) {
+                profileUpdate = {
+                  ...profileUpdate,
+                  address_line1: account.company.address.line1,
+                  address_line2: account.company.address.line2,
+                  address_city: account.company.address.city,
+                  address_state: account.company.address.state,
+                  address_postal_code: account.company.address.postal_code,
+                  address_country: account.company.address.country,
+                };
+              }
+            }
+
+            // Update the profile with the collected information
             const { error: profileError } = await supabase
               .from('profiles')
-              .upsert({
-                id: stripeAccount.user_id,
-                ...profileUpdate
-              })
+              .update(profileUpdate)
               .eq('id', stripeAccount.user_id);
 
             if (profileError) {
-              console.error('Error updating profiles:', profileError);
+              console.error('Error updating profile:', profileError);
+              return NextResponse.json({ error: 'Database error' }, { status: 500 });
             }
           }
         }

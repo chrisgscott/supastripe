@@ -15,7 +15,17 @@ const nullToEmpty = (value: string | null): string => value || '';
 export default function ProfileSettings({ user, profile: initialProfile }: ProfileSettingsProps) {
   const [email, setEmail] = useState(user.email || '');
   const [password, setPassword] = useState('');
-  const [profile, setProfile] = useState<Profile>(initialProfile);
+  const [profile, setProfile] = useState<Profile>({
+    ...initialProfile,
+    first_name: initialProfile?.first_name || '',
+    last_name: initialProfile?.last_name || '',
+    company_name: initialProfile?.company_name || '',
+    phone: initialProfile?.phone || '',
+    id: initialProfile?.id || user.id,
+    created_at: initialProfile?.created_at || new Date().toISOString(),
+    updated_at: initialProfile?.updated_at || new Date().toISOString(),
+    email: initialProfile?.email || user.email || '',
+  });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -138,7 +148,7 @@ export default function ProfileSettings({ user, profile: initialProfile }: Profi
                 <Input
                   id="first_name"
                   name="first_name"
-                  value={nullToEmpty(profile.first_name)}
+                  value={profile?.first_name || ''}
                   onChange={handleInputChange}
                 />
               </div>
@@ -147,129 +157,28 @@ export default function ProfileSettings({ user, profile: initialProfile }: Profi
                 <Input
                   id="last_name"
                   name="last_name"
-                  value={nullToEmpty(profile.last_name)}
+                  value={profile?.last_name || ''}
                   onChange={handleInputChange}
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="business_name">Business Name</Label>
+              <Label htmlFor="company_name">Company Name</Label>
               <Input
-                id="business_name"
-                name="business_name"
-                value={nullToEmpty(profile.business_name)}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="business_type">Business Type</Label>
-                <Input
-                  id="business_type"
-                  name="business_type"
-                  value={nullToEmpty(profile.business_type)}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="business_url">Website URL</Label>
-                <Input
-                  id="business_url"
-                  name="business_url"
-                  type="url"
-                  value={nullToEmpty(profile.business_url)}
-                  onChange={handleInputChange}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="business_description">Business Description</Label>
-              <Input
-                id="business_description"
-                name="business_description"
-                value={nullToEmpty(profile.business_description)}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="support_email">Support Email</Label>
-                <Input
-                  id="support_email"
-                  name="support_email"
-                  type="email"
-                  value={nullToEmpty(profile.support_email)}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="support_phone">Support Phone</Label>
-                <Input
-                  id="support_phone"
-                  name="support_phone"
-                  type="tel"
-                  value={nullToEmpty(profile.support_phone)}
-                  onChange={handleInputChange}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="address_line1">Address Line 1</Label>
-              <Input
-                id="address_line1"
-                name="address_line1"
-                value={nullToEmpty(profile.address_line1)}
+                id="company_name"
+                name="company_name"
+                value={profile?.company_name || ''}
                 onChange={handleInputChange}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="address_line2">Address Line 2</Label>
+              <Label htmlFor="phone">Phone</Label>
               <Input
-                id="address_line2"
-                name="address_line2"
-                value={nullToEmpty(profile.address_line2)}
+                id="phone"
+                name="phone"
+                value={profile?.phone || ''}
                 onChange={handleInputChange}
               />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="address_city">City</Label>
-                <Input
-                  id="address_city"
-                  name="address_city"
-                  value={nullToEmpty(profile.address_city)}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address_state">State</Label>
-                <Input
-                  id="address_state"
-                  name="address_state"
-                  value={nullToEmpty(profile.address_state)}
-                  onChange={handleInputChange}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="address_postal_code">Postal Code</Label>
-                <Input
-                  id="address_postal_code"
-                  name="address_postal_code"
-                  value={nullToEmpty(profile.address_postal_code)}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address_country">Country</Label>
-                <Input
-                  id="address_country"
-                  name="address_country"
-                  value={nullToEmpty(profile.address_country)}
-                  onChange={handleInputChange}
-                />
-              </div>
             </div>
             <Button type="submit">Save Profile</Button>
           </form>
