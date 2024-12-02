@@ -4,12 +4,11 @@ import { User } from '@supabase/supabase-js'
 import { createClient } from '@/utils/supabase/client'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Loader2, ArrowRight, Check } from 'lucide-react'
+import { Loader2, ArrowRight, Check, BackpackIcon, MailIcon } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
-import NoWorkResult from 'postcss/lib/no-work-result'
 import { VerificationWaiting } from "./VerificationWaiting"
 
 export interface OnboardingStep {
@@ -52,13 +51,10 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
       href: '#',
       timeEstimate: '5-10 min',
       requiredInfo: [
-        'Legal business name or your full name',
-        'Phone number',
-        'Business website or description',
-        'Bank account details (for receiving payments)',
-        'Address information',
-        'Date of birth',
-        'Last 4 of SSN (for identity verification)',
+        'Basic business information',
+        'Contact details (email and phone)',
+        'Bank account for receiving payments',
+        'Identity verification documents'
       ],
       status: 'not-started',
       button_text: 'Start Secure Connection to Stripe',
@@ -184,7 +180,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
               stripeStep.completed = true;
               stripeStep.status = 'in-progress';
               stripeStep.description = 'Your account is under review by Stripe. We\'ll email you when verification is complete.';
-              stripeStep.button_text = 'View Verification Status';
+              stripeStep.button_text = 'Check Verification Status';
               stripeStep.timeEstimate = 'Under review (usually within 24 hours)';
               stripeStep.requiredInfo = ['✓ All information submitted', '⏳ Waiting for Stripe verification'];
             } else {
@@ -384,30 +380,23 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
   const progress = ((currentStepIndex / (steps.length - 1)) * 100)
 
   return (
-    <div className="container max-w-3xl mx-auto px-4 py-12 font-sans">
+    <div className="container max-w-3xl mx-auto px-5 py-12 font-sans">
       <div className="space-y-12">
         <div>
           <h1 className="text-2xl font-semibold">Welcome to PayKit</h1>
-          <p className="mt-2 text-muted-foreground">
-            You're just a few minutes away from your first payment plan!
-          </p>
+          <p className="text-muted-foreground">You're just a few minutes away from your first payment plan!</p>
         </div>
 
-        <div className="relative">
+        {/* Progress bar and steps */}
+        <div className="relative px-5">
           {/* Progress line */}
-          <div 
-            className="absolute top-5 h-[2px] bg-border"
-            style={{ 
-              width: 'calc(100% - 8rem)',
-              left: '3.5rem'
-            }}
-          >
-            <div 
-              className="absolute h-full bg-emerald-600 transition-all duration-500 ease-in-out"
-              style={{ 
-                width: `${progress}%`,
-              }}
-            />
+          <div className="absolute top-5 left-[80px] right-[80px]">
+            <div className="h-[2px] bg-muted">
+              <div 
+                className="h-full bg-gray-300 dark:bg-foreground-600 dark:bg-emerald-500 transition-all duration-500 ease-in-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
           </div>
 
           {/* Step indicators */}
@@ -415,44 +404,36 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
             {steps.map((step, index) => {
               const isCompleted = index < currentStepIndex;
               const isCurrent = index === currentStepIndex;
-              
+
               return (
-                <div key={step.id} className="flex flex-col items-center">
+                <div key={step.id} className="relative flex flex-col items-center">
                   <div 
                     className={cn(
                       "relative z-10 w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all duration-200",
-                      isCompleted && "border-emerald-600 bg-emerald-600 text-white",
-                      isCurrent && "border-gray-700 bg-gray-500 text-white",
-                      !isCompleted && !isCurrent && "border-muted-foreground/20 bg-background text-muted-foreground"
+                      isCompleted ? "border-emerald-600 dark:border-emerald-500 bg-emerald-600 dark:bg-emerald-500 text-white" :
+                      isCurrent ? "border-blue-800 bg-blue-200 text-blue-800" : 
+                      "border-gray-300 bg-gray-50 text-gray-500"
                     )}
                   >
                     {isCompleted ? (
-                      <Check className="h-5 w-5" />
+                      <Check className={cn(
+                        "h-5 w-5",
+                        "text-white"
+                      )} />
                     ) : (
-                      <span>{index + 1}</span>
+                      <span className={cn(
+                        "font-medium"
+                      )}>{index + 1}</span>
                     )}
                   </div>
-                  <div className="mt-2 text-center">
-                    <div 
-                      className={cn(
-                        "text-sm font-medium",
-                        isCompleted && "text-emerald-700 dark:text-emerald-500",
-                        isCurrent && "text-gray-800 dark:text-gray-500",
-                        !isCompleted && !isCurrent && "text-muted-foreground"
-                      )}
-                    >
-                      {step.title}
-                    </div>
-                    <div 
-                      className={cn(
-                        "text-xs mt-0.5",
-                        isCompleted && "text-emerald-600/80 dark:text-emerald-400/80",
-                        isCurrent && "text-gray-600/80 dark:text-gray-400/80",
-                        !isCompleted && !isCurrent && "text-muted-foreground/80"
-                      )}
-                    >
-                      {step.timeEstimate}
-                    </div>
+
+                  <div className="text-center mt-2">
+                    <div className={cn(
+                      "text-sm font-medium",
+                      isCompleted ? "text-emerald-600 dark:text-emerald-500" :
+                      isCurrent ? "text-blue-800" :
+                      "text-gray-500"
+                    )}>{step.title}</div>
                   </div>
                 </div>
               );
@@ -460,21 +441,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
           </div>
         </div>
 
-        {/* Show waiting component when account is under review */}
-        {steps[1].status === 'in-progress' && steps[1].completed && (
-          <VerificationWaiting onCheckStatus={checkStripeStatus} />
-        )}
-
         {/* Current step card */}
-        <div className="mb-4 text-right">
-          <button
-            onClick={handleReset}
-            className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:border-gray-400"
-          >
-            Reset Stripe Connection
-          </button>
-        </div>
-
         <Card>
           <CardContent className="pt-6">
             <div className="space-y-6">
@@ -485,7 +452,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
 
               {currentStep.requiredInfo && (
                 <div className="space-y-2">
-                  <h3 className="text-sm font-medium">Here&apos;s what you&apos;ll need:</h3>
+                  <h3 className="text-sm font-medium">Here's what you'll need:</h3>
                   <ul className="text-sm text-muted-foreground space-y-1">
                     {currentStep.requiredInfo.map((info, i) => (
                       <li key={i}>• {info}</li>
@@ -520,6 +487,21 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
             </div>
           </CardContent>
         </Card>
+
+        {/* While you wait card - only show when waiting for verification */}
+        {steps[1].status === 'in-progress' && steps[1].completed && (
+          <VerificationWaiting onCheckStatus={checkStripeStatus} />
+        )}
+
+        {/* Reset button */}
+        <div className="text-right">
+          <button
+            onClick={handleReset}
+            className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:border-gray-400"
+          >
+            Reset Stripe Connection
+          </button>
+        </div>
       </div>
     </div>
   )
