@@ -1,44 +1,65 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import { cookies } from 'next/headers';
+import { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
 
 export async function GET(request: Request) {
-  console.log('Auth callback initiated');
+  console.log('=== Auth Callback Started ===');
   const requestUrl = new URL(request.url);
-  const code = requestUrl.searchParams.get("code");
-  const baseUrl = 'http://127.0.0.1:3000';
+  console.log('Callback URL:', requestUrl.pathname + requestUrl.search);
   
-  // Log all request headers
+  const code = requestUrl.searchParams.get("code");
+  const next = requestUrl.searchParams.get("next") || '/dashboard';
+  const error = requestUrl.searchParams.get("error");
+  const error_description = requestUrl.searchParams.get("error_description");
+
+  console.log('URL Parameters:', {
+    hasCode: !!code,
+    next,
+    error,
+    error_description
+  });
+
+  const baseUrl = process.env.NODE_ENV === 'production' 
+    ? process.env.NEXT_PUBLIC_SITE_URL 
+    : 'http://localhost:3000';
+  
+  // Log request details
   const headerObj: Record<string, string> = {};
   request.headers.forEach((value, key) => {
-    headerObj[key] = value;
+    // Skip logging sensitive headers
+    if (!['cookie', 'authorization'].includes(key.toLowerCase())) {
+      headerObj[key] = value;
+    }
   });
   console.log('Request headers:', headerObj);
 
-  // Log all cookies
+  // Log cookies safely
   const cookieStore = cookies();
   const allCookies = cookieStore.getAll();
-  console.log('All cookies in callback:', allCookies.map(c => ({ 
+  console.log('Incoming cookies:', allCookies.map(c => ({ 
     name: c.name, 
-    value: c.name.includes('code-verifier') ? 'present' : c.value
+    value: c.name.includes('code-verifier') || c.name.includes('auth') ? '[REDACTED]' : c.value
   })));
 
+  if (error || error_description) {
+    console.error('OAuth error in callback:', { error, error_description });
+    return NextResponse.redirect(`${baseUrl}/sign-in?error=oauth_error&description=${error_description}`);
+  }
+
   if (!code) {
-    console.error('No code present in callback URL');
+    console.error('No authorization code present in callback URL');
     return NextResponse.redirect(`${baseUrl}/sign-in?error=no_code`);
   }
 
   try {
     const supabase = createClient();
-    console.log('Exchanging code for session...');
-    
-    // Log the code we're trying to exchange (first 10 chars only for security)
-    console.log('Auth code prefix:', code.substring(0, 10) + '...');
+    console.log('Attempting to exchange code for session...');
     
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     
     if (error) {
-      console.error('Error exchanging code for session:', {
+      console.error('Session exchange error:', {
         name: error.name,
         message: error.message,
         status: error.status,
@@ -48,11 +69,12 @@ export async function GET(request: Request) {
     }
 
     if (!data.session) {
-      console.error('No session in exchange response. Full response:', data);
+      console.error('No session returned after code exchange');
       return NextResponse.redirect(`${baseUrl}/sign-in?error=no_session`);
     }
 
     // Get user details
+    console.log('Getting user details...');
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
     if (userError || !user) {
@@ -60,29 +82,53 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${baseUrl}/sign-in?error=user_error`);
     }
 
-    console.log('Session established successfully:', {
-      user: user.id,
+    // Check if profile exists, create if it doesn't
+    const serviceRoleClient = createClient(true);
+    const { data: profile } = await serviceRoleClient
+      .from('profiles')
+      .select()
+      .eq('id', user.id)
+      .single();
+
+    if (!profile) {
+      const { error: profileError } = await serviceRoleClient
+        .from('profiles')
+        .insert([
+          { 
+            id: user.id,
+            is_onboarded: false
+          }
+        ]);
+
+      if (profileError) {
+        console.error('Error creating profile:', profileError);
+        return NextResponse.redirect(`${baseUrl}/sign-in?error=profile_creation_failed`);
+      }
+    }
+
+    console.log('Authentication successful:', {
+      userId: user.id,
       email: user.email,
-      isNew: user.created_at === user.last_sign_in_at,
-      expiresAt: data.session.expires_at
+      provider: user.app_metadata.provider,
+      isNewUser: user.created_at === user.last_sign_in_at,
+      emailConfirmed: user.email_confirmed_at,
+      sessionExpires: data.session.expires_at
     });
 
-    // Create a response with the redirect
-    const response = NextResponse.redirect(`${baseUrl}/dashboard`);
+    // Create response with redirect
+    const response = NextResponse.redirect(`${baseUrl}${next}`);
 
-    // Get the updated cookie store after session exchange
-    const updatedCookieStore = cookies();
-    const updatedCookies = updatedCookieStore.getAll();
-    
-    console.log('Cookies after session exchange:', updatedCookies.map(c => ({ 
+    // Log final cookies
+    const finalCookies = cookieStore.getAll();
+    console.log('Final cookies being set:', finalCookies.map(c => ({ 
       name: c.name, 
-      value: c.name.includes('code-verifier') ? 'present' : c.value
+      value: c.name.includes('code-verifier') || c.name.includes('auth') ? '[REDACTED]' : c.value
     })));
-
-    // Copy all cookies to the response
-    updatedCookies.forEach(cookie => {
+    
+    // Set cookies in response
+    finalCookies.forEach(cookie => {
       response.cookies.set(cookie.name, cookie.value, {
-        domain: '127.0.0.1',
+        domain: 'localhost',
         path: '/',
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
@@ -91,6 +137,7 @@ export async function GET(request: Request) {
       });
     });
 
+    console.log('=== Auth Callback Completed Successfully ===');
     return response;
   } catch (error) {
     console.error('Unexpected error in callback:', error);

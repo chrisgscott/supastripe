@@ -1,18 +1,26 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-export const createClient = () => {
+export const createClient = (useServiceRole: boolean = false) => {
   const cookieStore = cookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    useServiceRole ? process.env.SUPABASE_SERVICE_ROLE_KEY! : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       auth: {
         flowType: 'pkce',
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,
+      },
+      cookieOptions: {
+        name: 'sb-auth-token',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        httpOnly: true,
+        maxAge: 60 * 60 * 24 * 7 // 1 week
       },
       cookies: {
         get(name: string) {
@@ -29,7 +37,6 @@ export const createClient = () => {
               secure: process.env.NODE_ENV === 'production',
               sameSite: 'lax',
               path: '/',
-              domain: '127.0.0.1',
               httpOnly: true,
               maxAge: 60 * 60 * 24 * 7 // 1 week
             });
@@ -42,18 +49,17 @@ export const createClient = () => {
             console.log(`Removing cookie ${name}`);
             cookieStore.set(name, '', {
               ...options,
-              maxAge: 0,
+              maxAge: -1,
               secure: process.env.NODE_ENV === 'production',
               sameSite: 'lax',
               path: '/',
-              domain: '127.0.0.1',
               httpOnly: true
             });
           } catch (error) {
             console.error(`Error removing cookie ${name}:`, error);
           }
         },
-      },
-    },
+      }
+    }
   );
 };

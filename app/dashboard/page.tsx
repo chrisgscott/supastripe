@@ -17,7 +17,7 @@ import { Money } from '@/utils/currencyUtils';
 import { ActivityLogsTable } from './components/ActivityLogsTable';
 import { createClient } from '@/utils/supabase/client';
 import OnboardingProgress from '@/components/OnboardingProgress';
-
+import type { User } from '@supabase/supabase-js';
 
 const queryClient = new QueryClient();
 
@@ -53,16 +53,8 @@ function Dashboard() {
   const [userName, setUserName] = useState('');
   const [isLoadingPaymentData, setIsLoadingPaymentData] = useState(true);
   const [isOnboarded, setIsOnboarded] = useState<boolean | null>(null);
-
-  const fetchUserName = async () => {
-    try {
-      const response = await fetch('/api/user-name');
-      const data = await response.json();
-      setUserName(data.firstName || '');
-    } catch (error) {
-      console.error('Error fetching user name:', error);
-    }
-  };
+  const [user, setUser] = useState<User | null>(null);
+  const supabase = createClient();
 
   useEffect(() => {
     fetchPaymentData();
@@ -79,6 +71,14 @@ function Dashboard() {
   useEffect(() => {
     fetchScheduledRevenue(pendingTimeFrame);
   }, [pendingTimeFrame]);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    getUser();
+  }, []);
 
   const fetchPaymentData = async () => {
     setIsLoadingPaymentData(true);
@@ -151,6 +151,16 @@ function Dashboard() {
       .single();
     
     setIsOnboarded(!!profile?.is_onboarded);
+  };
+
+  const fetchUserName = async () => {
+    try {
+      const response = await fetch('/api/user-name');
+      const data = await response.json();
+      setUserName(data.firstName || '');
+    } catch (error) {
+      console.error('Error fetching user name:', error);
+    }
   };
 
   return (
@@ -251,7 +261,9 @@ function Dashboard() {
         </div>
 
         <div>
-          {isOnboarded ? <ActivityLogsTable /> : <OnboardingProgress />}
+          {isOnboarded ? <ActivityLogsTable /> : user ? (
+            <OnboardingProgress user={user} />
+          ) : null}
         </div>
       </div>
     </div>
