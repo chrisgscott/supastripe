@@ -6,8 +6,9 @@ import { usePathname } from 'next/navigation'
 export default function Template({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isOnboarding = pathname === '/onboarding'
+  const isAuthPage = pathname?.startsWith('/sign-')
 
-  if (isOnboarding) {
+  if (isOnboarding || isAuthPage) {
     return children
   }
 

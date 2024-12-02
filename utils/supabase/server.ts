@@ -8,19 +8,49 @@ export const createClient = () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      auth: {
+        flowType: 'pkce',
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+      },
       cookies: {
-        getAll() {
-          return cookieStore.getAll();
+        get(name: string) {
+          const cookie = cookieStore.get(name);
+          console.log(`Getting cookie ${name}:`, cookie?.value ? (name.includes('code-verifier') ? 'present' : cookie.value) : 'undefined');
+          return cookie?.value;
         },
-        setAll(cookiesToSet) {
+        set(name: string, value: string, options: any) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
+            console.log(`Setting cookie ${name}:`, name.includes('code-verifier') ? 'present' : value);
+            cookieStore.set(name, value, {
+              ...options,
+              // Always set these cookie options
+              secure: process.env.NODE_ENV === 'production',
+              sameSite: 'lax',
+              path: '/',
+              domain: '127.0.0.1',
+              httpOnly: true,
+              maxAge: 60 * 60 * 24 * 7 // 1 week
             });
           } catch (error) {
-            // The `set` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
+            console.error(`Error setting cookie ${name}:`, error);
+          }
+        },
+        remove(name: string, options: any) {
+          try {
+            console.log(`Removing cookie ${name}`);
+            cookieStore.set(name, '', {
+              ...options,
+              maxAge: 0,
+              secure: process.env.NODE_ENV === 'production',
+              sameSite: 'lax',
+              path: '/',
+              domain: '127.0.0.1',
+              httpOnly: true
+            });
+          } catch (error) {
+            console.error(`Error removing cookie ${name}:`, error);
           }
         },
       },

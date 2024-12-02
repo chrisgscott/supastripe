@@ -18,7 +18,7 @@ Brief description of your project.
    npm run dev
    ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+5. Open [http://127.0.0.1:3000](http://127.0.0.1:3000) in your browser.
 
 ## Features
 

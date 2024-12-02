@@ -4,6 +4,7 @@ import { encodedRedirect } from "@/utils/utils";
 import { createClient } from "@/utils/supabase/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 
 export const signUpAction = async (email: string, password: string) => {
   const supabase = createClient();
@@ -45,24 +46,52 @@ export const signInAction = async (email: string, password: string) => {
 
 export const signInWithGoogleAction = async () => {
   const supabase = createClient();
-  const origin = headers().get("origin");
+  const baseUrl = 'http://127.0.0.1:3000';
+  
+  console.log('Initiating Google OAuth flow');
+  console.log('Google OAuth redirect URL:', `${baseUrl}/auth/callback`);
+
+  // Log current cookies before starting OAuth
+  const cookieStore = cookies();
+  console.log('Cookies before OAuth:', cookieStore.getAll().map(c => ({ 
+    name: c.name, 
+    value: c.name.includes('code-verifier') ? 'present' : c.value
+  })));
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${origin}/auth/callback`,
+      redirectTo: `${baseUrl}/auth/callback`,
       queryParams: {
         access_type: 'offline',
         prompt: 'consent',
       },
+      skipBrowserRedirect: true,  // Let us handle the redirect
     },
   });
 
   if (error) {
+    console.error('Google OAuth error:', {
+      name: error.name,
+      message: error.message,
+      status: error.status
+    });
     return { error };
   }
 
-  return { url: data.url };
+  // Log cookies after OAuth initialization
+  console.log('Cookies after OAuth init:', cookieStore.getAll().map(c => ({ 
+    name: c.name, 
+    value: c.name.includes('code-verifier') ? 'present' : c.value
+  })));
+
+  // Ensure all cookies are properly set before redirecting
+  if (data.url) {
+    return { url: data.url };
+  } else {
+    console.error('No URL returned from OAuth initialization');
+    return { error: { message: 'Failed to initialize OAuth flow' } };
+  }
 };
 
 export const forgotPasswordAction = async (formData: FormData) => {

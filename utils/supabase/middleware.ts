@@ -2,8 +2,6 @@ import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
 export const updateSession = async (request: NextRequest) => {
-  // This `try/catch` block is only here for the interactive tutorial.
-  // Feel free to remove once you have Supabase connected.
   try {
     // Create an unmodified response
     let response = NextResponse.next({
@@ -17,27 +15,59 @@ export const updateSession = async (request: NextRequest) => {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          getAll() {
-            return request.cookies.getAll();
+          get(name: string) {
+            return request.cookies.get(name)?.value;
           },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value }) =>
-              request.cookies.set(name, value),
-            );
+          set(name: string, value: string, options: any) {
+            request.cookies.set(name, value);
             response = NextResponse.next({
-              request,
+              request: {
+                headers: request.headers,
+              },
             });
-            cookiesToSet.forEach(({ name, value, options }) =>
-              response.cookies.set(name, value, options),
-            );
+            response.cookies.set(name, value, options);
+          },
+          remove(name: string, options: any) {
+            request.cookies.delete(name);
+            response = NextResponse.next({
+              request: {
+                headers: request.headers,
+              },
+            });
+            response.cookies.set(name, '', { ...options, maxAge: 0 });
           },
         },
       },
     );
 
-    // This will refresh session if expired - required for Server Components
-    // https://supabase.com/docs/guides/auth/server-side/nextjs
-    const { data: { user } } = await supabase.auth.getUser();
+    // Handle OAuth callback
+    if (request.nextUrl.pathname === '/auth/callback') {
+      const code = request.nextUrl.searchParams.get('code');
+      if (code) {
+        console.log('Exchanging code for session...');
+        try {
+          const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) {
+            console.error('Error exchanging code:', error);
+          } else {
+            console.log('Session exchange successful:', session ? 'Session present' : 'No session');
+            if (session) {
+              return response;
+            }
+          }
+        } catch (error) {
+          console.error('Error during session exchange:', error);
+        }
+      }
+    }
+
+    // This will refresh session if expired
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) {
+      console.error('Error getting user:', userError);
+    } else {
+      console.log('User state:', user ? 'Authenticated' : 'Not authenticated');
+    }
 
     // Check if user has completed onboarding
     let isOnboarded = false;
@@ -79,9 +109,7 @@ export const updateSession = async (request: NextRequest) => {
 
     return response;
   } catch (e) {
-    // If you are here, a Supabase client could not be created!
-    // This is likely because you have not set up environment variables.
-    // Check out http://localhost:3000 for Next Steps.
+    console.error('Middleware error:', e);
     return NextResponse.next({
       request: {
         headers: request.headers,

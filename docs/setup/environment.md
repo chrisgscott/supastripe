@@ -14,7 +14,7 @@ Create a `.env.local` file in the root directory with the following variables:
 
 ```bash
 # Next.js
-NEXT_PUBLIC_URL=http://localhost:3000
+NEXT_PUBLIC_URL=http://127.0.0.1:3000
 
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
@@ -32,7 +32,7 @@ EMAIL_FROM_ADDRESS=your_verified_email_address
 
 # Security
 NEXTAUTH_SECRET=your_nextauth_secret
-NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_URL=http://127.0.0.1:3000
 ```
 
 ## Installation
@@ -64,7 +64,7 @@ npm run dev
 
 ## Development Environment
 
-The development server will be available at `http://localhost:3000`.
+The development server will be available at `http://127.0.0.1:3000`.
 
 ### Available Scripts
 

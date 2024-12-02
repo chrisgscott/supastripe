@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     }
 
     // Use the URLs from the request if provided, otherwise use environment variables
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://127.0.0.1:3000';
     const refreshUrl = body.refresh_url || `${baseUrl}/onboarding`;
     const returnUrl = body.return_url || `${baseUrl}/onboarding`;
 
