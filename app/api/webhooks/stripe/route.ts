@@ -58,11 +58,19 @@ export async function POST(req: Request) {
             .single();
 
           if (stripeAccount) {
+            // Get the account owner's details from Stripe
+            const accountOwner = account.individual || account.company?.owners_provided && account.company.executives?.[0];
+            
             const profileUpdate: any = {
               business_name: account.business_profile?.name,
               business_url: account.business_profile?.url,
               support_email: account.business_profile?.support_email,
               support_phone: account.business_profile?.support_phone,
+              stripe_account_id: account.id,
+              updated_at: new Date().toISOString(),
+              // Add first and last name from account owner
+              first_name: accountOwner?.first_name,
+              last_name: accountOwner?.last_name,
             };
 
             // Add address if available
@@ -78,7 +86,10 @@ export async function POST(req: Request) {
 
             const { error: profileError } = await supabase
               .from('profiles')
-              .update(profileUpdate)
+              .upsert({
+                id: stripeAccount.user_id,
+                ...profileUpdate
+              })
               .eq('id', stripeAccount.user_id);
 
             if (profileError) {

@@ -45,6 +45,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to save Stripe account' }, { status: 500 });
     }
 
+    // Create or update the user's profile
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert({
+        id: user.id,
+        stripe_account_id: account.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+    if (profileError) {
+      console.error('Error creating/updating profile:', profileError);
+      // Don't return error here as the Stripe account was created successfully
+    }
+
     // Fetch the full account details from Stripe
     const fullAccount = await stripe.accounts.retrieve(account.id);
 

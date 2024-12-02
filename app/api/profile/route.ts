@@ -82,6 +82,56 @@ export async function PUT(request: Request) {
   }
 }
 
+export async function POST(request: Request) {
+  const cookieStore = cookies()
+  
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+      },
+    }
+  )
+
+  try {
+    console.log('POST /api/profile - Starting...')
+    const { data: { user } } = await supabase.auth.getUser()
+    console.log('Current user:', user?.id)
+
+    if (!user) {
+      return new NextResponse('Unauthorized', { status: 401 })
+    }
+
+    // Create initial profile
+    const { data: profile, error: createError } = await supabase
+      .from('profiles')
+      .upsert({
+        id: user.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single()
+
+    if (createError) {
+      console.error('Error creating profile:', createError)
+      return new NextResponse('Failed to create profile', { status: 500 })
+    }
+
+    return NextResponse.json({ 
+      message: 'Profile created successfully',
+      profile
+    })
+  } catch (err) {
+    console.error('Error in profile creation:', err)
+    return new NextResponse('Internal Server Error', { status: 500 })
+  }
+}
+
 export async function GET(request: Request) {
   const cookieStore = cookies()
   
@@ -98,31 +148,32 @@ export async function GET(request: Request) {
   )
 
   try {
-    console.log('GET /api/profile - Starting...')
     const { data: { user } } = await supabase.auth.getUser()
-    console.log('Current user:', user?.id)
 
     if (!user) {
       return new NextResponse('Unauthorized', { status: 401 })
     }
 
-    // Get the profile
-    const { data: profile, error: fetchError } = await supabase
+    // Use a join to get profile data with email from auth.users
+    const { data: profile, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select(`
+        *,
+        user:auth.users!profiles_id_fkey (
+          email
+        )
+      `)
       .eq('id', user.id)
       .single()
-    
-    console.log('Retrieved profile:', profile)
 
-    if (fetchError) {
-      console.error('Error fetching profile:', fetchError)
+    if (error) {
+      console.error('Error fetching profile:', error)
       return new NextResponse('Failed to fetch profile', { status: 500 })
     }
 
-    return NextResponse.json({ profile })
-  } catch (err) {
-    console.error('Error in profile fetch:', err)
+    return NextResponse.json(profile)
+  } catch (error) {
+    console.error('Error in GET /api/profile:', error)
     return new NextResponse('Internal Server Error', { status: 500 })
   }
 }

@@ -212,12 +212,55 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
     checkProgress()
   }, [])
 
+  const markOnboardingComplete = async () => {
+    try {
+      // Update local state
+      setSteps(prevSteps => {
+        const newSteps = [...prevSteps];
+        const planStep = newSteps.find(s => s.id === 'create-plan');
+        if (planStep) {
+          planStep.completed = true;
+          planStep.status = 'completed';
+        }
+        return newSteps;
+      });
+
+      // Update Supabase
+      const supabase = createClient();
+      await supabase
+        .from('profiles')
+        .update({ 
+          is_onboarded: true,
+          onboarding_completed_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      // Update local storage
+      localStorage.setItem('onboarding_complete', 'true');
+      console.log('Successfully marked user as onboarded');
+    } catch (error) {
+      console.error('Error marking user as onboarded:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update onboarding status. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleStepClick = async (step: OnboardingStep) => {
     if (loadingStep) return;
     setLoadingStep(step.id);
     console.log('Starting step:', step.id);
 
     try {
+      if (step.id === 'create-plan') {
+        // Mark the step and onboarding as complete before redirecting
+        await markOnboardingComplete();
+        router.push(step.href);
+        return;
+      }
+
       if (step.id === 'connect-stripe') {
         // First check if we already have a Stripe account
         const statusResponse = await fetch('/api/stripe-status');
@@ -320,6 +363,12 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
       setLoadingStep(null);
     }
   };
+
+  useEffect(() => {
+    if (currentStepIndex === 2) {
+      markOnboardingComplete();
+    }
+  }, [currentStepIndex]);
 
   const handleReset = async () => {
     try {
@@ -464,7 +513,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
                 Estimated time: {currentStep.timeEstimate}
               </div>
 
-              {!currentStep.completed && (
+              {(currentStep.id === 'create-plan' || !currentStep.completed) && (
                 <Button 
                   className="w-full"
                   size="lg"
@@ -474,7 +523,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
                   {loadingStep === currentStep.id ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Connecting...
+                      {currentStep.id === 'connect-stripe' ? 'Connecting...' : 'Loading...'}
                     </>
                   ) : (
                     <>
@@ -492,15 +541,30 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
           <VerificationWaiting onCheckStatus={checkStripeStatus} />
         )}
 
-        {/* Reset button */}
-        <div className="text-right">
-          <button
-            onClick={handleReset}
-            className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:border-gray-400"
-          >
-            Reset Stripe Connection
-          </button>
-        </div>
+        {/* Reset button - only show when Stripe step is completed or in progress */}
+        {(steps[1].completed || steps[1].status === 'in-progress') && (
+          <div className="text-right">
+            <button
+              onClick={handleReset}
+              disabled={loadingStep === 'connect-stripe'}
+              className={cn(
+                "px-3 py-1 text-sm border rounded-md transition-colors",
+                loadingStep === 'connect-stripe'
+                  ? "text-gray-400 border-gray-200 cursor-not-allowed"
+                  : "text-gray-600 hover:text-gray-800 border-gray-300 hover:border-gray-400"
+              )}
+            >
+              {loadingStep === 'connect-stripe' ? (
+                <>
+                  <Loader2 className="inline mr-2 h-3 w-3 animate-spin" />
+                  Resetting...
+                </>
+              ) : (
+                'Reset Stripe Connection'
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -9,7 +9,25 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = createClient();
-    await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    
+    if (!error && data?.user) {
+      // Create initial profile
+      try {
+        const response = await fetch(`${origin}/api/profile`, {
+          method: 'POST',
+          headers: {
+            'Cookie': request.headers.get('cookie') || '',
+          },
+        });
+
+        if (!response.ok) {
+          console.error('Failed to create initial profile:', await response.text());
+        }
+      } catch (err) {
+        console.error('Error creating initial profile:', err);
+      }
+    }
   }
 
   if (redirectTo) {
