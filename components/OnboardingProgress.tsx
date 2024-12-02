@@ -30,8 +30,10 @@ export interface OnboardingProgressProps {
 export default function OnboardingProgress({ user }: OnboardingProgressProps) {
   const router = useRouter()
   const { toast } = useToast()
+  const supabase = createClient()
   const [loadingStep, setLoadingStep] = useState<string | null>(null)
   const [currentStepIndex, setCurrentStepIndex] = useState(1) // Start at step 2 (Stripe) since step 1 is complete
+  const [profile, setProfile] = useState<any>(null)
   const [steps, setSteps] = useState<OnboardingStep[]>([
     {
       id: 'create-account',
@@ -78,8 +80,6 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
 
   const checkProgress = async () => {
     try {
-      const supabase = createClient()
-      
       // Check if user has a Stripe account
       const { data: profile } = await supabase
         .from('profiles')
@@ -209,8 +209,23 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
   }, [checkStripeStatus]);
 
   useEffect(() => {
+    const fetchProfile = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+      if (error) {
+        console.error('Error fetching profile:', error)
+      } else {
+        setProfile(data)
+      }
+    }
+
+    fetchProfile()
     checkProgress()
-  }, [])
+  }, [user.id])
 
   const markOnboardingComplete = async () => {
     try {
@@ -538,7 +553,11 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
 
         {/* While you wait card - only show when waiting for verification */}
         {steps[1].status === 'in-progress' && steps[1].completed && (
-          <VerificationWaiting onCheckStatus={checkStripeStatus} />
+          <VerificationWaiting 
+            onCheckStatus={checkStripeStatus} 
+            user={user}
+            profile={profile}
+          />
         )}
 
         {/* Reset button - only show when Stripe step is completed or in progress */}
