@@ -61,19 +61,18 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
     },
     {
       id: 'create-plan',
-      title: 'Create Payment Plan',
-      description: 'Set up your first payment plan',
+      title: 'Create a Payment Plan',
+      description: '🎉 Let\'s set up your first payment plan!',
       completed: false,
       href: '/new-plan',
       timeEstimate: '2 min',
       requiredInfo: [
-        'Plan name',
-        'Amount per payment',
-        'Payment frequency (monthly, yearly, etc.)',
-        'Optional trial period'
+        'Customer name',
+        'Total amount due',
+        'Payment frequency (monthly, yearly, etc.)'
       ],
       status: 'not-started',
-      button_text: 'Create a Payment Plan'
+      button_text: 'Create your First Payment Plan'
     }
   ])
 
