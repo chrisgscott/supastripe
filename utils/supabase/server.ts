@@ -1,59 +1,36 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
-export const createClient = () => {
-  const cookieStore = cookies();
+export const createClient = (useServiceRole: boolean = false) => {
+  const cookieStore = cookies()
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    useServiceRole ? process.env.SUPABASE_SERVICE_ROLE_KEY! : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      auth: {
-        flowType: 'pkce',
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
-      },
       cookies: {
         get(name: string) {
-          const cookie = cookieStore.get(name);
-          console.log(`Getting cookie ${name}:`, cookie?.value ? (name.includes('code-verifier') ? 'present' : cookie.value) : 'undefined');
-          return cookie?.value;
+          return cookieStore.get(name)?.value
         },
-        set(name: string, value: string, options: any) {
+        set(name: string, value: string, options: CookieOptions) {
           try {
-            console.log(`Setting cookie ${name}:`, name.includes('code-verifier') ? 'present' : value);
-            cookieStore.set(name, value, {
-              ...options,
-              // Always set these cookie options
-              secure: process.env.NODE_ENV === 'production',
-              sameSite: 'lax',
-              path: '/',
-              domain: '127.0.0.1',
-              httpOnly: true,
-              maxAge: 60 * 60 * 24 * 7 // 1 week
-            });
-          } catch (error) {
-            console.error(`Error setting cookie ${name}:`, error);
+            cookieStore.set(name, value, options)
+          } catch {
+            // The `set` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
           }
         },
-        remove(name: string, options: any) {
+        remove(name: string, options: CookieOptions) {
           try {
-            console.log(`Removing cookie ${name}`);
-            cookieStore.set(name, '', {
-              ...options,
-              maxAge: 0,
-              secure: process.env.NODE_ENV === 'production',
-              sameSite: 'lax',
-              path: '/',
-              domain: '127.0.0.1',
-              httpOnly: true
-            });
-          } catch (error) {
-            console.error(`Error removing cookie ${name}:`, error);
+            cookieStore.set(name, '', { ...options, maxAge: 0 })
+          } catch {
+            // The `remove` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
           }
         },
       },
-    },
-  );
-};
+    }
+  )
+}

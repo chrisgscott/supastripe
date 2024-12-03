@@ -57,10 +57,27 @@ export default function SettingsPage() {
           .from('profiles')
           .select('*')
           .eq('id', user.id)
-          .single()
-        if (profileError) throw profileError
+          .maybeSingle()
         
-        console.log('Profile data:', profile);  // Add this
+        // If no profile exists, create one
+        if (!profile) {
+          const { data: newProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert([{ 
+              id: user.id,
+              email: user.email,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }])
+            .select()
+            .single()
+          
+          if (createError) throw createError
+          setProfileData(newProfile)
+        } else {
+          if (profileError) throw profileError
+          setProfileData(profile)
+        }
   
         const { data: stripeAcc, error: stripeError } = await supabase
           .from('stripe_accounts')
@@ -72,7 +89,6 @@ export default function SettingsPage() {
         console.log('Stripe account data:', stripeAcc);  // Add this
   
         setUserData(user)
-        setProfileData(profile)
         setStripeAccount(stripeAcc)
       } catch (err: any) {
         console.error('Error loading data:', err);  // Add this
