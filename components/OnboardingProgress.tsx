@@ -32,7 +32,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
   const { toast } = useToast()
   const supabase = createClient()
   const [loadingStep, setLoadingStep] = useState<string | null>(null)
-  const [currentStepIndex, setCurrentStepIndex] = useState(1) // Start at step 2 (Stripe) since step 1 is complete
+  const [currentStepIndex, setCurrentStepIndex] = useState(1)
   const [profile, setProfile] = useState<any>(null)
   const [steps, setSteps] = useState<OnboardingStep[]>([
     {
@@ -81,16 +81,14 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
   const checkProgress = async () => {
     try {
       // Check if user has a Stripe account
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('stripe_account_id, is_onboarded')
-        .eq('id', user.id)
-        .maybeSingle()
+      const response = await fetch(`/api/profile/${user.id}`);
 
-      if (error) {
-        console.error('Error fetching profile:', error)
-        return
+      if (!response.ok) {
+        throw new Error('Failed to fetch profile');
       }
+
+      const { data } = await response.json();
+      const profile = data;
 
       if (profile?.stripe_account_id) {
         setSteps((prevSteps: OnboardingStep[]) => {
@@ -109,7 +107,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
       const { data: plans, error: plansError } = await supabase
         .from('payment_plans')
         .select('id')
-        .eq('user_id', user.id)
+        .filter('user_id', 'eq', user.id)
         .limit(1)
         .maybeSingle()
 
@@ -233,25 +231,61 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle()
+      console.log('Fetching profile for user:', user.id);
+      try {
+        const response = await fetch(`/api/profile/${user.id}`);
 
-      if (error) {
-        console.error('Error fetching profile:', error)
-      } else {
-        setProfile(data)
+        if (!response.ok) {
+          throw new Error('Failed to fetch profile');
+        }
+
+        const { data } = await response.json();
+        console.log('Fetched profile:', data);
+        setProfile(data);
+        
+        // Move checkProgress here so it uses the latest profile data
+        if (data) {
+          await checkProgress();
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to fetch profile. Please try refreshing the page.',
+          variant: 'destructive'
+        });
       }
-    }
+    };
 
-    fetchProfile()
-    checkProgress()
-  }, [user.id])
+    fetchProfile();
+  }, [user.id]);
 
   const markOnboardingComplete = async () => {
     try {
+      const response = await fetch(`/api/profile/${user.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          is_onboarded: true,
+          onboarding_completed_at: new Date().toISOString()
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile');
+      }
+
+      // Re-fetch profile to get latest state
+      const profileResponse = await fetch(`/api/profile/${user.id}`);
+      if (!profileResponse.ok) {
+        throw new Error('Failed to fetch updated profile');
+      }
+      
+      const { data: updatedProfile } = await profileResponse.json();
+      setProfile(updatedProfile);
+
       // Update local state
       setSteps(prevSteps => {
         const newSteps = [...prevSteps];
@@ -263,19 +297,12 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
         return newSteps;
       });
 
-      // Update Supabase
-      const supabase = createClient();
-      await supabase
-        .from('profiles')
-        .update({ 
-          is_onboarded: true,
-          onboarding_completed_at: new Date().toISOString()
-        })
-        .eq('id', user.id);
-
       // Update local storage
       localStorage.setItem('onboarding_complete', 'true');
       console.log('Successfully marked user as onboarded');
+      
+      // Force a progress check with the new profile data
+      await checkProgress();
     } catch (error) {
       console.error('Error marking user as onboarded:', error);
       toast({

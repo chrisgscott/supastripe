@@ -5,24 +5,26 @@ import { createClient } from "@/utils/supabase/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { revalidatePath } from 'next/cache'
 
-export const signUpAction = async (email: string, password: string) => {
-  console.log('Starting sign-up process for email:', email);
+export const signUpAction = async (formData: FormData) => {
+  console.log('Starting sign-up process for email:', formData.get("email"));
+  cookies();
   const supabase = createClient();
   const origin = headers().get("origin");
   console.log('Origin URL:', origin);
 
-  if (!email || !password) {
+  if (!formData.get("email") || !formData.get("password")) {
     console.warn('Sign-up validation failed: Missing email or password');
     return { error: { message: "Email and password are required" } };
   }
 
   console.log('Attempting sign-up with Supabase...');
   const { data, error: signUpError } = await supabase.auth.signUp({
-    email,
-    password,
+    email: formData.get("email") as string,
+    password: formData.get("password") as string,
     options: {
-      emailRedirectTo: `${origin}/auth/callback`,
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
       data: {
         email_confirmed: false,
       }
@@ -54,7 +56,8 @@ export const signUpAction = async (email: string, password: string) => {
       .insert([
         { 
           id: data.user.id,
-          is_onboarded: false
+          is_onboarded: false,
+          email: data.user.email
         }
       ]);
 
@@ -64,17 +67,20 @@ export const signUpAction = async (email: string, password: string) => {
     }
   }
 
+  revalidatePath('/', 'layout')
+  redirect('/auth/confirm-email')
   return { error: null };
 };
 
-export const signInAction = async (email: string, password: string) => {
-  console.log('Starting sign-in process for email:', email);
+export const signInAction = async (formData: FormData) => {
+  console.log('Starting sign-in process for email:', formData.get("email"));
+  cookies();
   const supabase = createClient();
 
   console.log('Attempting sign-in with Supabase...');
   const { data, error: signInError } = await supabase.auth.signInWithPassword({
-    email,
-    password,
+    email: formData.get("email") as string,
+    password: formData.get("password") as string,
   });
 
   if (signInError) {
@@ -99,144 +105,50 @@ export const signInAction = async (email: string, password: string) => {
     });
   }
 
+  revalidatePath('/', 'layout')
+  redirect('/dashboard')
   return { error: null };
 };
 
-export const signInWithGoogleAction = async () => {
-  console.log('Starting Google OAuth sign-in process');
-  const supabase = createClient();
-  const baseUrl = process.env.NODE_ENV === 'production' 
-    ? process.env.NEXT_PUBLIC_SITE_URL 
-    : 'http://127.0.0.1:3000';
-  
-  console.log('OAuth configuration:', {
-    baseUrl,
-    redirectUrl: `${baseUrl}/auth/callback`,
-    provider: 'google'
-  });
-
-  // Log current cookies
-  const cookieStore = cookies();
-  console.log('Pre-OAuth cookies:', cookieStore.getAll().map(c => ({ 
-    name: c.name, 
-    value: c.name.includes('code-verifier') ? '[REDACTED]' : c.value
-  })));
-
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: `${baseUrl}/auth/callback`,
-      queryParams: {
-        access_type: 'offline',
-        prompt: 'consent',
-      },
-      skipBrowserRedirect: true,
-    },
-  });
-
-  if (error) {
-    console.error('Google OAuth error:', {
-      code: error.status,
-      message: error.message,
-      details: error.stack
-    });
-    return { error };
-  }
-
-  // Log post-OAuth cookies
-  console.log('Post-OAuth cookies:', cookieStore.getAll().map(c => ({ 
-    name: c.name, 
-    value: c.name.includes('code-verifier') ? '[REDACTED]' : c.value
-  })));
-
-  if (data?.url) {
-    console.log('OAuth URL generated:', data.url.split('?')[0], '(query params redacted)');
-    return { url: data.url };
-  } else {
-    console.error('No URL returned from OAuth initialization');
-    return { error: { message: 'Failed to initialize OAuth flow' } };
-  }
-};
-
 export const forgotPasswordAction = async (formData: FormData) => {
-  console.log('Starting forgot password process');
-  const email = formData.get("email")?.toString();
-  const supabase = createClient();
+  const email = formData.get("email") as string;
+  cookies();
   const origin = headers().get("origin");
+  const supabase = createClient();
 
-  if (!email) {
-    console.warn('Forgot password validation failed: Missing email');
-    return encodedRedirect("error", "/forgot-password", "Email is required");
-  }
-
-  console.log('Attempting to send password reset email...');
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${origin}/auth/callback?next=/reset-password`,
   });
 
   if (error) {
-    console.error('Forgot password error:', {
-      code: error.status,
-      message: error.message,
-      details: error.stack
-    });
-    return encodedRedirect("error", "/forgot-password", error.message);
+    return { error: { message: error.message } };
   }
 
-  console.log('Password reset email sent successfully');
-  return encodedRedirect(
-    "success",
-    "/forgot-password",
-    "Check your email for the password reset link"
-  );
+  return { success: true }
 };
 
 export const resetPasswordAction = async (formData: FormData) => {
-  console.log('Starting reset password process');
-  const password = formData.get("password")?.toString();
-  const passwordConfirm = formData.get("passwordConfirm")?.toString();
+  const password = formData.get("password") as string;
+  cookies();
   const supabase = createClient();
 
-  if (!password) {
-    console.warn('Reset password validation failed: Missing password');
-    return encodedRedirect("error", "/reset-password", "Password is required");
-  }
-
-  if (password !== passwordConfirm) {
-    console.warn('Reset password validation failed: Passwords do not match');
-    return encodedRedirect(
-      "error",
-      "/reset-password",
-      "Passwords do not match"
-    );
-  }
-
-  console.log('Attempting to reset password...');
   const { error } = await supabase.auth.updateUser({
     password,
   });
 
   if (error) {
-    console.error('Reset password error:', {
-      code: error.status,
-      message: error.message,
-      details: error.stack
-    });
-    return encodedRedirect("error", "/reset-password", error.message);
+    return { error: { message: error.message } };
   }
 
-  console.log('Password reset successfully');
-  return encodedRedirect(
-    "success",
-    "/sign-in",
-    "Your password has been reset"
-  );
+  revalidatePath('/', 'layout')
+  redirect('/sign-in?message=Password updated successfully')
+  return { error: null };
 };
 
 export const signOutAction = async () => {
-  console.log('Starting sign-out process');
+  cookies();
   const supabase = createClient();
   await supabase.auth.signOut();
-  console.log('Sign-out successful');
-  return redirect("/");
+  revalidatePath('/', 'layout')
+  return redirect("/sign-in");
 };
