@@ -185,8 +185,8 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
         requirements: stripeStatus.requirements
       });
 
-      // Only update the step if we have an accountId or the account is fully onboarded
-      if (stripeStatus.accountId || stripeStatus.isFullyOnboarded) {
+      // Only update if we have an account
+      if (stripeStatus.accountId) {
         console.log('[checkStripeStatus] Updating steps due to existing account');
         setSteps(prevSteps => {
           const newSteps = [...prevSteps];
@@ -201,7 +201,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
               stripeStep.description = 'Your Stripe account is fully verified and ready to accept payments.';
               stripeStep.timeEstimate = 'Completed';
               stripeStep.requiredInfo = ['✓ All requirements completed'];
-            } else if (stripeStatus.accountId && stripeStatus.requirements) {
+            } else if (stripeStatus.requirements) {
               // Format requirements in a user-friendly way
               const formatRequirement = (req: string) => {
                 return req
@@ -245,6 +245,17 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
               }
             }
             console.log('[checkStripeStatus] Updated stripe step:', stripeStep);
+          }
+          return newSteps;
+        });
+      } else {
+        // No Stripe account, ensure step is not completed
+        setSteps(prevSteps => {
+          const newSteps = [...prevSteps];
+          const stripeStep = newSteps.find(s => s.id === 'connect-stripe');
+          if (stripeStep) {
+            stripeStep.completed = false;
+            stripeStep.status = 'not-started';
           }
           return newSteps;
         });
