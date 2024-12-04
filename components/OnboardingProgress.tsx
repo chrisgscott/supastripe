@@ -639,22 +639,24 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
               </div>
 
               {currentStep.id === 'confirm-profile' ? (
-                <OnboardingProfileForm
-                  user={user}
-                  profile={profile}
-                  onComplete={() => {
-                    setSteps(prevSteps => {
-                      const newSteps = [...prevSteps];
-                      const profileStep = newSteps.find(s => s.id === 'confirm-profile');
-                      if (profileStep) {
-                        profileStep.completed = true;
-                        profileStep.status = 'completed';
-                      }
-                      return newSteps;
-                    });
-                    setCurrentStepIndex(3);
-                  }}
-                />
+                <div className="mt-6">
+                  <OnboardingProfileForm
+                    user={user}
+                    profile={profile}
+                    onComplete={() => {
+                      setSteps(prevSteps => {
+                        const newSteps = [...prevSteps];
+                        const profileStep = newSteps.find(s => s.id === 'confirm-profile');
+                        if (profileStep) {
+                          profileStep.completed = true;
+                          profileStep.status = 'completed';
+                        }
+                        return newSteps;
+                      });
+                      setCurrentStepIndex(3);
+                    }}
+                  />
+                </div>
               ) : (
                 <>
                   {currentStep.requiredInfo && (

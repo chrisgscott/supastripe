@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Database } from '@/types/supabase'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/use-toast'
@@ -132,142 +131,135 @@ export default function OnboardingProfileForm({ user, profile: initialProfile, o
   }
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle>Complete Your Profile</CardTitle>
-        <CardDescription>
-          Please confirm or update your business details to continue with onboarding.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="first_name">First Name</Label>
-              <Input
-                id="first_name"
-                name="first_name"
-                value={nullToString(profile.first_name)}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="last_name">Last Name</Label>
-              <Input
-                id="last_name"
-                name="last_name"
-                value={nullToString(profile.last_name)}
-                onChange={handleChange}
-                required
-              />
-            </div>
-          </div>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="first_name">First Name</Label>
+          <Input
+            id="first_name"
+            name="first_name"
+            value={nullToString(profile.first_name)}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="last_name">Last Name</Label>
+          <Input
+            id="last_name"
+            name="last_name"
+            value={nullToString(profile.last_name)}
+            onChange={handleChange}
+            required
+          />
+        </div>
+      </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="business_name">Business Name</Label>
-              <Input
-                id="business_name"
-                name="business_name"
-                value={nullToString(profile.business_name)}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="business_url">Business URL</Label>
-              <Input
-                id="business_url"
-                name="business_url"
-                type="url"
-                value={nullToString(profile.business_url)}
-                onChange={handleChange}
-                required
-              />
-            </div>
-          </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="business_name">Business Name</Label>
+          <Input
+            id="business_name"
+            name="business_name"
+            value={nullToString(profile.business_name)}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="business_url">Business URL</Label>
+          <Input
+            id="business_url"
+            name="business_url"
+            value={nullToString(profile.business_url)}
+            onChange={handleChange}
+            required
+          />
+        </div>
+      </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="support_email">Support Email</Label>
-              <Input
-                id="support_email"
-                name="support_email"
-                type="email"
-                value={nullToString(profile.support_email)}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="support_phone">Support Phone</Label>
-              <Input
-                id="support_phone"
-                name="support_phone"
-                type="tel"
-                value={nullToString(profile.support_phone)}
-                onChange={handleChange}
-              />
-            </div>
-          </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="support_email">Support Email</Label>
+          <Input
+            id="support_email"
+            name="support_email"
+            type="email"
+            value={nullToString(profile.support_email)}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="support_phone">Support Phone</Label>
+          <Input
+            id="support_phone"
+            name="support_phone"
+            type="tel"
+            value={nullToString(profile.support_phone)}
+            onChange={handleChange}
+          />
+        </div>
+      </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="address_line1">Street Address</Label>
-            <Input
-              id="address_line1"
-              name="address_line1"
-              value={nullToString(profile.address_line1)}
-              onChange={handleChange}
-              required
-            />
-          </div>
+      <div className="space-y-2">
+        <Label htmlFor="address_line1">Street Address</Label>
+        <Input
+          id="address_line1"
+          name="address_line1"
+          value={nullToString(profile.address_line1)}
+          onChange={handleChange}
+          required
+        />
+      </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="address_city">City</Label>
-              <Input
-                id="address_city"
-                name="address_city"
-                value={nullToString(profile.address_city)}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="address_state">State</Label>
-              <Input
-                id="address_state"
-                name="address_state"
-                value={nullToString(profile.address_state)}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="address_postal_code">ZIP Code</Label>
-              <Input
-                id="address_postal_code"
-                name="address_postal_code"
-                value={nullToString(profile.address_postal_code)}
-                onChange={handleChange}
-                required
-              />
-            </div>
-          </div>
+      <div className="grid grid-cols-3 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="address_city">City</Label>
+          <Input
+            id="address_city"
+            name="address_city"
+            value={nullToString(profile.address_city)}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="address_state">State</Label>
+          <Input
+            id="address_state"
+            name="address_state"
+            value={nullToString(profile.address_state)}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="address_postal_code">ZIP Code</Label>
+          <Input
+            id="address_postal_code"
+            name="address_postal_code"
+            value={nullToString(profile.address_postal_code)}
+            onChange={handleChange}
+            required
+          />
+        </div>
+      </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Updating...
-              </>
-            ) : (
-              'Continue'
-            )}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+      <Button 
+        type="submit" 
+        className="w-full" 
+        disabled={loading}
+      >
+        {loading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Saving...
+          </>
+        ) : (
+          'Continue'
+        )}
+      </Button>
+    </form>
   )
 }
