@@ -6,12 +6,22 @@ import { SubmitButton } from "@/components/submit-button";
 import { Input } from "@/components/ui/input";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import Link from "next/link";
+import { toast } from "sonner";
 
 export default function SignUpPage({
   searchParams,
 }: {
   searchParams: { message?: string };
 }) {
+  const handleSignUp = async (formData: FormData) => {
+    const result = await signUpAction(formData);
+    if (result.error) {
+      toast.error(result.error.message);
+    } else if (result.success) {
+      toast.success(result.message);
+    }
+  };
+
   return (
     <AuthLayout
       title="Create your account"
@@ -24,9 +34,9 @@ export default function SignUpPage({
         </>
       }
     >
-      <form action={signUpAction} className="space-y-4">
+      <form onSubmit={handleSignUp} className="space-y-4">
         {searchParams?.message && (
-          <FormMessage type="error" message={{ type: "error", message: searchParams.message }} />
+          <FormMessage type="error">{searchParams.message}</FormMessage>
         )}
 
         <div>

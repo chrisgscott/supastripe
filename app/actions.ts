@@ -67,8 +67,10 @@ export const signUpAction = async (formData: FormData) => {
   }
 
   revalidatePath('/', 'layout')
-  redirect('/auth/confirm-email')
-  return { error: null };
+  return { 
+    success: true,
+    message: "Check your email for a confirmation link to complete your registration."
+  };
 };
 
 export const signInAction = async (formData: FormData) => {
