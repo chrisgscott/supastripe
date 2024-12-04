@@ -711,18 +711,27 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
                     Estimated time: {currentStep.timeEstimate}
                   </div>
 
-                  {(currentStep.id === 'create-plan' || !currentStep.completed) && (
+                  {/* Show button if step is not completed OR if it's completed but not the last step */}
+                  {(!currentStep.completed || (currentStep.completed && currentStepIndex < steps.length - 1)) && (
                     <>
                       {console.log('[Button Render] Condition check:', {
                         stepId: currentStep.id,
                         completed: currentStep.completed,
-                        shouldShow: currentStep.id === 'create-plan' || !currentStep.completed
+                        isLastStep: currentStepIndex === steps.length - 1,
+                        shouldShow: !currentStep.completed || (currentStep.completed && currentStepIndex < steps.length - 1)
                       })}
                       <Button 
                         className="w-full"
                         size="lg"
                         disabled={loadingStep === currentStep.id}
-                        onClick={() => handleStepClick(currentStep)}
+                        onClick={() => {
+                          if (currentStep.completed) {
+                            // If step is completed, just move to next step
+                            setCurrentStepIndex(currentStepIndex + 1);
+                          } else {
+                            handleStepClick(currentStep);
+                          }
+                        }}
                       >
                         {loadingStep === currentStep.id ? (
                           <>
@@ -731,7 +740,11 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
                           </>
                         ) : (
                           <>
-                            {currentStep.button_text} <ArrowRight className="ml-2 h-4 w-4" />
+                            {currentStep.completed ? (
+                              <>Continue <ArrowRight className="ml-2 h-4 w-4" /></>
+                            ) : (
+                              <>{currentStep.button_text} <ArrowRight className="ml-2 h-4 w-4" /></>
+                            )}
                           </>
                         )}
                       </Button>
