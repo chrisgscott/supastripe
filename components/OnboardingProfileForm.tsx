@@ -164,39 +164,52 @@ export default function OnboardingProfileForm({ user, profile: initialProfile, o
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="business_name">Business Name</Label>
-            <Input
-              id="business_name"
-              name="business_name"
-              value={nullToString(profile.business_name)}
-              onChange={handleChange}
-              required
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="business_name">Business Name</Label>
+              <Input
+                id="business_name"
+                name="business_name"
+                value={nullToString(profile.business_name)}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="business_url">Business URL</Label>
+              <Input
+                id="business_url"
+                name="business_url"
+                type="url"
+                value={nullToString(profile.business_url)}
+                onChange={handleChange}
+                required
+              />
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="business_url">Business URL</Label>
-            <Input
-              id="business_url"
-              name="business_url"
-              type="url"
-              value={nullToString(profile.business_url)}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="support_email">Support Email</Label>
-            <Input
-              id="support_email"
-              name="support_email"
-              type="email"
-              value={nullToString(profile.support_email)}
-              onChange={handleChange}
-              required
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="support_email">Support Email</Label>
+              <Input
+                id="support_email"
+                name="support_email"
+                type="email"
+                value={nullToString(profile.support_email)}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="support_phone">Support Phone</Label>
+              <Input
+                id="support_phone"
+                name="support_phone"
+                type="tel"
+                value={nullToString(profile.support_phone)}
+                onChange={handleChange}
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
