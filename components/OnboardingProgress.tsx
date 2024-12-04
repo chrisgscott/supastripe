@@ -158,6 +158,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
   }
 
   const checkStripeStatus = useCallback(async () => {
+    console.log('[checkStripeStatus] Starting check...');
     try {
       const response = await fetch('/api/stripe-status');
       if (!response.ok) {
@@ -166,28 +167,33 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
 
       // Log the raw response
       const responseText = await response.text();
-      console.log('Raw response from /api/stripe-status:', responseText);
+      console.log('[checkStripeStatus] Raw response:', responseText);
       
       // Try to parse as JSON
       let stripeStatus: StripeStatusResponse;
       try {
         stripeStatus = JSON.parse(responseText);
       } catch (e) {
-        console.error('Failed to parse response as JSON:', e);
+        console.error('[checkStripeStatus] Failed to parse response as JSON:', e);
         throw new Error('Invalid JSON response from server');
       }
 
-      console.log('Stripe Account Status (raw):', stripeStatus);
-      console.log('Current step index:', currentStepIndex);
-      console.log('Current steps:', steps);
+      console.log('[checkStripeStatus] Status:', {
+        accountId: stripeStatus.accountId,
+        isFullyOnboarded: stripeStatus.isFullyOnboarded,
+        detailsSubmitted: stripeStatus.detailsSubmitted,
+        requirements: stripeStatus.requirements
+      });
 
       // Only update the step if we have an accountId or the account is fully onboarded
       if (stripeStatus.accountId || stripeStatus.isFullyOnboarded) {
+        console.log('[checkStripeStatus] Updating steps due to existing account');
         setSteps(prevSteps => {
           const newSteps = [...prevSteps];
           const stripeStep = newSteps.find(s => s.id === 'connect-stripe');
           if (stripeStep) {
-            console.log('Found stripe step:', stripeStep);
+            const oldStatus = { ...stripeStep };
+            console.log('[checkStripeStatus] Current stripe step:', oldStatus);
             
             if (stripeStatus.isFullyOnboarded) {
               stripeStep.completed = true;
@@ -238,18 +244,18 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
                 stripeStep.requiredInfo = ['✓ All information submitted', '⏳ Waiting for Stripe verification'];
               }
             }
-            console.log('Updated stripe step:', stripeStep);
+            console.log('[checkStripeStatus] Updated stripe step:', stripeStep);
           }
           return newSteps;
         });
       }
     } catch (error) {
-      console.error('Error checking Stripe status:', error);
+      console.error('[checkStripeStatus] Error checking Stripe status:', error);
     }
   }, [currentStepIndex]);
 
   useEffect(() => {
-    console.log('Checking Stripe status...');
+    console.log('[checkStripeStatus] Checking Stripe status...');
     checkStripeStatus();
   }, [checkStripeStatus]);
 
@@ -509,14 +515,39 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
   useEffect(() => {
     const resetFlag = sessionStorage.getItem('stripe_reset');
     if (resetFlag) {
-      console.log('Found reset flag, resetting step...');
+      console.log('[Reset Effect] Found reset flag, resetting step...');
       sessionStorage.removeItem('stripe_reset');
+      
+      // Reset the current step and its status
+      setSteps(prevSteps => {
+        const newSteps = [...prevSteps];
+        const stripeStep = newSteps.find(s => s.id === 'connect-stripe');
+        if (stripeStep) {
+          stripeStep.completed = false;
+          stripeStep.status = 'not-started';
+          stripeStep.button_text = 'Start Secure Connection to Stripe';
+        }
+        return newSteps;
+      });
+      
       setCurrentStepIndex(1);
-      checkStripeStatus();
+      console.log('[Reset Effect] Current step index set to:', 1);
+      
+      // Delay the Stripe status check to ensure our reset takes effect
+      setTimeout(() => {
+        checkStripeStatus();
+      }, 1000);
     }
   }, []);
 
   const currentStep = steps[currentStepIndex]
+  console.log('[Render] Current step:', { 
+    id: currentStep?.id, 
+    completed: currentStep?.completed, 
+    button_text: currentStep?.button_text 
+  });
+  console.log('[Render] Current step index:', currentStepIndex);
+
   const progress = ((currentStepIndex / (steps.length - 1)) * 100)
 
   const checkOnboardingStatus = useCallback(async () => {
@@ -672,23 +703,30 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
                   </div>
 
                   {(currentStep.id === 'create-plan' || !currentStep.completed) && (
-                    <Button 
-                      className="w-full"
-                      size="lg"
-                      disabled={loadingStep === currentStep.id}
-                      onClick={() => handleStepClick(currentStep)}
-                    >
-                      {loadingStep === currentStep.id ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          {currentStep.id === 'connect-stripe' ? 'Connecting...' : 'Loading...'}
-                        </>
-                      ) : (
-                        <>
-                          {currentStep.button_text} <ArrowRight className="ml-2 h-4 w-4" />
-                        </>
-                      )}
-                    </Button>
+                    <>
+                      {console.log('[Button Render] Condition check:', {
+                        stepId: currentStep.id,
+                        completed: currentStep.completed,
+                        shouldShow: currentStep.id === 'create-plan' || !currentStep.completed
+                      })}
+                      <Button 
+                        className="w-full"
+                        size="lg"
+                        disabled={loadingStep === currentStep.id}
+                        onClick={() => handleStepClick(currentStep)}
+                      >
+                        {loadingStep === currentStep.id ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            {currentStep.id === 'connect-stripe' ? 'Connecting...' : 'Loading...'}
+                          </>
+                        ) : (
+                          <>
+                            {currentStep.button_text} <ArrowRight className="ml-2 h-4 w-4" />
+                          </>
+                        )}
+                      </Button>
+                    </>
                   )}
                 </>
               )}
