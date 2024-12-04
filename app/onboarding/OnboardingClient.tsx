@@ -2,7 +2,6 @@
 
 import { createClient } from '@/utils/supabase/client';
 import OnboardingProgress from '@/components/OnboardingProgress';
-import OnboardingProfileForm from '@/components/OnboardingProfileForm';
 import { useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 
@@ -97,21 +96,7 @@ export default function OnboardingClient({ initialUser }: OnboardingClientProps)
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <OnboardingProfileForm 
-        user={user} 
-        profile={profile}
-        onComplete={() => {
-          // Refresh profile data
-          supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single()
-            .then(({ data }) => {
-              if (data) setProfile(data);
-            });
-        }}
-      />
+      <OnboardingProgress user={user} />
     </div>
   );
 }
