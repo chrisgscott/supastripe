@@ -100,14 +100,18 @@ export const signInAction = async (formData: FormData) => {
       emailConfirmed: data.user.email_confirmed_at,
       lastSignIn: data.user.last_sign_in_at
     });
-    console.log('Session details:', {
-      expiresAt: data.session?.expires_at,
-      providerToken: data.session?.provider_token ? 'present' : 'none'
-    });
+    
+    // Check onboarding status
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_onboarded')
+      .eq('id', data.user.id)
+      .single();
+
+    revalidatePath('/', 'layout')
+    redirect(profile?.is_onboarded ? '/dashboard' : '/onboarding')
   }
 
-  revalidatePath('/', 'layout')
-  redirect('/dashboard')
   return { error: null };
 };
 
