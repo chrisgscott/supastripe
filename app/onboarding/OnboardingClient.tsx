@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/client';
 import OnboardingProgress from '@/components/OnboardingProgress';
+import OnboardingProfileForm from '@/components/OnboardingProfileForm';
 import { useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 
@@ -11,6 +12,7 @@ interface OnboardingClientProps {
 
 export default function OnboardingClient({ initialUser }: OnboardingClientProps) {
   const [user, setUser] = useState<User | null>(initialUser);
+  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
@@ -43,6 +45,32 @@ export default function OnboardingClient({ initialUser }: OnboardingClientProps)
     };
   }, [initialUser]);
 
+  useEffect(() => {
+    if (!user) return;
+
+    // Fetch user's profile
+    setLoading(true);
+    const fetchProfile = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+        setProfile(data);
+      } catch (err) {
+        console.error('Error fetching profile:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [user]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -54,7 +82,7 @@ export default function OnboardingClient({ initialUser }: OnboardingClientProps)
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-red-500">Error: {error}</div>
+        <div className="text-red-500">{error}</div>
       </div>
     );
   }
@@ -62,10 +90,28 @@ export default function OnboardingClient({ initialUser }: OnboardingClientProps)
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-gray-500">No user found. Please sign in.</div>
+        <div className="text-gray-500">Please sign in to continue</div>
       </div>
     );
   }
 
-  return <OnboardingProgress user={user} />;
+  return (
+    <div className="container mx-auto py-8 px-4">
+      <OnboardingProfileForm 
+        user={user} 
+        profile={profile}
+        onComplete={() => {
+          // Refresh profile data
+          supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single()
+            .then(({ data }) => {
+              if (data) setProfile(data);
+            });
+        }}
+      />
+    </div>
+  );
 }
