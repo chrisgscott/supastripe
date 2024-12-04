@@ -27,7 +27,7 @@ export default function SignInPage({
     >
       <form action={signInAction} className="space-y-4">
         {searchParams?.message && (
-          <FormMessage type="error">{searchParams.message}</FormMessage>
+          <FormMessage type="error" message={{ type: "error", message: searchParams.message }} />
         )}
 
         <div>

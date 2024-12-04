@@ -26,7 +26,7 @@ export default function SignUpPage({
     >
       <form action={signUpAction} className="space-y-4">
         {searchParams?.message && (
-          <FormMessage type="error">{searchParams.message}</FormMessage>
+          <FormMessage type="error" message={{ type: "error", message: searchParams.message }} />
         )}
 
         <div>

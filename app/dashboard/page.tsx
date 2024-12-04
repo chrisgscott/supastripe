@@ -40,7 +40,7 @@ export default async function Dashboard() {
 
   return (
     <div className="space-y-4">
-      {!profile?.is_onboarded && <OnboardingProgress />}
+      {!profile?.is_onboarded && <OnboardingProgress user={user} />}
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -109,7 +109,7 @@ export default async function Dashboard() {
           </CardHeader>
           <CardContent className="pl-2">
             <div className="h-[350px]">
-              <PaymentChart data={[]} />
+              <PaymentChart data={[]} isLoading={false} />
             </div>
           </CardContent>
         </Card>

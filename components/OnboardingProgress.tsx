@@ -3,13 +3,13 @@
 import { User } from '@supabase/supabase-js'
 import { createClient } from '@/utils/supabase/client'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Loader2, ArrowRight, Check, BackpackIcon, MailIcon } from 'lucide-react'
-import { useToast } from '@/components/ui/use-toast'
 import { useRouter } from 'next/navigation'
-import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { VerificationWaiting } from "./VerificationWaiting"
+import { ArrowRight, Check, Loader2 } from 'lucide-react'
+import { useToast } from '@/components/ui/use-toast'
+import { Database } from '@/types/supabase'
+import { cn } from '@/lib/utils'
 
 export interface OnboardingStep {
   id: string;
@@ -27,13 +27,25 @@ export interface OnboardingProgressProps {
   user: User;
 }
 
+type Profile = Database['public']['Tables']['profiles']['Row'];
+
+interface StripeStatusResponse {
+  isFullyOnboarded?: boolean;
+  accountId?: string;
+  detailsSubmitted?: boolean;
+  requirements?: {
+    pastDue?: string[];
+    currentlyDue?: string[];
+  };
+}
+
 export default function OnboardingProgress({ user }: OnboardingProgressProps) {
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClient()
   const [loadingStep, setLoadingStep] = useState<string | null>(null)
   const [currentStepIndex, setCurrentStepIndex] = useState(1)
-  const [profile, setProfile] = useState<any>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [steps, setSteps] = useState<OnboardingStep[]>([
     {
       id: 'create-account',
@@ -140,15 +152,15 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
       console.log('Raw response from /api/stripe-status:', responseText);
       
       // Try to parse as JSON
-      let data;
+      let stripeStatus: StripeStatusResponse;
       try {
-        data = JSON.parse(responseText);
+        stripeStatus = JSON.parse(responseText);
       } catch (e) {
         console.error('Failed to parse response as JSON:', e);
         throw new Error('Invalid JSON response from server');
       }
 
-      console.log('Stripe Account Status (raw):', data);
+      console.log('Stripe Account Status (raw):', stripeStatus);
       console.log('Current step index:', currentStepIndex);
       console.log('Current steps:', steps);
 
@@ -158,13 +170,13 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
         if (stripeStep) {
           console.log('Found stripe step:', stripeStep);
           
-          if (data.isFullyOnboarded) {
+          if (stripeStatus.isFullyOnboarded) {
             stripeStep.completed = true;
             stripeStep.status = 'completed';
             stripeStep.description = 'Your Stripe account is fully verified and ready to accept payments.';
             stripeStep.timeEstimate = 'Completed';
             stripeStep.requiredInfo = ['✓ All requirements completed'];
-          } else if (data.accountId) {
+          } else if (stripeStatus.accountId && stripeStatus.requirements) {
             // Format requirements in a user-friendly way
             const formatRequirement = (req: string) => {
               return req
@@ -176,37 +188,35 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
                 .join(' ');
             };
 
-            if (data.requirements?.pastDue?.length > 0) {
+            const { pastDue = [], currentlyDue = [] } = stripeStatus.requirements;
+
+            if (pastDue.length > 0) {
               stripeStep.status = 'warning';
-              const pastDueItems = data.requirements.pastDue
+              const pastDueItems = pastDue
                 .map(formatRequirement)
                 .join(', ');
               stripeStep.description = `⚠️ Action Required: Please provide your ${pastDueItems}`;
               stripeStep.button_text = 'Complete Required Information';
               stripeStep.timeEstimate = '2-3 min';
-              stripeStep.requiredInfo = data.requirements.pastDue.map(formatRequirement);
+              stripeStep.requiredInfo = pastDue.map(formatRequirement);
               console.log('Past due items:', pastDueItems);
-            } else if (data.requirements?.currentlyDue?.length > 0) {
+            } else if (currentlyDue.length > 0) {
               stripeStep.status = 'in-progress';
-              const currentlyDueItems = data.requirements.currentlyDue
+              const currentlyDueItems = currentlyDue
                 .map(formatRequirement)
                 .join(', ');
               stripeStep.description = `To activate payments, please provide: ${currentlyDueItems}`;
               stripeStep.button_text = 'Continue Stripe Setup';
               stripeStep.timeEstimate = '3-5 min';
-              stripeStep.requiredInfo = data.requirements.currentlyDue.map(formatRequirement);
+              stripeStep.requiredInfo = currentlyDue.map(formatRequirement);
               console.log('Currently due items:', currentlyDueItems);
-            } else if (data.detailsSubmitted) {
+            } else if (stripeStatus.detailsSubmitted) {
               stripeStep.completed = true;
               stripeStep.status = 'in-progress';
               stripeStep.description = 'Your account is under review by Stripe. We\'ll email you when verification is complete.';
               stripeStep.button_text = 'Check Verification Status';
               stripeStep.timeEstimate = 'Under review (usually within 24 hours)';
               stripeStep.requiredInfo = ['✓ All information submitted', '⏳ Waiting for Stripe verification'];
-            } else {
-              stripeStep.status = 'not-started';
-              stripeStep.description = 'Continue setting up your Stripe account to accept payments';
-              stripeStep.button_text = 'Continue Stripe Setup';
             }
           }
           console.log('Updated stripe step:', stripeStep);
@@ -215,7 +225,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
       });
 
       // Only move to next step if fully onboarded
-      if (data.isFullyOnboarded && currentStepIndex === 1) {
+      if (stripeStatus.isFullyOnboarded && currentStepIndex === 1) {
         console.log('Moving to next step - fully onboarded');
         setCurrentStepIndex(2);
       }
@@ -492,6 +502,51 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
   const currentStep = steps[currentStepIndex]
   const progress = ((currentStepIndex / (steps.length - 1)) * 100)
 
+  const checkOnboardingStatus = useCallback(async () => {
+    const { data: profileData, error }: { data: Profile | null, error: any } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+
+    if (error) {
+      console.error('Error fetching profile:', error)
+      return
+    }
+
+    if (profileData) {
+      setProfile(profileData)
+
+      // Update steps based on profile data
+      setSteps(prevSteps => {
+        const newSteps = [...prevSteps]
+        
+        // Update Connect Stripe step
+        const stripeStep = newSteps.find(step => step.id === 'connect-stripe')
+        if (stripeStep && profileData.stripe_account_id) {
+          stripeStep.status = 'completed'
+          stripeStep.completed = true
+        }
+
+        // Update Business Info step
+        const businessStep = newSteps.find(step => step.id === 'business-info')
+        if (businessStep && profileData.business_name && profileData.business_description) {
+          businessStep.status = 'completed'
+          businessStep.completed = true
+        }
+
+        // Update Support Info step
+        const supportStep = newSteps.find(step => step.id === 'support-info')
+        if (supportStep && profileData.support_email && profileData.support_phone) {
+          supportStep.status = 'completed'
+          supportStep.completed = true
+        }
+
+        return newSteps
+      })
+    }
+  }, [user.id, supabase])
+
   return (
     <div className="container max-w-3xl mx-auto px-5 py-12 font-sans">
       <div className="space-y-12">
@@ -637,4 +692,35 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
       </div>
     </div>
   )
+}
+
+interface VerificationWaitingProps {
+  onCheckStatus: () => void;
+  user: User;
+  profile: Profile | null;
+}
+
+const VerificationWaiting = ({ onCheckStatus, user, profile }: VerificationWaitingProps): JSX.Element => {
+  return (
+    <Card className="mt-4">
+      <CardContent className="pt-6">
+        <h3 className="text-lg font-medium">While you wait...</h3>
+        <p className="text-sm text-muted-foreground mt-2">
+          We'll email you when your account is verified. In the meantime, you can:
+        </p>
+        <ul className="list-disc list-inside text-sm text-muted-foreground mt-2">
+          <li>Complete your profile information</li>
+          <li>Explore our documentation</li>
+          <li>Set up your development environment</li>
+        </ul>
+        <Button
+          variant="outline"
+          className="mt-4"
+          onClick={onCheckStatus}
+        >
+          Check Verification Status
+        </Button>
+      </CardContent>
+    </Card>
+  );
 }

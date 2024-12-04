@@ -3,29 +3,45 @@ import { headers } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
-// Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-// Initialize Brevo
-const brevoApiKey = process.env.BREVO_API_KEY!;
-
 export async function POST(req: Request) {
+  // Initialize Stripe
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecretKey) {
+    console.error('Missing Stripe secret key');
+    return new NextResponse('Server configuration error', { status: 500 });
+  }
+  const stripe = new Stripe(stripeSecretKey);
+
+  // Initialize Brevo
+  const brevoApiKey = process.env.BREVO_API_KEY!;
+
+  // Initialize Supabase client
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    console.error('Missing Supabase environment variables');
+    return new NextResponse('Server configuration error', { status: 500 });
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
   const body = await req.text();
   const signature = headers().get('stripe-signature') as string;
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
+  if (!webhookSecret) {
+    console.error('Missing Stripe webhook secret');
+    return new NextResponse('Server configuration error', { status: 500 });
+  }
+
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret!);
+    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err) {
-    console.error('Error verifying webhook:', err);
-    return new Response('Webhook Error', { status: 400 });
+    console.error('Error verifying webhook signature:', err);
+    return new NextResponse('Webhook signature verification failed', { status: 400 });
   }
 
   console.log('Received webhook event:', event.type);
@@ -110,6 +126,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ received: true });
   } catch (error) {
     console.error('Error processing webhook:', error);
-    return new Response('Webhook Error', { status: 400 });
+    return new NextResponse('Webhook Error', { status: 400 });
   }
 }

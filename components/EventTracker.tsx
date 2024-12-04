@@ -1,6 +1,12 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+declare global {
+  interface Window {
+    datafast: (event: string, data: Record<string, any>) => void;
+  }
+}
+
 export function EventTracker({ 
   event,
   description,
@@ -14,7 +20,7 @@ export function EventTracker({
 }) {
   useEffect(() => {
     // Track the event
-    window?.datafast(event, { description, ...metadata });
+    window?.datafast?.(event, { description, ...metadata });
     
     // If this is a one-time event, remove the URL parameter after tracking
     if (once) {

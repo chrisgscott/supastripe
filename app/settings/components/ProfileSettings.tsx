@@ -19,12 +19,9 @@ export default function ProfileSettings({ user, profile: initialProfile }: Profi
     ...initialProfile,
     first_name: initialProfile?.first_name || '',
     last_name: initialProfile?.last_name || '',
-    company_name: initialProfile?.company_name || '',
-    phone: initialProfile?.phone || '',
     id: initialProfile?.id || user.id,
     created_at: initialProfile?.created_at || new Date().toISOString(),
     updated_at: initialProfile?.updated_at || new Date().toISOString(),
-    email: initialProfile?.email || user.email || '',
     business_name: initialProfile?.business_name || '',
     business_description: initialProfile?.business_description || '',
     business_type: initialProfile?.business_type || '',
@@ -37,6 +34,9 @@ export default function ProfileSettings({ user, profile: initialProfile }: Profi
     address_state: initialProfile?.address_state || '',
     address_postal_code: initialProfile?.address_postal_code || '',
     address_country: initialProfile?.address_country || '',
+    is_onboarded: initialProfile?.is_onboarded || false,
+    logo_url: initialProfile?.logo_url || null,
+    stripe_account_id: initialProfile?.stripe_account_id || null,
   });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
