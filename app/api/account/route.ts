@@ -23,8 +23,7 @@ export async function POST(request: Request) {
       capabilities: {
         card_payments: { requested: true },
         transfers: { requested: true },
-      },
-      business_type: 'individual',
+      }
     });
 
     console.log('POST /api/account - Stripe account created:', account)
