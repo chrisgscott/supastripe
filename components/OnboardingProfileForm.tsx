@@ -37,7 +37,6 @@ export default function OnboardingProfileForm({ user, profile: initialProfile, o
     business_name: initialProfile?.business_name || '',
     business_url: initialProfile?.business_url || '',
     support_email: initialProfile?.support_email || user.email || '',
-    support_form: initialProfile?.support_form || '',
     address_line1: initialProfile?.address_line1 || '',
     address_city: initialProfile?.address_city || '',
     address_state: initialProfile?.address_state || '',
@@ -181,29 +180,16 @@ export default function OnboardingProfileForm({ user, profile: initialProfile, o
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="support_email">Support Email</Label>
-              <Input
-                id="support_email"
-                name="support_email"
-                type="email"
-                value={nullToString(profile.support_email)}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="support_form">Support Form</Label>
-              <Input
-                id="support_form"
-                name="support_form"
-                type="url"
-                value={nullToString(profile.support_form)}
-                onChange={handleChange}
-                required
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="support_email">Support Email</Label>
+            <Input
+              id="support_email"
+              name="support_email"
+              type="email"
+              value={nullToString(profile.support_email)}
+              onChange={handleChange}
+              required
+            />
           </div>
 
           <div className="space-y-2">
