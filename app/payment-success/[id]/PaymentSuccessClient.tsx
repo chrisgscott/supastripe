@@ -18,7 +18,7 @@ interface PaymentSuccessClientProps {
   metadata?: Record<string, any>;
 }
 
-export default function PaymentSuccessClient({ 
+export function PaymentSuccessClient({ 
   planId,
   customerName,
   customerEmail,
