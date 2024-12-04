@@ -231,13 +231,36 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
                 stripeStep.timeEstimate = '3-5 min';
                 stripeStep.requiredInfo = currentlyDue.map(formatRequirement);
               } else if (stripeStatus.detailsSubmitted) {
-                // If details are submitted, mark as completed and move to next step
+                console.log('[checkStripeStatus] Details submitted, syncing profile...');
+                // If details are submitted, sync profile and move to next step
                 stripeStep.completed = true;
                 stripeStep.status = 'completed';
                 stripeStep.description = 'Stripe account connected successfully! Your account verification is in progress.';
                 stripeStep.timeEstimate = 'Completed';
                 stripeStep.requiredInfo = ['✓ Account connected', '⏳ Verification in progress'];
                 
+                // Sync profile data from Stripe
+                fetch('/api/profile/sync', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                }).then(async response => {
+                  const text = await response.text();
+                  console.log('[checkStripeStatus] Profile sync response:', {
+                    ok: response.ok,
+                    status: response.status,
+                    text
+                  });
+                  if (!response.ok) {
+                    console.error('Failed to sync profile:', text);
+                  } else {
+                    console.log('Profile synced successfully');
+                  }
+                }).catch(error => {
+                  console.error('[checkStripeStatus] Error syncing profile:', error);
+                });
+
                 // Move to the next step
                 setCurrentStepIndex(2);
               }
