@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from "react";
 import { EventTracker } from '@/components/EventTracker';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'next/navigation';
 
 export default function ConnectPage() {
   const [accountCreatePending, setAccountCreatePending] = useState(false);
