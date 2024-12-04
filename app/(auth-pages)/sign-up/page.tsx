@@ -7,13 +7,16 @@ import { Input } from "@/components/ui/input";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import Link from "next/link";
 import { toast } from "sonner";
+import { FormEvent } from "react";
 
 export default function SignUpPage({
   searchParams,
 }: {
   searchParams: { message?: string };
 }) {
-  const handleSignUp = async (formData: FormData) => {
+  const handleSignUp = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
     const result = await signUpAction(formData);
     if (result.error) {
       toast.error(result.error.message);
@@ -36,7 +39,13 @@ export default function SignUpPage({
     >
       <form onSubmit={handleSignUp} className="space-y-4">
         {searchParams?.message && (
-          <FormMessage type="error">{searchParams.message}</FormMessage>
+          <FormMessage 
+            type="error" 
+            message={{ 
+              type: "error",
+              message: searchParams.message 
+            }} 
+          />
         )}
 
         <div>
