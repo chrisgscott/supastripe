@@ -165,11 +165,9 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
         throw new Error('Failed to fetch Stripe status');
       }
 
-      // Log the raw response
       const responseText = await response.text();
       console.log('[checkStripeStatus] Raw response:', responseText);
       
-      // Try to parse as JSON
       let stripeStatus: StripeStatusResponse;
       try {
         stripeStatus = JSON.parse(responseText);
@@ -202,7 +200,6 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
               stripeStep.timeEstimate = 'Completed';
               stripeStep.requiredInfo = ['✓ All requirements completed'];
             } else if (stripeStatus.requirements) {
-              // Format requirements in a user-friendly way
               const formatRequirement = (req: string) => {
                 return req
                   .replace('business_profile.', '')
@@ -224,7 +221,6 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
                 stripeStep.button_text = 'Complete Required Information';
                 stripeStep.timeEstimate = '2-3 min';
                 stripeStep.requiredInfo = pastDue.map(formatRequirement);
-                console.log('Past due items:', pastDueItems);
               } else if (currentlyDue.length > 0) {
                 stripeStep.status = 'in-progress';
                 const currentlyDueItems = currentlyDue
@@ -234,14 +230,16 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
                 stripeStep.button_text = 'Continue Stripe Setup';
                 stripeStep.timeEstimate = '3-5 min';
                 stripeStep.requiredInfo = currentlyDue.map(formatRequirement);
-                console.log('Currently due items:', currentlyDueItems);
               } else if (stripeStatus.detailsSubmitted) {
+                // If details are submitted, mark as completed and move to next step
                 stripeStep.completed = true;
-                stripeStep.status = 'in-progress';
-                stripeStep.description = 'Your account is under review by Stripe. We\'ll email you when verification is complete.';
-                stripeStep.button_text = 'Check Verification Status';
-                stripeStep.timeEstimate = 'Under review (usually within 24 hours)';
-                stripeStep.requiredInfo = ['✓ All information submitted', '⏳ Waiting for Stripe verification'];
+                stripeStep.status = 'completed';
+                stripeStep.description = 'Stripe account connected successfully! Your account verification is in progress.';
+                stripeStep.timeEstimate = 'Completed';
+                stripeStep.requiredInfo = ['✓ Account connected', '⏳ Verification in progress'];
+                
+                // Move to the next step
+                setCurrentStepIndex(2);
               }
             }
             console.log('[checkStripeStatus] Updated stripe step:', stripeStep);
@@ -744,15 +742,6 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
             </div>
           </CardContent>
         </Card>
-
-        {/* While you wait card - only show when waiting for verification */}
-        {steps[1].status === 'in-progress' && steps[1].completed && (
-          <VerificationWaiting 
-            onCheckStatus={checkStripeStatus} 
-            user={user}
-            profile={profile}
-          />
-        )}
 
         {/* Reset button - only show when Stripe step is completed or in progress */}
         {(steps[1].completed || steps[1].status === 'in-progress') && (
