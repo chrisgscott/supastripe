@@ -10,6 +10,7 @@ import { ArrowRight, Check, Loader2 } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 import { Database } from '@/types/supabase'
 import { cn } from '@/lib/utils'
+import OnboardingProfileForm from '@/components/OnboardingProfileForm'
 
 export interface OnboardingStep {
   id: string;
@@ -74,6 +75,21 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
       button_text: 'Start Secure Connection to Stripe',
     },
     {
+      id: 'confirm-profile',
+      title: 'Confirm Business Profile',
+      description: 'Review and confirm your business information',
+      completed: false,
+      href: '#',
+      timeEstimate: '2 min',
+      requiredInfo: [
+        'Business name and URL',
+        'Support contact information',
+        'Business address'
+      ],
+      status: 'not-started',
+      button_text: 'Review Business Profile',
+    },
+    {
       id: 'create-plan',
       title: 'Create a Payment Plan',
       description: '🎉 Let\'s set up your first payment plan!',
@@ -108,11 +124,12 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
           newSteps[1] = { ...newSteps[1], completed: true, status: 'completed' as const }
           if (profile.is_onboarded) {
             newSteps[2] = { ...newSteps[2], completed: true, status: 'completed' as const }
+            newSteps[3] = { ...newSteps[3], completed: true, status: 'completed' as const }
           }
           return newSteps
         })
         // Move to next incomplete step
-        setCurrentStepIndex(profile.is_onboarded ? 2 : 1)
+        setCurrentStepIndex(profile.is_onboarded ? 3 : 1)
       }
 
       // Check if user has any payment plans
@@ -131,7 +148,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
       if (plans) {
         setSteps((prevSteps: OnboardingStep[]) => {
           const newSteps = [...prevSteps]
-          newSteps[2] = { ...newSteps[2], completed: true, status: 'completed' as const }
+          newSteps[3] = { ...newSteps[3], completed: true, status: 'completed' as const }
           return newSteps
         })
       }
@@ -422,6 +439,9 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
         console.log('Redirecting to Stripe onboarding:', linkData.url);
         window.location.href = linkData.url;
         return;
+      } else if (step.id === 'confirm-profile') {
+        // Profile step is handled by the form component
+        return;
       }
 
       // Handle other steps
@@ -440,7 +460,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
   };
 
   useEffect(() => {
-    if (currentStepIndex === 2) {
+    if (currentStepIndex === 3) {
       markOnboardingComplete();
     }
   }, [currentStepIndex]);
@@ -618,39 +638,60 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
                 <p className="text-muted-foreground mt-1">{currentStep.description}</p>
               </div>
 
-              {currentStep.requiredInfo && (
-                <div className="space-y-2">
-                  <h3 className="text-sm font-medium">Here's what you'll need:</h3>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    {currentStep.requiredInfo.map((info, i) => (
-                      <li key={i}>• {info}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              
-              <div className="text-sm text-muted-foreground">
-                Estimated time: {currentStep.timeEstimate}
-              </div>
-
-              {(currentStep.id === 'create-plan' || !currentStep.completed) && (
-                <Button 
-                  className="w-full"
-                  size="lg"
-                  disabled={loadingStep === currentStep.id}
-                  onClick={() => handleStepClick(currentStep)}
-                >
-                  {loadingStep === currentStep.id ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {currentStep.id === 'connect-stripe' ? 'Connecting...' : 'Loading...'}
-                    </>
-                  ) : (
-                    <>
-                      {currentStep.button_text} <ArrowRight className="ml-2 h-4 w-4" />
-                    </>
+              {currentStep.id === 'confirm-profile' ? (
+                <OnboardingProfileForm
+                  user={user}
+                  profile={profile}
+                  onComplete={() => {
+                    setSteps(prevSteps => {
+                      const newSteps = [...prevSteps];
+                      const profileStep = newSteps.find(s => s.id === 'confirm-profile');
+                      if (profileStep) {
+                        profileStep.completed = true;
+                        profileStep.status = 'completed';
+                      }
+                      return newSteps;
+                    });
+                    setCurrentStepIndex(3);
+                  }}
+                />
+              ) : (
+                <>
+                  {currentStep.requiredInfo && (
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-medium">Here's what you'll need:</h3>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        {currentStep.requiredInfo.map((info, i) => (
+                          <li key={i}>• {info}</li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
-                </Button>
+                  
+                  <div className="text-sm text-muted-foreground">
+                    Estimated time: {currentStep.timeEstimate}
+                  </div>
+
+                  {(currentStep.id === 'create-plan' || !currentStep.completed) && (
+                    <Button 
+                      className="w-full"
+                      size="lg"
+                      disabled={loadingStep === currentStep.id}
+                      onClick={() => handleStepClick(currentStep)}
+                    >
+                      {loadingStep === currentStep.id ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {currentStep.id === 'connect-stripe' ? 'Connecting...' : 'Loading...'}
+                        </>
+                      ) : (
+                        <>
+                          {currentStep.button_text} <ArrowRight className="ml-2 h-4 w-4" />
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           </CardContent>

@@ -223,7 +223,7 @@ export default function OnboardingProfileForm({ user, profile: initialProfile, o
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="address_city">City</Label>
               <Input
@@ -240,6 +240,16 @@ export default function OnboardingProfileForm({ user, profile: initialProfile, o
                 id="address_state"
                 name="address_state"
                 value={nullToString(profile.address_state)}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="address_postal_code">ZIP Code</Label>
+              <Input
+                id="address_postal_code"
+                name="address_postal_code"
+                value={nullToString(profile.address_postal_code)}
                 onChange={handleChange}
                 required
               />
