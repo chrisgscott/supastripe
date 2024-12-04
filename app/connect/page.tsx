@@ -24,7 +24,7 @@ export default function ConnectPage() {
         method: "GET",
       });
       const data = await response.json();
-      if (data.account) {
+      if (data.account?.stripe_account_id) {
         setConnectedAccountId(data.account.stripe_account_id);
       }
     } catch (error) {
@@ -66,10 +66,10 @@ export default function ConnectPage() {
                 .then((json) => {
                   setAccountCreatePending(false);
 
-                  const { account, error } = json;
+                  const { accountId, error } = json;
 
-                  if (account) {
-                    setConnectedAccountId(account);
+                  if (accountId) {
+                    setConnectedAccountId(accountId);
                   }
 
                   if (error) {
