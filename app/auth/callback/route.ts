@@ -14,9 +14,12 @@ export async function GET(request: NextRequest) {
   const next = searchParams.get('next') ?? '/dashboard'
   const code = searchParams.get('code')
 
-  const baseUrl = process.env.NODE_ENV === 'production' 
-    ? process.env.NEXT_PUBLIC_SITE_URL 
-    : 'http://localhost:3000'
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL
+
+  if (!baseUrl) {
+    console.error('NEXT_PUBLIC_SITE_URL is not set')
+    return NextResponse.redirect('/error')
+  }
 
   if (code) {
     const supabase = createClient()
