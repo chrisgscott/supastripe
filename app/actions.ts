@@ -56,8 +56,7 @@ export const signUpAction = async (formData: FormData) => {
       .insert([
         { 
           id: data.user.id,
-          is_onboarded: false,
-          email: data.user.email
+          is_onboarded: false
         }
       ]);
 
