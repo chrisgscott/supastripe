@@ -181,70 +181,67 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
       console.log('Current step index:', currentStepIndex);
       console.log('Current steps:', steps);
 
-      setSteps(prevSteps => {
-        const newSteps = [...prevSteps];
-        const stripeStep = newSteps.find(s => s.id === 'connect-stripe');
-        if (stripeStep) {
-          console.log('Found stripe step:', stripeStep);
-          
-          if (stripeStatus.isFullyOnboarded) {
-            stripeStep.completed = true;
-            stripeStep.status = 'completed';
-            stripeStep.description = 'Your Stripe account is fully verified and ready to accept payments.';
-            stripeStep.timeEstimate = 'Completed';
-            stripeStep.requiredInfo = ['✓ All requirements completed'];
-          } else if (stripeStatus.accountId && stripeStatus.requirements) {
-            // Format requirements in a user-friendly way
-            const formatRequirement = (req: string) => {
-              return req
-                .replace('business_profile.', '')
-                .replace('tos_acceptance.', 'Terms of Service ')
-                .replace('external_account', 'bank account')
-                .split('_')
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                .join(' ');
-            };
-
-            const { pastDue = [], currentlyDue = [] } = stripeStatus.requirements;
-
-            if (pastDue.length > 0) {
-              stripeStep.status = 'warning';
-              const pastDueItems = pastDue
-                .map(formatRequirement)
-                .join(', ');
-              stripeStep.description = `⚠️ Action Required: Please provide your ${pastDueItems}`;
-              stripeStep.button_text = 'Complete Required Information';
-              stripeStep.timeEstimate = '2-3 min';
-              stripeStep.requiredInfo = pastDue.map(formatRequirement);
-              console.log('Past due items:', pastDueItems);
-            } else if (currentlyDue.length > 0) {
-              stripeStep.status = 'in-progress';
-              const currentlyDueItems = currentlyDue
-                .map(formatRequirement)
-                .join(', ');
-              stripeStep.description = `To activate payments, please provide: ${currentlyDueItems}`;
-              stripeStep.button_text = 'Continue Stripe Setup';
-              stripeStep.timeEstimate = '3-5 min';
-              stripeStep.requiredInfo = currentlyDue.map(formatRequirement);
-              console.log('Currently due items:', currentlyDueItems);
-            } else if (stripeStatus.detailsSubmitted) {
+      // Only update the step if we have an accountId or the account is fully onboarded
+      if (stripeStatus.accountId || stripeStatus.isFullyOnboarded) {
+        setSteps(prevSteps => {
+          const newSteps = [...prevSteps];
+          const stripeStep = newSteps.find(s => s.id === 'connect-stripe');
+          if (stripeStep) {
+            console.log('Found stripe step:', stripeStep);
+            
+            if (stripeStatus.isFullyOnboarded) {
               stripeStep.completed = true;
-              stripeStep.status = 'in-progress';
-              stripeStep.description = 'Your account is under review by Stripe. We\'ll email you when verification is complete.';
-              stripeStep.button_text = 'Check Verification Status';
-              stripeStep.timeEstimate = 'Under review (usually within 24 hours)';
-              stripeStep.requiredInfo = ['✓ All information submitted', '⏳ Waiting for Stripe verification'];
-            }
-          }
-          console.log('Updated stripe step:', stripeStep);
-        }
-        return newSteps;
-      });
+              stripeStep.status = 'completed';
+              stripeStep.description = 'Your Stripe account is fully verified and ready to accept payments.';
+              stripeStep.timeEstimate = 'Completed';
+              stripeStep.requiredInfo = ['✓ All requirements completed'];
+            } else if (stripeStatus.accountId && stripeStatus.requirements) {
+              // Format requirements in a user-friendly way
+              const formatRequirement = (req: string) => {
+                return req
+                  .replace('business_profile.', '')
+                  .replace('tos_acceptance.', 'Terms of Service ')
+                  .replace('external_account', 'bank account')
+                  .split('_')
+                  .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                  .join(' ');
+              };
 
-      // Only move to next step if fully onboarded
-      if (stripeStatus.isFullyOnboarded && currentStepIndex === 1) {
-        console.log('Moving to next step - fully onboarded');
-        setCurrentStepIndex(2);
+              const { pastDue = [], currentlyDue = [] } = stripeStatus.requirements;
+
+              if (pastDue.length > 0) {
+                stripeStep.status = 'warning';
+                const pastDueItems = pastDue
+                  .map(formatRequirement)
+                  .join(', ');
+                stripeStep.description = `⚠️ Action Required: Please provide your ${pastDueItems}`;
+                stripeStep.button_text = 'Complete Required Information';
+                stripeStep.timeEstimate = '2-3 min';
+                stripeStep.requiredInfo = pastDue.map(formatRequirement);
+                console.log('Past due items:', pastDueItems);
+              } else if (currentlyDue.length > 0) {
+                stripeStep.status = 'in-progress';
+                const currentlyDueItems = currentlyDue
+                  .map(formatRequirement)
+                  .join(', ');
+                stripeStep.description = `To activate payments, please provide: ${currentlyDueItems}`;
+                stripeStep.button_text = 'Continue Stripe Setup';
+                stripeStep.timeEstimate = '3-5 min';
+                stripeStep.requiredInfo = currentlyDue.map(formatRequirement);
+                console.log('Currently due items:', currentlyDueItems);
+              } else if (stripeStatus.detailsSubmitted) {
+                stripeStep.completed = true;
+                stripeStep.status = 'in-progress';
+                stripeStep.description = 'Your account is under review by Stripe. We\'ll email you when verification is complete.';
+                stripeStep.button_text = 'Check Verification Status';
+                stripeStep.timeEstimate = 'Under review (usually within 24 hours)';
+                stripeStep.requiredInfo = ['✓ All information submitted', '⏳ Waiting for Stripe verification'];
+              }
+            }
+            console.log('Updated stripe step:', stripeStep);
+          }
+          return newSteps;
+        });
       }
     } catch (error) {
       console.error('Error checking Stripe status:', error);
@@ -578,7 +575,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
         {/* Progress bar and steps */}
         <div className="relative px-5">
           {/* Progress line */}
-          <div className="absolute top-5 left-[80px] right-[80px]">
+          <div className="absolute top-5 inset-x-10">
             <div className="h-[2px] bg-muted">
               <div 
                 className="h-full bg-gray-300 dark:bg-foreground-600 dark:bg-emerald-500 transition-all duration-500 ease-in-out"
