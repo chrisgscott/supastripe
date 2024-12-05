@@ -77,7 +77,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
     {
       id: 'confirm-profile',
       title: 'Confirm Business Profile',
-      description: 'Review and confirm your business information',
+      description: 'We\'ve fetched your information from Stripe. Please review and update any details if needed.',
       completed: false,
       href: '#',
       timeEstimate: '2 min',

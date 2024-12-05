@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/use-toast'
 import { Loader2 } from 'lucide-react'
 import { VerificationWaiting } from '@/components/VerificationWaiting'
+import { Skeleton } from '@/components/ui/skeleton'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
@@ -27,6 +28,7 @@ export default function OnboardingProfileForm({ user, profile: initialProfile, o
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [showVerification, setShowVerification] = useState(false)
+  const [loadingProfile, setLoadingProfile] = useState(!initialProfile)
   const [profile, setProfile] = useState<Profile>({
     id: initialProfile?.id || user.id,
     created_at: initialProfile?.created_at || new Date().toISOString(),
@@ -49,6 +51,27 @@ export default function OnboardingProfileForm({ user, profile: initialProfile, o
     logo_url: initialProfile?.logo_url || null,
     stripe_account_id: initialProfile?.stripe_account_id || '',
   })
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const response = await fetch(`/api/profile/${user.id}`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch profile')
+        }
+        const { data } = await response.json()
+        setProfile(data)
+        setLoadingProfile(false)
+      } catch (error) {
+        console.error('Error fetching profile:', error)
+        setTimeout(fetchProfile, 3000) // Retry after 3 seconds
+      }
+    }
+
+    if (loadingProfile) {
+      fetchProfile()
+    }
+  }, [loadingProfile, user.id])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setProfile({ ...profile, [e.target.name]: e.target.value })
@@ -118,6 +141,10 @@ export default function OnboardingProfileForm({ user, profile: initialProfile, o
         variant: 'destructive',
       })
     }
+  }
+
+  if (loadingProfile) {
+    return <Skeleton />
   }
 
   if (showVerification) {
@@ -257,7 +284,7 @@ export default function OnboardingProfileForm({ user, profile: initialProfile, o
             Saving...
           </>
         ) : (
-          'Continue'
+          'Save & Continue'
         )}
       </Button>
     </form>
