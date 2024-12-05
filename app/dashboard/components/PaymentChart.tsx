@@ -87,7 +87,7 @@ export function PaymentChart({ data, isLoading }: PaymentChartProps) {
     <Card>
       <CardHeader className="flex flex-col items-stretch space-y-0 border-b p-0 sm:flex-row">
         <div className="flex flex-1 flex-col justify-center gap-1 px-6 py-5 sm:py-6">
-          <CardTitle className="mb-1">Cash Flow</CardTitle>
+          <CardTitle className="mb-1">Revenue</CardTitle>
           <CardDescription>
             Your collected and forecasted payments
           </CardDescription>

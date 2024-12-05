@@ -102,26 +102,16 @@ export default async function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-        <Card className="col-span-1">
-          <CardHeader>
-            <CardTitle>Revenue</CardTitle>
-          </CardHeader>
-          <CardContent className="pl-2">
-            <div className="h-[350px]">
-              <PaymentChart data={[]} isLoading={false} />
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-12">
+        <div className="lg:col-span-8">
+          <div className="h-[350px]">
+            <PaymentChart data={[]} isLoading={false} />
+          </div>
+        </div>
 
-        <Card className="col-span-1">
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ActivityLogsTable />
-          </CardContent>
-        </Card>
+        <div className="lg:col-span-4">
+          <ActivityLogsTable />
+        </div>
       </div>
     </div>
   )
