@@ -44,6 +44,12 @@ export async function POST() {
       business_description: account.business_profile?.product_description,
       is_onboarded: account.details_submitted,
       updated_at: new Date().toISOString(),
+      address_line1: account.business_profile?.support_address?.line1,
+      address_line2: account.business_profile?.support_address?.line2,
+      address_city: account.business_profile?.support_address?.city,
+      address_state: account.business_profile?.support_address?.state,
+      address_postal_code: account.business_profile?.support_address?.postal_code,
+      address_country: account.business_profile?.support_address?.country,
     }
     console.log('POST /api/profile/sync - Updating profile with:', JSON.stringify(profileData, null, 2))
 
