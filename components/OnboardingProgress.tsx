@@ -167,7 +167,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
 
       const responseText = await response.text();
       console.log('[checkStripeStatus] Raw response:', responseText);
-      
+
       let stripeStatus: StripeStatusResponse;
       try {
         stripeStatus = JSON.parse(responseText);
@@ -192,7 +192,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
           if (stripeStep) {
             const oldStatus = { ...stripeStep };
             console.log('[checkStripeStatus] Current stripe step:', oldStatus);
-            
+
             if (stripeStatus.isFullyOnboarded) {
               stripeStep.completed = true;
               stripeStep.status = 'completed';
@@ -238,7 +238,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
                 stripeStep.description = 'Stripe account connected successfully! Your account verification is in progress.';
                 stripeStep.timeEstimate = 'Completed';
                 stripeStep.requiredInfo = ['✓ Account connected', '⏳ Verification in progress'];
-                
+
                 // Sync profile data from Stripe
                 fetch('/api/profile/sync', {
                   method: 'POST',
@@ -304,7 +304,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
         const { data } = await response.json();
         console.log('Fetched profile:', data);
         setProfile(data);
-        
+
         // Move checkProgress here so it uses the latest profile data
         if (data) {
           await checkProgress();
@@ -331,7 +331,6 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
         },
         body: JSON.stringify({
           is_onboarded: true,
-          onboarding_completed_at: new Date().toISOString()
         }),
       });
 
@@ -344,7 +343,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
       if (!profileResponse.ok) {
         throw new Error('Failed to fetch updated profile');
       }
-      
+
       const { data: updatedProfile } = await profileResponse.json();
       setProfile(updatedProfile);
 
@@ -362,7 +361,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
       // Update local storage
       localStorage.setItem('onboarding_complete', 'true');
       console.log('Successfully marked user as onboarded');
-      
+
       // Force a progress check with the new profile data
       await checkProgress();
     } catch (error) {
@@ -503,20 +502,20 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
   const handleReset = async () => {
     try {
       setLoadingStep('connect-stripe');
-      
+
       console.log('Disconnecting from Stripe...');
       const disconnectResponse = await fetch('/api/disconnect-stripe', { method: 'POST' });
       const disconnectData = await disconnectResponse.json();
-      
+
       if (!disconnectResponse.ok) {
         throw new Error(disconnectData.error || 'Failed to disconnect');
       }
-      
+
       console.log('Disconnect response:', disconnectData);
 
       // Reset the current step to the Stripe connection step
       setCurrentStepIndex(1);
-      
+
       // Reset the steps state
       setSteps(prevSteps => {
         const newSteps = [...prevSteps];
@@ -532,7 +531,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
 
       // Store a flag in sessionStorage to indicate we're resetting
       sessionStorage.setItem('stripe_reset', 'true');
-      
+
       // Reload the page
       window.location.href = '/onboarding';
     } catch (error) {
@@ -549,7 +548,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
     if (resetFlag) {
       console.log('[Reset Effect] Found reset flag, resetting step...');
       sessionStorage.removeItem('stripe_reset');
-      
+
       // Reset the current step and its status
       setSteps(prevSteps => {
         const newSteps = [...prevSteps];
@@ -561,10 +560,10 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
         }
         return newSteps;
       });
-      
+
       setCurrentStepIndex(1);
       console.log('[Reset Effect] Current step index set to:', 1);
-      
+
       // Delay the Stripe status check to ensure our reset takes effect
       setTimeout(() => {
         checkStripeStatus();
@@ -573,10 +572,10 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
   }, []);
 
   const currentStep = steps[currentStepIndex]
-  console.log('[Render] Current step:', { 
-    id: currentStep?.id, 
-    completed: currentStep?.completed, 
-    button_text: currentStep?.button_text 
+  console.log('[Render] Current step:', {
+    id: currentStep?.id,
+    completed: currentStep?.completed,
+    button_text: currentStep?.button_text
   });
   console.log('[Render] Current step index:', currentStepIndex);
 
@@ -600,7 +599,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
       // Update steps based on profile data
       setSteps(prevSteps => {
         const newSteps = [...prevSteps]
-        
+
         // Update Connect Stripe step
         const stripeStep = newSteps.find(step => step.id === 'connect-stripe')
         if (stripeStep && profileData.stripe_account_id) {
@@ -640,7 +639,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
           {/* Progress line */}
           <div className="absolute top-5 inset-x-10">
             <div className="h-[2px] bg-muted">
-              <div 
+              <div
                 className="h-full bg-gray-300 dark:bg-foreground-600 dark:bg-emerald-500 transition-all duration-500 ease-in-out"
                 style={{ width: `${progress}%` }}
               />
@@ -655,12 +654,12 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
 
               return (
                 <div key={step.id} className="relative flex flex-col items-center">
-                  <div 
+                  <div
                     className={cn(
                       "relative z-10 w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all duration-200",
                       isCompleted ? "border-emerald-600 dark:border-emerald-500 bg-emerald-600 dark:bg-emerald-500 text-white" :
-                      isCurrent ? "border-blue-800 bg-blue-200 text-blue-800" : 
-                      "border-gray-300 bg-gray-50 text-gray-500"
+                        isCurrent ? "border-blue-800 bg-blue-200 text-blue-800" :
+                          "border-gray-300 bg-gray-50 text-gray-500"
                     )}
                   >
                     {isCompleted ? (
@@ -679,8 +678,8 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
                     <div className={cn(
                       "text-sm font-medium",
                       isCompleted ? "text-emerald-600 dark:text-emerald-500" :
-                      isCurrent ? "text-blue-800" :
-                      "text-gray-500"
+                        isCurrent ? "text-blue-800" :
+                          "text-gray-500"
                     )}>{step.title}</div>
                   </div>
                 </div>
@@ -729,7 +728,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
                       </ul>
                     </div>
                   )}
-                  
+
                   <div className="text-sm text-muted-foreground">
                     Estimated time: {currentStep.timeEstimate}
                   </div>
@@ -743,7 +742,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
                         isLastStep: currentStepIndex === steps.length - 1,
                         shouldShow: !currentStep.completed || (currentStep.completed && currentStepIndex < steps.length - 1)
                       })}
-                      <Button 
+                      <Button
                         className="w-full"
                         size="lg"
                         disabled={loadingStep === currentStep.id}
