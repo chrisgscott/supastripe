@@ -42,7 +42,7 @@ export async function GET(request: Request) {
       .from('transactions')
       .select('payment_plan_id')
       .eq('stripe_payment_intent_id', paymentIntentId)
-      .single();
+      .maybeSingle();
 
     if (existingTransaction) {
       console.log('handle-payment-confirmation: Payment already processed, redirecting to:', existingTransaction.payment_plan_id);
@@ -81,7 +81,12 @@ export async function GET(request: Request) {
         )
       `)
       .eq('id', pendingPlanId)
-      .single();
+      .maybeSingle();
+
+    if (!pendingPlan) {
+      console.error('handle-payment-confirmation: Pending plan not found:', pendingPlanId);
+      throw new Error('Pending payment plan not found');
+    }
 
     if (planError) {
       console.error('handle-payment-confirmation: Error fetching pending plan:', planError);
@@ -133,9 +138,14 @@ export async function GET(request: Request) {
         transactions (*)
       `)
       .eq('id', result.migrated_plan_id)
-      .single();
+      .maybeSingle();
 
-    if (verificationError || !newPlan) {
+    if (!newPlan) {
+      console.error('handle-payment-confirmation: Migrated plan not found:', result.migrated_plan_id);
+      throw new Error('Failed to verify migrated payment plan - plan not found');
+    }
+
+    if (verificationError) {
       console.error('handle-payment-confirmation: Verification failed:', { verificationError, newPlan });
       throw new Error('Failed to verify migrated payment plan');
     }
@@ -187,7 +197,7 @@ export async function GET(request: Request) {
           .from('transactions')
           .select('payment_plan_id')
           .eq('stripe_payment_intent_id', paymentIntentId)
-          .single();
+          .maybeSingle();
 
         if (lookupError) {
           console.error('Error looking up processed payment:', lookupError);
