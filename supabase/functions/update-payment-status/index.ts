@@ -108,10 +108,17 @@ serve(async (req) => {
       );
     }
 
-    // Look up the transaction first
+    // Look up the pending transaction
     const { data: transaction, error: transactionError } = await supabase
       .from('pending_transactions')
-      .select('*')
+      .select(`
+        *,
+        payment_plan:pending_payment_plans!inner (
+          id,
+          user_id,
+          customer_id
+        )
+      `)
       .eq('id', transactionId)
       .single();
 
@@ -131,17 +138,21 @@ serve(async (req) => {
 
     switch (event.type) {
       case 'payment_intent.succeeded':
-        // Call the handle_successful_payment function
-        const { data, error } = await supabase
-          .rpc('handle_successful_payment', {
-            p_transaction_id: transactionId,
-            p_paid_at: new Date().toISOString()
+        // First call handle_payment_confirmation to update status and prepare for migration
+        const { data: confirmationData, error: confirmationError } = await supabase
+          .rpc('handle_payment_confirmation', {
+            p_pending_plan_id: transaction.payment_plan.id,
+            p_payment_intent_id: paymentIntent.id,
+            p_idempotency_key: crypto.randomUUID(),
+            p_card_last_four: paymentIntent.payment_method_details?.card?.last4 || null,
+            p_card_expiration_month: paymentIntent.payment_method_details?.card?.exp_month || null,
+            p_card_expiration_year: paymentIntent.payment_method_details?.card?.exp_year || null
           });
 
-        if (error) {
-          console.error('Error handling successful payment:', error);
+        if (confirmationError) {
+          console.error('Error handling payment confirmation:', confirmationError);
           return new Response(
-            JSON.stringify({ error: 'Error processing webhook', details: error.message }), 
+            JSON.stringify({ error: 'Error processing webhook', details: confirmationError.message }), 
             { 
               status: 400,
               headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -151,12 +162,14 @@ serve(async (req) => {
         break;
 
       case 'payment_intent.payment_failed':
-        // Call the handle_failed_payment function
+        // Update the pending transaction status to failed
         const { data: failedData, error: failedError } = await supabase
-          .rpc('handle_failed_payment', {
-            p_transaction_id: transactionId,
-            p_error_message: paymentIntent.last_payment_error?.message || 'Payment failed'
-          });
+          .from('pending_transactions')
+          .update({ 
+            status: 'failed',
+            error_message: paymentIntent.last_payment_error?.message || 'Payment failed'
+          })
+          .eq('id', transactionId);
 
         if (failedError) {
           console.error('Error handling failed payment:', failedError);
