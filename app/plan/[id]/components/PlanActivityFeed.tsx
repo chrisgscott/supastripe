@@ -127,8 +127,7 @@ export function PlanActivityFeed({ planId }: PlanActivityFeedProps) {
           event: 'INSERT',
           schema: 'public',
           table: 'activity_logs',
-          filter: `entity_id=eq.${planId}`,
-          filter_type: 'payment_plan'
+          filter: `entity_id=eq.${planId} AND entity_type=eq.payment_plan`
         },
         (payload) => {
           console.log('Realtime activity payload:', {
