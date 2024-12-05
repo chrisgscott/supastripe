@@ -733,33 +733,34 @@ function OnboardingProgress({ user }: OnboardingProgressProps) {
                     Estimated time: {currentStep.timeEstimate}
                   </div>
 
-                  <Button
-                    className="w-full"
-                    size="lg"
-                    disabled={loadingStep === currentStep.id}
-                    onClick={() => handleStepClick(currentStep)}
-                  >
-                    {loadingStep === currentStep.id ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      currentStep.button_text || 'Continue'
-                    )}
-                  </Button>
+                  {currentStep.id === 'connect-stripe' && currentStep.completed ? (
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      onClick={() => setCurrentStepIndex(currentStepIndex + 1)}
+                    >
+                      Continue
+                    </Button>
+                  ) : (
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      disabled={loadingStep === currentStep.id}
+                      onClick={() => handleStepClick(currentStep)}
+                    >
+                      {loadingStep === currentStep.id ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        currentStep.button_text || 'Continue'
+                      )}
+                    </Button>
+                  )}
                 </>
               )}
             </div>
           </CardContent>
         </Card>
 
-        <div className="mt-4">
-          <Button
-            className="w-full"
-            size="lg"
-            onClick={() => handleStepClick(currentStep)}
-          >
-            {currentStep.button_text || 'Continue'}
-          </Button>
-        </div>
       </div>
     </div>
   )
