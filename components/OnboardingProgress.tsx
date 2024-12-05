@@ -124,7 +124,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
           newSteps[1] = { ...newSteps[1], completed: true, status: 'completed' as const }
           if (profile.is_onboarded) {
             newSteps[2] = { ...newSteps[2], completed: true, status: 'completed' as const }
-            newSteps[3] = { ...newSteps[3], completed: true, status: 'completed' as const }
+            newSteps[3] = { ...newSteps[3], completed: true, status: 'in-progress' as const } // Update this line
           }
           return newSteps
         })
@@ -148,7 +148,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
       if (plans) {
         setSteps((prevSteps: OnboardingStep[]) => {
           const newSteps = [...prevSteps]
-          newSteps[3] = { ...newSteps[3], completed: true, status: 'completed' as const }
+          newSteps[3] = { ...newSteps[3], completed: true, status: 'in-progress' as const } // Update this line
           return newSteps
         })
       }
@@ -353,7 +353,7 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
         const planStep = newSteps.find(s => s.id === 'create-plan');
         if (planStep) {
           planStep.completed = true;
-          planStep.status = 'completed';
+          planStep.status = 'in-progress'; // Update this line
         }
         return newSteps;
       });
