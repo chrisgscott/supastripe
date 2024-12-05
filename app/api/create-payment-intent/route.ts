@@ -67,7 +67,8 @@ export async function POST(request: Request) {
       },
       metadata: {
         pending_payment_plan_id: paymentPlanId,
-        transaction_type: 'downpayment'
+        transaction_type: 'downpayment',
+        pending_transaction_id: paymentPlanId
       }
     });
 

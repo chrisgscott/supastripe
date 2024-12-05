@@ -95,7 +95,7 @@ serve(async (req) => {
 
     const paymentIntent = event.data.object;
     const metadata = paymentIntent.metadata || {};
-    const transactionId = metadata.pending_transaction_id;
+    const transactionId = metadata.pending_transaction_id || metadata.pending_payment_plan_id;
 
     if (!transactionId) {
       console.error('No transaction ID in metadata');
