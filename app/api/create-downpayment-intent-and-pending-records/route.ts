@@ -80,12 +80,18 @@ export async function POST(request: Request) {
 
     console.log('Converted payment schedule:', convertedPaymentSchedule);
 
+    // Generate UUIDs once and use them consistently
+    const pendingCustomerId = crypto.randomUUID();
+    const pendingPaymentPlanId = crypto.randomUUID();
+    const pendingTransactionId = crypto.randomUUID();
+    const idempotencyKey = crypto.randomUUID();
+
     // Proceed with creating the pending payment records
     const { error: dbError } = await supabase
       .rpc('create_pending_payment_records', {
-        p_customer_id: crypto.randomUUID(),
-        p_payment_plan_id: crypto.randomUUID(),
-        p_transaction_id: crypto.randomUUID(),
+        p_customer_id: pendingCustomerId,
+        p_payment_plan_id: pendingPaymentPlanId,
+        p_transaction_id: pendingTransactionId,
         p_customer_name: paymentPlan.customerName,
         p_customer_email: paymentPlan.customerEmail,
         p_user_id: user.id,
@@ -95,7 +101,7 @@ export async function POST(request: Request) {
         p_downpayment_amount: paymentPlan.downpaymentAmount.cents,
         p_payment_schedule: convertedPaymentSchedule,
         p_stripe_customer_id: stripeCustomer.id,
-        p_idempotency_key: crypto.randomUUID(),
+        p_idempotency_key: idempotencyKey,
         p_notes: paymentPlan.notes || null
       });
 
@@ -131,9 +137,9 @@ export async function POST(request: Request) {
 
     const paymentAmount = firstPayment.amount.cents;
     const metadata = {
-      pending_payment_plan_id: crypto.randomUUID(),
-      pending_transaction_id: crypto.randomUUID(),
-      pending_customer_id: crypto.randomUUID(),
+      pending_payment_plan_id: pendingPaymentPlanId,    // Use the same UUID
+      pending_transaction_id: pendingTransactionId,      // Use the same UUID
+      pending_customer_id: pendingCustomerId,            // Use the same UUID
       transaction_type: 'downpayment'
     };
 
@@ -150,7 +156,7 @@ export async function POST(request: Request) {
       },
       metadata
     }, {
-      idempotencyKey: crypto.randomUUID()
+      idempotencyKey
     });
 
     console.log('create-downpayment-intent-and-pending-records: Created PaymentIntent:', paymentIntent.id);
