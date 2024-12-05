@@ -115,6 +115,8 @@ export async function GET() {
     }
 
     const account = await stripe.accounts.retrieve(stripeAccount.stripe_account_id)
+    
+    console.log('[checkStripeStatus] Raw Stripe account:', JSON.stringify(account, null, 2))
 
     const status: StripeAccountResponse = {
       isConnected: account.details_submitted || false,
