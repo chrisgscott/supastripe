@@ -40,7 +40,7 @@ interface StripeStatusResponse {
   };
 }
 
-export default function OnboardingProgress({ user }: OnboardingProgressProps) {
+function OnboardingProgress({ user }: OnboardingProgressProps) {
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClient()
@@ -733,75 +733,33 @@ export default function OnboardingProgress({ user }: OnboardingProgressProps) {
                     Estimated time: {currentStep.timeEstimate}
                   </div>
 
-                  {/* Show button if step is not completed OR if it's completed but not the last step */}
-                  {(!currentStep.completed || (currentStep.completed && currentStepIndex < steps.length - 1)) && (
-                    <>
-                      {console.log('[Button Render] Condition check:', {
-                        stepId: currentStep.id,
-                        completed: currentStep.completed,
-                        isLastStep: currentStepIndex === steps.length - 1,
-                        shouldShow: !currentStep.completed || (currentStep.completed && currentStepIndex < steps.length - 1)
-                      })}
-                      <Button
-                        className="w-full"
-                        size="lg"
-                        disabled={loadingStep === currentStep.id}
-                        onClick={() => {
-                          if (currentStep.completed) {
-                            // If step is completed, just move to next step
-                            setCurrentStepIndex(currentStepIndex + 1);
-                          } else {
-                            handleStepClick(currentStep);
-                          }
-                        }}
-                      >
-                        {loadingStep === currentStep.id ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            {currentStep.id === 'connect-stripe' ? 'Connecting...' : 'Loading...'}
-                          </>
-                        ) : (
-                          <>
-                            {currentStep.completed ? (
-                              <>Continue <ArrowRight className="ml-2 h-4 w-4" /></>
-                            ) : (
-                              <>{currentStep.button_text} <ArrowRight className="ml-2 h-4 w-4" /></>
-                            )}
-                          </>
-                        )}
-                      </Button>
-                    </>
-                  )}
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    disabled={loadingStep === currentStep.id}
+                    onClick={() => handleStepClick(currentStep)}
+                  >
+                    {loadingStep === currentStep.id ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      currentStep.button_text || 'Continue'
+                    )}
+                  </Button>
                 </>
               )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Reset button - only show when Stripe step is completed or in progress */}
-        {(steps[1].completed || steps[1].status === 'in-progress') && (
-          <div className="text-right">
-            <button
-              onClick={handleReset}
-              disabled={loadingStep === 'connect-stripe'}
-              className={cn(
-                "px-3 py-1 text-sm border rounded-md transition-colors",
-                loadingStep === 'connect-stripe'
-                  ? "text-gray-400 border-gray-200 cursor-not-allowed"
-                  : "text-gray-600 hover:text-gray-800 border-gray-300 hover:border-gray-400"
-              )}
-            >
-              {loadingStep === 'connect-stripe' ? (
-                <>
-                  <Loader2 className="inline mr-2 h-3 w-3 animate-spin" />
-                  Resetting...
-                </>
-              ) : (
-                'Reset Stripe Connection'
-              )}
-            </button>
-          </div>
-        )}
+        <div className="mt-4">
+          <Button
+            className="w-full"
+            size="lg"
+            onClick={() => handleStepClick(currentStep)}
+          >
+            {currentStep.button_text || 'Continue'}
+          </Button>
+        </div>
       </div>
     </div>
   )
@@ -813,27 +771,16 @@ interface VerificationWaitingProps {
   profile: Profile | null;
 }
 
-const VerificationWaiting = ({ onCheckStatus, user, profile }: VerificationWaitingProps): JSX.Element => {
+function VerificationWaiting({ onCheckStatus, user, profile }: VerificationWaitingProps): JSX.Element {
   return (
-    <Card className="mt-4">
-      <CardContent className="pt-6">
-        <h3 className="text-lg font-medium">While you wait...</h3>
-        <p className="text-sm text-muted-foreground mt-2">
-          We'll email you when your account is verified. In the meantime, you can:
-        </p>
-        <ul className="list-disc list-inside text-sm text-muted-foreground mt-2">
-          <li>Complete your profile information</li>
-          <li>Explore our documentation</li>
-          <li>Set up your development environment</li>
-        </ul>
-        <Button
-          variant="outline"
-          className="mt-4"
-          onClick={onCheckStatus}
-        >
-          Check Verification Status
-        </Button>
-      </CardContent>
-    </Card>
+    <div>
+      <h2>Verification in Progress</h2>
+      <p>Your profile is being verified. Please check back later.</p>
+      <Button onClick={onCheckStatus}>Check Status</Button>
+    </div>
   );
 }
+
+export { VerificationWaiting }
+
+export default OnboardingProgress
