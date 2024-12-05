@@ -2,16 +2,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Stripe } from 'https://esm.sh/stripe@12.18.0'
+import { corsHeaders } from '../_shared/cors.ts'
 
-// Remove these imports as they're not needed or accessible in the edge function
-// import { Money } from '@/utils/currencyUtils';
-// import { Tables } from '@/types/supabase';
-
-// Instead, we can define the types we need directly here
+// Types
 type TransactionStatusType = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
 type TransactionType = 'downpayment' | 'installment';
 
-// Add the ActivityType enum at the top of the file
 type ActivityType = 
   | 'payment_method_updated'
   | 'payment_success'
@@ -25,6 +21,7 @@ type ActivityType =
   | 'payout_paid'
   | 'payout_failed';
 
+// Environment variables
 const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -42,64 +39,157 @@ const stripe = new Stripe(stripeSecretKey, {
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-type Transaction = Tables<'transactions'>;
-
-serve(async (req: Request) => {
-  const signature = req.headers.get('stripe-signature');
-  console.log('Received webhook request with headers:', JSON.stringify(Object.fromEntries(req.headers.entries()), null, 2));
-
-  if (!signature) {
-    console.error('No Stripe signature found in the request');
-    return new Response('No signature', { status: 400 });
+serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { 
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, stripe-signature',
+      }
+    });
   }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 seconds timeout
-
   try {
+    console.log('Function started');
+    console.log('Request method:', req.method);
+    console.log('Headers received:', JSON.stringify(Object.fromEntries(req.headers.entries()), null, 2));
+
+    // For Stripe webhooks, we don't need authorization header
+    // We verify the request using the Stripe signature instead
+    const signature = req.headers.get('stripe-signature');
+    if (!signature) {
+      console.error('No Stripe signature found in the request');
+      return new Response(
+        JSON.stringify({ error: 'No stripe signature found' }), 
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
     const body = await req.text();
     console.log('Received webhook body:', body);
 
-    const event = await stripe.webhooks.constructEventAsync(
-      body,
-      signature,
-      stripeWebhookSecret
-    );
+    let event;
+    try {
+      event = await stripe.webhooks.constructEventAsync(
+        body,
+        signature,
+        stripeWebhookSecret
+      );
+    } catch (err) {
+      console.error(`Webhook signature verification failed: ${err.message}`);
+      return new Response(
+        JSON.stringify({ error: 'Invalid signature' }), 
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
 
-    console.log(`Received webhook event: ${event.type}`);
+    console.log('Processing webhook event:', event.type);
     console.log('Event data:', JSON.stringify(event.data, null, 2));
+
+    const paymentIntent = event.data.object;
+    const metadata = paymentIntent.metadata || {};
+    const transactionId = metadata.pending_transaction_id;
+
+    if (!transactionId) {
+      console.error('No transaction ID in metadata');
+      return new Response(
+        JSON.stringify({ error: 'No transaction ID in metadata' }), 
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    // Look up the transaction first
+    const { data: transaction, error: transactionError } = await supabase
+      .from('pending_transactions')
+      .select('*')
+      .eq('id', transactionId)
+      .single();
+
+    if (transactionError || !transaction) {
+      console.error('Transaction not found:', transactionId);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Error processing webhook', 
+          details: `Transaction not found: ${transactionId}` 
+        }), 
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
 
     switch (event.type) {
       case 'payment_intent.succeeded':
-        await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent, supabase);
+        // Call the handle_successful_payment function
+        const { data, error } = await supabase
+          .rpc('handle_successful_payment', {
+            p_transaction_id: transactionId,
+            p_paid_at: new Date().toISOString()
+          });
+
+        if (error) {
+          console.error('Error handling successful payment:', error);
+          return new Response(
+            JSON.stringify({ error: 'Error processing webhook', details: error.message }), 
+            { 
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            }
+          );
+        }
         break;
+
       case 'payment_intent.payment_failed':
-        await handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent, supabase);
+        // Call the handle_failed_payment function
+        const { data: failedData, error: failedError } = await supabase
+          .rpc('handle_failed_payment', {
+            p_transaction_id: transactionId,
+            p_error_message: paymentIntent.last_payment_error?.message || 'Payment failed'
+          });
+
+        if (failedError) {
+          console.error('Error handling failed payment:', failedError);
+          return new Response(
+            JSON.stringify({ error: 'Error processing webhook', details: failedError.message }), 
+            { 
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            }
+          );
+        }
         break;
-      case 'transfer.created':
-        await handleTransfer(event.data.object as Stripe.Transfer, supabase);
-        break;
+
       default:
         console.log(`Unhandled event type ${event.type}`);
     }
 
-    clearTimeout(timeoutId);
     return new Response(JSON.stringify({ received: true }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
     });
   } catch (err) {
-    clearTimeout(timeoutId);
     console.error('Error processing webhook:', {
       error: err,
       message: err.message,
       stack: err.stack,
-      details: err.details,
-      hint: err.hint,
-      code: err.code
     });
     return new Response(
       JSON.stringify({ error: 'Error processing webhook', details: err.message }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } }
+      { 
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
     );
   }
 });

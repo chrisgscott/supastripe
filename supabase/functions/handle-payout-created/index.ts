@@ -1,8 +1,9 @@
 // @ts-nocheck
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from '@supabase/supabase-js'
-import Stripe from 'stripe'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { Stripe } from 'https://esm.sh/stripe@12.18.0'
+import { corsHeaders } from '../_shared/cors.ts'
 
 // This matches the status column in the payouts table
 type PayoutStatusType = string
@@ -66,13 +67,13 @@ serve(async (req: Request) => {
     }
 
     return new Response(JSON.stringify({ success: true }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
   } catch (err: unknown) {
     const error = err as Error
     return new Response(JSON.stringify({ error: error.message }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
     })
   }

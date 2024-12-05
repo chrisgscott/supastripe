@@ -1,0 +1,11 @@
+[functions.update-payment-status]
+verify_jwt = false
+import_map = "./import_map.json"
+
+[functions.handle-payout-created]
+verify_jwt = false
+import_map = "./import_map.json"
+
+[functions.process-due-payments]
+verify_jwt = false
+import_map = "./import_map.json"
