@@ -80,6 +80,7 @@ export default function OnboardingProfileForm({ user, profile: initialProfile, o
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setProfile(prevProfile => ({ ...prevProfile, is_onboarded: true }))
 
     try {
       const response = await fetch('/api/profile', {
