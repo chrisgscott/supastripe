@@ -95,12 +95,18 @@ serve(async (req) => {
 
     const paymentIntent = event.data.object;
     const metadata = paymentIntent.metadata || {};
-    const transactionId = metadata.pending_transaction_id || metadata.pending_payment_plan_id;
+    
+    // Log all metadata for debugging
+    console.log('handle-payment-confirmation: Payment intent metadata:', metadata);
 
-    if (!transactionId) {
-      console.error('No transaction ID in metadata');
+    // Use the pending_transaction_id from metadata
+    const transactionId = metadata.pending_transaction_id;
+    const pendingPlanId = metadata.pending_payment_plan_id;
+
+    if (!transactionId || !pendingPlanId) {
+      console.error('Missing required metadata:', { transactionId, pendingPlanId });
       return new Response(
-        JSON.stringify({ error: 'No transaction ID in metadata' }), 
+        JSON.stringify({ error: 'Missing required metadata' }), 
         { 
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -120,10 +126,34 @@ serve(async (req) => {
         )
       `)
       .eq('id', transactionId)
+      .eq('payment_plan_id', pendingPlanId)
       .single();
 
     if (transactionError || !transaction) {
-      console.error('Transaction not found:', transactionId);
+      console.error('Error fetching transaction:', {
+        error: transactionError,
+        transactionId,
+        pendingPlanId
+      });
+      
+      // Check if this payment has already been processed
+      const { data: existingPayment } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('stripe_payment_intent_id', paymentIntent.id)
+        .single();
+
+      if (existingPayment) {
+        console.log('Payment already processed:', existingPayment.id);
+        return new Response(
+          JSON.stringify({ received: true, already_processed: true }), 
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+          }
+        );
+      }
+
       return new Response(
         JSON.stringify({ 
           error: 'Error processing webhook', 
