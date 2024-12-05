@@ -5,7 +5,7 @@ PayKit is a SaaS platform that empowers U.S.-based service businesses to offer f
 ## Overview
 
 ### Mission
-PayKit streamlines the process of offering flexible payment plans for local and online service-based businesses with high-value transactions. We provide businesses lacking the tools or expertise to handle installment payments with a secure, automated solution.
+PayKit streamlines the process of offering payment plans for local and online service-based businesses with high-value transactions. We provide businesses lacking the tools or expertise to handle installment payments with a secure, automated solution.
 
 ### Target Users
 - **Local Service-Based Businesses**
