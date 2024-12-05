@@ -27,26 +27,30 @@ export async function POST() {
 
     // Fetch the account details from Stripe
     const account = await stripe.accounts.retrieve(stripeAccount.stripe_account_id)
+    console.log('POST /api/profile/sync - Raw Stripe account:', JSON.stringify(account, null, 2))
     console.log('POST /api/profile/sync - Stripe account retrieved:', {
       id: account.id,
       business_profile: account.business_profile,
       details_submitted: account.details_submitted
     })
 
+    const profileData = {
+      id: user.id,
+      stripe_account_id: account.id,
+      business_name: account.business_profile?.name,
+      business_url: account.business_profile?.url,
+      support_email: account.business_profile?.support_email,
+      support_phone: account.business_profile?.support_phone,
+      business_description: account.business_profile?.product_description,
+      is_onboarded: account.details_submitted,
+      updated_at: new Date().toISOString(),
+    }
+    console.log('POST /api/profile/sync - Updating profile with:', JSON.stringify(profileData, null, 2))
+
     // Update the profile with Stripe information
     const { error: profileError } = await supabase
       .from('profiles')
-      .upsert({
-        id: user.id,
-        stripe_account_id: account.id,
-        business_name: account.business_profile?.name,
-        business_url: account.business_profile?.url,
-        support_email: account.business_profile?.support_email,
-        support_phone: account.business_profile?.support_phone,
-        business_description: account.business_profile?.product_description,
-        is_onboarded: account.details_submitted,
-        updated_at: new Date().toISOString(),
-      })
+      .upsert(profileData)
 
     if (profileError) {
       console.error('Error updating profile:', profileError)
