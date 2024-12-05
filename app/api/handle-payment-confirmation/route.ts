@@ -38,17 +38,17 @@ export async function GET(request: Request) {
 
   try {
     // First, check if this payment intent has already been processed
-    const { data: existingPlan, error: existingPlanError } = await supabase
-      .from('payment_plans')
-      .select('id')
+    const { data: existingTransaction, error: existingTransactionError } = await supabase
+      .from('transactions')
+      .select('payment_plan_id')
       .eq('stripe_payment_intent_id', paymentIntentId)
       .single();
 
-    if (existingPlan) {
-      console.log('handle-payment-confirmation: Payment already processed, redirecting to:', existingPlan.id);
+    if (existingTransaction) {
+      console.log('handle-payment-confirmation: Payment already processed, redirecting to:', existingTransaction.payment_plan_id);
       return NextResponse.json({
         success: true,
-        redirectUrl: `/plan/${existingPlan.id}`
+        redirectUrl: `/plan/${existingTransaction.payment_plan_id}`
       });
     }
 

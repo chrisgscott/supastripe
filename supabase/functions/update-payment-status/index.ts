@@ -137,14 +137,14 @@ serve(async (req) => {
       });
       
       // Check if this payment has already been processed
-      const { data: existingPayment } = await supabase
+      const { data: existingTransaction } = await supabase
         .from('transactions')
         .select('id')
         .eq('stripe_payment_intent_id', paymentIntent.id)
         .single();
 
-      if (existingPayment) {
-        console.log('Payment already processed:', existingPayment.id);
+      if (existingTransaction) {
+        console.log('Payment already processed:', existingTransaction.id);
         return new Response(
           JSON.stringify({ received: true, already_processed: true }), 
           { 
