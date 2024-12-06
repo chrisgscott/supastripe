@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useState, useMemo, useEffect } from "react"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import {
   Card,
@@ -16,17 +16,11 @@ import {
 } from "@/components/ui/chart"
 import { Money, formatCurrency } from '@/utils/currencyUtils'
 import { PaymentChartSkeleton } from "./PaymentChartSkeleton"
-import { Skeleton } from "@/components/ui/skeleton"
 
 interface PaymentDataItem {
   month: string;
   collected: number;
   forecasted: number;
-}
-
-interface PaymentChartProps {
-  data: PaymentDataItem[];
-  isLoading: boolean;
 }
 
 const chartConfig: ChartConfig = {
@@ -42,45 +36,56 @@ const chartConfig: ChartConfig = {
 
 type ChartKey = keyof typeof chartConfig;
 
-export function PaymentChart({ data, isLoading }: PaymentChartProps) {
+export function PaymentChart() {
   const [activeChart, setActiveChart] = useState<ChartKey>("forecasted");
+  const [data, setData] = useState<PaymentDataItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const total = useMemo<Record<ChartKey, Money>>(() => ({
-    collected: Money.fromDollars(
-      Array.isArray(data) 
-        ? data.reduce((sum, item) => sum + (item.collected || 0), 0)
-        : 0
-    ),
-    forecasted: Money.fromDollars(
-      Array.isArray(data) 
-        ? data.reduce((sum, item) => sum + (item.forecasted || 0), 0)
-        : 0
-    ),
+  useEffect(() => {
+    async function fetchChartData() {
+      try {
+        const response = await fetch('/api/get-payment-chart-data');
+        const chartData = await response.json();
+        
+        if (chartData.error) {
+          setError(chartData.error);
+        } else {
+          setData(chartData);
+        }
+      } catch (err) {
+        setError('Failed to fetch chart data');
+        console.error('Error fetching chart data:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchChartData();
+  }, []);
+
+  const total = useMemo<Record<ChartKey, number>>(() => ({
+    collected: Array.isArray(data) 
+      ? data.reduce((sum, item) => sum + (item.collected || 0), 0)
+      : 0,
+    forecasted: Array.isArray(data) 
+      ? data.reduce((sum, item) => sum + (item.forecasted || 0), 0)
+      : 0,
   }), [data]);
 
   if (isLoading) {
+    return <PaymentChartSkeleton />
+  }
+
+  if (error) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>
-            <Skeleton className="h-6 w-[150px]" />
-          </CardTitle>
+          <CardTitle>Revenue</CardTitle>
+          <CardDescription className="text-red-500">{error}</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="h-[370px] flex items-end justify-between gap-2 pt-2">
-            {[...Array(12)].map((_, i) => (
-              <div key={i} className="w-full flex flex-col gap-2">
-                <div className="w-full flex justify-center gap-1">
-                  <Skeleton className="w-full h-32" />
-                  <Skeleton className="w-full h-24" />
-                </div>
-                <Skeleton className="h-4 w-full" />
-              </div>
-            ))}
-          </div>
-        </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -104,7 +109,7 @@ export function PaymentChart({ data, isLoading }: PaymentChartProps) {
                 {chartConfig[key].label}
               </span>
               <span className="text-lg font-bold leading-none sm:text-3xl">
-                {formatCurrency(total[key])}
+                {formatCurrency(Money.fromDollars(total[key]))}
               </span>
             </button>
           ))}

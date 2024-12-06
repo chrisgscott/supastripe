@@ -59,7 +59,7 @@ export default async function Dashboard() {
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-12">
         <div className="lg:col-span-8">
           <div className="h-[350px]">
-            <PaymentChart data={[]} isLoading={false} />
+            <PaymentChart />
           </div>
         </div>
 
