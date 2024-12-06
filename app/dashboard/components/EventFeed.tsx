@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { User } from '@supabase/supabase-js'
 import { Calendar, CreditCard, FileText, Mail } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 // Event type definitions
 type Event = {
@@ -110,44 +111,51 @@ export function EventFeed({ user, customerId, limit = 10 }: EventFeedProps) {
   }, [user.id, customerId, limit])
 
   return (
-    <div className="flow-root">
-      <ul role="list" className="-mb-8">
-        {events.map((event, eventIdx) => {
-          const Icon = EVENT_ICONS[event.event_type] || EVENT_ICONS.default
-          
-          return (
-            <li key={event.id}>
-              <div className="relative pb-8">
-                {eventIdx !== events.length - 1 ? (
-                  <span
-                    className="absolute left-4 top-4 -ml-px h-full w-0.5 bg-gray-200"
-                    aria-hidden="true"
-                  />
-                ) : null}
-                <div className="relative flex space-x-3">
-                  <div>
-                    <span className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center ring-8 ring-white">
-                      <Icon className="h-5 w-5 text-gray-500" aria-hidden="true" />
-                    </span>
-                  </div>
-                  <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
-                    <div>
-                      <p className="text-sm text-gray-500">
-                        {formatEventMessage(event)}
-                      </p>
+    <Card>
+      <CardHeader>
+        <CardTitle>Recent Activity</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flow-root">
+          <ul role="list" className="-mb-8">
+            {events.map((event, eventIdx) => {
+              const Icon = EVENT_ICONS[event.event_type] || EVENT_ICONS.default
+              
+              return (
+                <li key={event.id}>
+                  <div className="relative pb-8">
+                    {eventIdx !== events.length - 1 ? (
+                      <span
+                        className="absolute left-4 top-4 -ml-px h-full w-0.5 bg-gray-200"
+                        aria-hidden="true"
+                      />
+                    ) : null}
+                    <div className="relative flex space-x-3">
+                      <div>
+                        <span className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center ring-8 ring-white">
+                          <Icon className="h-5 w-5 text-gray-500" aria-hidden="true" />
+                        </span>
+                      </div>
+                      <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
+                        <div>
+                          <p className="text-sm text-gray-500">
+                            {formatEventMessage(event)}
+                          </p>
+                        </div>
+                        <div className="whitespace-nowrap text-right text-sm text-gray-500">
+                          <time dateTime={event.created_at}>
+                            {new Date(event.created_at).toLocaleDateString()}
+                          </time>
+                        </div>
+                      </div>
                     </div>
-                    <div className="whitespace-nowrap text-right text-sm text-gray-500">
-                      <time dateTime={event.created_at}>
-                        {new Date(event.created_at).toLocaleDateString()}
-                      </time>
-                    </div>
                   </div>
-                </div>
-              </div>
-            </li>
-          )
-        })}
-      </ul>
-    </div>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
