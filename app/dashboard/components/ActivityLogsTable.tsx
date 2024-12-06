@@ -39,23 +39,24 @@ const formatActivityMessage = (activity: ActivityLog) => {
       return `${activity.customer_name}'s payment of ${formatCurrency(amount)} failed!`;
     case 'plan_created':
       return `A new plan of ${formatCurrency(amount)} was created for ${activity.customer_name}`;
+    case 'plan_updated':
+      return `${activity.customer_name}'s plan was updated`;
+    case 'plan_payment_link_sent':
+      return `Payment link was sent to ${activity.customer_name}`;
+    case 'plan_payment_reminder_sent':
+      return `Payment reminder was sent to ${activity.customer_name}`;
+    case 'plan_payment_confirmation_sent':
+      return `Payment confirmation was sent to ${activity.customer_name}`;
+    case 'plan_activated':
+      return `${activity.customer_name}'s payment plan was activated`;
+    case 'plan_completed':
+      return `${activity.customer_name}'s payment plan was completed`;
+    case 'plan_cancelled':
+      return `${activity.customer_name}'s payment plan was cancelled`;
     case 'payout_scheduled':
       return `A payout of ${formatCurrency(amount)} was scheduled`;
     case 'payout_paid':
       return `A payout of ${formatCurrency(amount)} was processed`;
-    case 'email_sent': {
-      const metadata = activity.metadata as { email_type: string; recipient: string };
-      switch (metadata.email_type) {
-        case 'payment_link':
-          return `Payment link was sent to ${activity.customer_name}`;
-        case 'payment_reminder':
-          return `Payment reminder email was sent to ${activity.customer_name}`;
-        case 'payment_confirmation':
-          return `Payment confirmation email was sent to ${activity.customer_name}`;
-        default:
-          return `Email was sent to ${activity.customer_name}`;
-      }
-    }
     case 'payment_method_updated':
       const cardMetadata = activity.metadata as { card_last_four: string; card_brand: string };
       return `${activity.customer_name}'s payment method updated to card ending in ${cardMetadata.card_last_four}`;
@@ -67,17 +68,22 @@ const formatActivityMessage = (activity: ActivityLog) => {
 const getActivityIcon = (type: string) => {
   switch (type) {
     case 'payment_success':
+    case 'plan_activated':
+    case 'plan_completed':
+    case 'payout_paid':
       return { icon: CheckCircle2, color: 'text-green-500' };
     case 'payment_failed':
+    case 'plan_cancelled':
       return { icon: XCircle, color: 'text-red-500' };
     case 'plan_created':
+    case 'plan_updated':
       return { icon: FileText, color: 'text-blue-500' };
-    case 'email_sent':
+    case 'plan_payment_link_sent':
+    case 'plan_payment_reminder_sent':
+    case 'plan_payment_confirmation_sent':
       return { icon: Mail, color: 'text-purple-500' };
     case 'payout_scheduled':
       return { icon: Calendar, color: 'text-yellow-500' };
-    case 'payout_paid':
-      return { icon: CreditCard, color: 'text-green-500' };
     case 'payment_method_updated':
       return { icon: CreditCard, color: 'text-blue-500' };
     default:

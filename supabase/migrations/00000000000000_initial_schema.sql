@@ -34,6 +34,10 @@ CREATE TYPE public.activity_type AS ENUM (
     'payment_success',
     'payment_failed',
     'plan_created',
+    'plan_updated',
+    'plan_payment_link_sent',
+    'plan_payment_reminder_sent',
+    'plan_payment_confirmation_sent',
     'email_sent',
     'plan_activated',
     'plan_completed',
@@ -45,16 +49,13 @@ CREATE TYPE public.activity_type AS ENUM (
 
 ALTER TYPE "public"."activity_type" OWNER TO "postgres";
 
-
 CREATE TYPE "public"."email_status_type" AS ENUM (
     'sent',
     'failed',
     'bounced'
 );
 
-
 ALTER TYPE "public"."email_status_type" OWNER TO "postgres";
-
 
 CREATE TYPE "public"."email_type" AS ENUM (
     'customer_payment_plan_created',
@@ -88,18 +89,14 @@ CREATE TYPE "public"."email_type" AS ENUM (
     'user_stripe_account_updated'
 );
 
-
 ALTER TYPE "public"."email_type" OWNER TO "postgres";
-
 
 CREATE TYPE "public"."payment_interval_type" AS ENUM (
     'weekly',
     'monthly'
 );
 
-
 ALTER TYPE "public"."payment_interval_type" OWNER TO "postgres";
-
 
 CREATE TYPE "public"."payment_status_type" AS ENUM (
     'draft',
@@ -112,9 +109,7 @@ CREATE TYPE "public"."payment_status_type" AS ENUM (
     'ready_to_migrate'
 );
 
-
 ALTER TYPE "public"."payment_status_type" OWNER TO "postgres";
-
 
 CREATE TYPE "public"."payout_status_type" AS ENUM (
     'pending',
@@ -124,9 +119,7 @@ CREATE TYPE "public"."payout_status_type" AS ENUM (
     'cancelled'
 );
 
-
 ALTER TYPE "public"."payout_status_type" OWNER TO "postgres";
-
 
 CREATE TYPE "public"."processing_status_type" AS ENUM (
     'started',
@@ -134,9 +127,7 @@ CREATE TYPE "public"."processing_status_type" AS ENUM (
     'failed'
 );
 
-
 ALTER TYPE "public"."processing_status_type" OWNER TO "postgres";
-
 
 CREATE TYPE "public"."transaction_status_type" AS ENUM (
     'pending',
@@ -146,18 +137,14 @@ CREATE TYPE "public"."transaction_status_type" AS ENUM (
     'cancelled'
 );
 
-
 ALTER TYPE "public"."transaction_status_type" OWNER TO "postgres";
-
 
 CREATE TYPE "public"."transaction_type" AS ENUM (
     'downpayment',
     'installment'
 );
 
-
 ALTER TYPE "public"."transaction_type" OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION "public"."cleanup_pending_payment_records"("p_pending_plan_id" "uuid") RETURNS "void"
     LANGUAGE "plpgsql"
@@ -197,9 +184,7 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
-
 ALTER FUNCTION "public"."cleanup_pending_payment_records"("p_pending_plan_id" "uuid") OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION "public"."cleanup_pending_plans"("older_than" timestamp without time zone) RETURNS "void"
     LANGUAGE "plpgsql"
@@ -223,9 +208,7 @@ BEGIN
 END;
 $$;
 
-
 ALTER FUNCTION "public"."cleanup_pending_plans"("older_than" timestamp without time zone) OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION public.complete_payment_plan_creation(
     p_payment_plan_id uuid,
@@ -309,9 +292,7 @@ BEGIN
 END;
 $$;
 
-
 ALTER FUNCTION "public"."convert_activity_type_trigger"() OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION "public"."create_payment_plan"("p_customer_id" "uuid", "p_user_id" "uuid", "p_total_amount" integer, "p_number_of_payments" integer, "p_payment_interval" "text", "p_downpayment_amount" integer, "p_payment_schedule" "jsonb") RETURNS "uuid"
     LANGUAGE "plpgsql"
@@ -353,9 +334,7 @@ BEGIN
 END;
 $$;
 
-
 ALTER FUNCTION "public"."create_payment_plan"("p_customer_id" "uuid", "p_user_id" "uuid", "p_total_amount" integer, "p_number_of_payments" integer, "p_payment_interval" "text", "p_downpayment_amount" integer, "p_payment_schedule" "jsonb") OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION "public"."create_payment_plan_step1"("p_customer_name" "text", "p_customer_email" "text", "p_user_id" "uuid", "p_total_amount" integer, "p_number_of_payments" integer, "p_payment_interval" "text", "p_downpayment_amount" integer, "p_payment_schedule" "jsonb", "p_stripe_customer_id" "text") RETURNS "jsonb"
     LANGUAGE "plpgsql" SECURITY DEFINER
@@ -415,9 +394,7 @@ BEGIN
 END;
 $$;
 
-
 ALTER FUNCTION "public"."create_payment_plan_step1"("p_customer_name" "text", "p_customer_email" "text", "p_user_id" "uuid", "p_total_amount" integer, "p_number_of_payments" integer, "p_payment_interval" "text", "p_downpayment_amount" integer, "p_payment_schedule" "jsonb", "p_stripe_customer_id" "text") OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION "public"."create_payment_plan_step1"("p_customer_name" "text", "p_customer_email" "text", "p_user_id" "uuid", "p_total_amount" integer, "p_number_of_payments" integer, "p_payment_interval" "text", "p_downpayment_amount" integer, "p_payment_schedule" "jsonb", "p_stripe_customer_id" "text", "p_idempotency_key" "uuid", "p_notes" "jsonb" DEFAULT NULL::"jsonb") RETURNS TABLE("payment_plan_id" "uuid", "first_transaction_id" "uuid")
     LANGUAGE "plpgsql" SECURITY DEFINER
@@ -515,9 +492,7 @@ BEGIN
 END;
 $$;
 
-
 ALTER FUNCTION "public"."create_payment_plan_step1"("p_customer_name" "text", "p_customer_email" "text", "p_user_id" "uuid", "p_total_amount" integer, "p_number_of_payments" integer, "p_payment_interval" "text", "p_downpayment_amount" integer, "p_payment_schedule" "jsonb", "p_stripe_customer_id" "text", "p_idempotency_key" "uuid", "p_notes" "jsonb") OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION "public"."create_pending_payment_records"("payment_data" "jsonb") RETURNS "jsonb"
     LANGUAGE "plpgsql" SECURITY DEFINER
@@ -598,9 +573,7 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
-
 ALTER FUNCTION "public"."create_pending_payment_records"("payment_data" "jsonb") OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION "public"."create_pending_payment_records"("p_customer_id" "uuid", "p_payment_plan_id" "uuid", "p_transaction_id" "uuid", "p_customer_name" "text", "p_customer_email" "text", "p_user_id" "uuid", "p_total_amount" integer, "p_number_of_payments" integer, "p_payment_interval" "text", "p_downpayment_amount" integer, "p_payment_schedule" "jsonb", "p_stripe_customer_id" "text", "p_idempotency_key" "uuid", "p_notes" "jsonb") RETURNS "uuid"
     LANGUAGE "plpgsql"
@@ -677,9 +650,7 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
-
 ALTER FUNCTION "public"."create_pending_payment_records"("p_customer_id" "uuid", "p_payment_plan_id" "uuid", "p_transaction_id" "uuid", "p_customer_name" "text", "p_customer_email" "text", "p_user_id" "uuid", "p_total_amount" integer, "p_number_of_payments" integer, "p_payment_interval" "text", "p_downpayment_amount" integer, "p_payment_schedule" "jsonb", "p_stripe_customer_id" "text", "p_idempotency_key" "uuid", "p_notes" "jsonb") OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION "public"."handle_payment_confirmation"("p_pending_plan_id" "uuid", "p_payment_intent_id" "text", "p_idempotency_key" "uuid", "p_card_last_four" "text", "p_card_expiration_month" integer, "p_card_expiration_year" integer) RETURNS "jsonb"
     LANGUAGE "plpgsql" SECURITY DEFINER
@@ -810,9 +781,7 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
-
 ALTER FUNCTION "public"."handle_payment_confirmation"("p_pending_plan_id" "uuid", "p_payment_intent_id" "text", "p_idempotency_key" "uuid", "p_card_last_four" "text", "p_card_expiration_month" integer, "p_card_expiration_year" integer) OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION "public"."handle_successful_payment"("p_transaction_id" "uuid", "p_paid_at" timestamp with time zone) RETURNS "json"
     LANGUAGE "plpgsql"
@@ -848,7 +817,6 @@ BEGIN
       RAISE;
   END;
 END;$$;
-
 
 ALTER FUNCTION "public"."handle_successful_payment"("p_transaction_id" "uuid", "p_paid_at" timestamp with time zone) OWNER TO "postgres";
 
@@ -929,7 +897,6 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
-
 CREATE OR REPLACE FUNCTION "public"."log_email_activity"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
@@ -964,9 +931,7 @@ begin
 end;
 $$;
 
-
 ALTER FUNCTION "public"."log_email_activity"() OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION "public"."log_payment_plan_activity"() RETURNS "trigger"
     LANGUAGE "plpgsql"
@@ -1023,7 +988,6 @@ begin
 end;
 $$;
 
-
 ALTER FUNCTION "public"."log_payment_plan_activity"() OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."log_payout_activity"() RETURNS "trigger"
@@ -1059,9 +1023,7 @@ begin
 end;
 $$;
 
-
 ALTER FUNCTION "public"."log_payout_activity"() OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION "public"."log_transaction_activity"() RETURNS "trigger"
     LANGUAGE "plpgsql"
@@ -1101,9 +1063,7 @@ begin
 end;
 $$;
 
-
 ALTER FUNCTION "public"."log_transaction_activity"() OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION "public"."migrate_pending_payment_plan"("p_pending_plan_id" "uuid") RETURNS "uuid"
     LANGUAGE "plpgsql" SECURITY DEFINER
@@ -1266,9 +1226,7 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
-
 ALTER FUNCTION "public"."migrate_pending_payment_plan"("p_pending_plan_id" "uuid") OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION "public"."set_reminder_email_date"() RETURNS "trigger"
     LANGUAGE "plpgsql"
@@ -1279,9 +1237,7 @@ BEGIN
 END;
 $$;
 
-
 ALTER FUNCTION "public"."set_reminder_email_date"() OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION "public"."set_updated_at"() RETURNS "trigger"
     LANGUAGE "plpgsql"
@@ -1292,9 +1248,7 @@ BEGIN
 END;
 $$;
 
-
 ALTER FUNCTION "public"."set_updated_at"() OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION "public"."text_to_activity_type"("p_text" "text") RETURNS "public"."activity_type"
     LANGUAGE "plpgsql"
@@ -1310,9 +1264,7 @@ EXCEPTION
 END;
 $$;
 
-
 ALTER FUNCTION "public"."text_to_activity_type"("p_text" "text") OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION "public"."update_modified_column"() RETURNS "trigger"
     LANGUAGE "plpgsql"
@@ -1323,9 +1275,7 @@ BEGIN
 END;
 $$;
 
-
 ALTER FUNCTION "public"."update_modified_column"() OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION "public"."update_updated_at"() RETURNS "trigger"
     LANGUAGE "plpgsql"
@@ -1336,9 +1286,7 @@ BEGIN
 END;
 $$;
 
-
 ALTER FUNCTION "public"."update_updated_at"() OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION "public"."update_updated_at_column"() RETURNS "trigger"
     LANGUAGE "plpgsql"
@@ -1349,13 +1297,11 @@ BEGIN
 END;
 $$;
 
-
 ALTER FUNCTION "public"."update_updated_at_column"() OWNER TO "postgres";
 
 SET default_tablespace = '';
 
 SET default_table_access_method = "heap";
-
 
 CREATE TABLE IF NOT EXISTS "public"."activity_logs" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
@@ -1369,9 +1315,7 @@ CREATE TABLE IF NOT EXISTS "public"."activity_logs" (
     "customer_name" "text"
 );
 
-
 ALTER TABLE "public"."activity_logs" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."customers" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
@@ -1383,9 +1327,7 @@ CREATE TABLE IF NOT EXISTS "public"."customers" (
     "stripe_customer_id" "text"
 );
 
-
 ALTER TABLE "public"."customers" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."customers_backup" (
     "id" "uuid",
@@ -1397,9 +1339,7 @@ CREATE TABLE IF NOT EXISTS "public"."customers_backup" (
     "stripe_customer_id" "text"
 );
 
-
 ALTER TABLE "public"."customers_backup" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."email_logs" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
@@ -1414,17 +1354,13 @@ CREATE TABLE IF NOT EXISTS "public"."email_logs" (
     "user_id" "uuid"
 );
 
-
 ALTER TABLE "public"."email_logs" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."migration_20240415000000_completed" (
     "completed_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
 
-
 ALTER TABLE "public"."migration_20240415000000_completed" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."payment_plans" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
@@ -1450,9 +1386,7 @@ CREATE TABLE IF NOT EXISTS "public"."payment_plans" (
     "updated_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
 
-
 ALTER TABLE "public"."payment_plans" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."payment_plans_backup" (
     "id" "uuid",
@@ -1470,9 +1404,7 @@ CREATE TABLE IF NOT EXISTS "public"."payment_plans_backup" (
     "card_last_four" character(4)
 );
 
-
 ALTER TABLE "public"."payment_plans_backup" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."payment_processing_logs" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
@@ -1486,9 +1418,7 @@ CREATE TABLE IF NOT EXISTS "public"."payment_processing_logs" (
     "user_id" "uuid"
 );
 
-
 ALTER TABLE "public"."payment_processing_logs" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."payouts" (
     "id" integer NOT NULL,
@@ -1502,9 +1432,7 @@ CREATE TABLE IF NOT EXISTS "public"."payouts" (
     "user_id" "uuid"
 );
 
-
 ALTER TABLE "public"."payouts" OWNER TO "postgres";
-
 
 CREATE SEQUENCE IF NOT EXISTS "public"."payouts_id_seq"
     AS integer
@@ -1514,13 +1442,9 @@ CREATE SEQUENCE IF NOT EXISTS "public"."payouts_id_seq"
     NO MAXVALUE
     CACHE 1;
 
-
 ALTER TABLE "public"."payouts_id_seq" OWNER TO "postgres";
 
-
 ALTER SEQUENCE "public"."payouts_id_seq" OWNED BY "public"."payouts"."id";
-
-
 
 CREATE TABLE IF NOT EXISTS "public"."pending_customers" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
@@ -1532,9 +1456,7 @@ CREATE TABLE IF NOT EXISTS "public"."pending_customers" (
     "updated_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
 
-
 ALTER TABLE "public"."pending_customers" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."pending_payment_plans" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
@@ -1560,9 +1482,7 @@ CREATE TABLE IF NOT EXISTS "public"."pending_payment_plans" (
     "updated_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
 
-
 ALTER TABLE "public"."pending_payment_plans" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."pending_transactions" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
@@ -1578,9 +1498,7 @@ CREATE TABLE IF NOT EXISTS "public"."pending_transactions" (
     "paid_at" timestamp with time zone
 );
 
-
 ALTER TABLE "public"."pending_transactions" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."profiles" (
     "id" "uuid" NOT NULL,
@@ -1605,9 +1523,7 @@ CREATE TABLE IF NOT EXISTS "public"."profiles" (
     "stripe_account_id" "text"
 );
 
-
 ALTER TABLE "public"."profiles" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."profiles_backup" (
     "id" "uuid",
@@ -1632,9 +1548,7 @@ CREATE TABLE IF NOT EXISTS "public"."profiles_backup" (
     "stripe_account_id" "text"
 );
 
-
 ALTER TABLE "public"."profiles_backup" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."stripe_accounts" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
@@ -1647,9 +1561,7 @@ CREATE TABLE IF NOT EXISTS "public"."stripe_accounts" (
     "updated_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
 
-
 ALTER TABLE "public"."stripe_accounts" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."stripe_accounts_backup" (
     "id" "uuid",
@@ -1662,9 +1574,7 @@ CREATE TABLE IF NOT EXISTS "public"."stripe_accounts_backup" (
     "updated_at" timestamp with time zone
 );
 
-
 ALTER TABLE "public"."stripe_accounts_backup" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."transactions" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
@@ -1684,9 +1594,7 @@ CREATE TABLE IF NOT EXISTS "public"."transactions" (
     CONSTRAINT "transactions_status_check" CHECK (("status" = ANY (ARRAY['pending'::"text", 'processing'::"text", 'completed'::"text", 'failed'::"text", 'cancelled'::"text"])))
 );
 
-
 ALTER TABLE "public"."transactions" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."transactions_backup" (
     "id" "uuid",
@@ -1705,1097 +1613,380 @@ CREATE TABLE IF NOT EXISTS "public"."transactions_backup" (
     "last_reminder_email_log_id" "uuid"
 );
 
-
 ALTER TABLE "public"."transactions_backup" OWNER TO "postgres";
 
-
 ALTER TABLE ONLY "public"."payouts" ALTER COLUMN "id" SET DEFAULT "nextval"('"public"."payouts_id_seq"'::"regclass");
-
-
 
 ALTER TABLE ONLY "public"."activity_logs"
     ADD CONSTRAINT "activity_logs_pkey" PRIMARY KEY ("id");
 
-
-
 ALTER TABLE ONLY "public"."customers"
     ADD CONSTRAINT "customers_pkey" PRIMARY KEY ("id");
-
-
 
 ALTER TABLE ONLY "public"."email_logs"
     ADD CONSTRAINT "email_logs_idempotency_key_key" UNIQUE ("idempotency_key");
 
-
-
 ALTER TABLE ONLY "public"."email_logs"
     ADD CONSTRAINT "email_logs_pkey" PRIMARY KEY ("id");
-
-
 
 ALTER TABLE ONLY "public"."payment_plans"
     ADD CONSTRAINT "payment_plans_pkey" PRIMARY KEY ("id");
 
-
-
 ALTER TABLE ONLY "public"."payment_processing_logs"
     ADD CONSTRAINT "payment_processing_logs_pkey" PRIMARY KEY ("id");
-
-
 
 ALTER TABLE ONLY "public"."payouts"
     ADD CONSTRAINT "payouts_pkey" PRIMARY KEY ("id");
 
-
-
 ALTER TABLE ONLY "public"."payouts"
     ADD CONSTRAINT "payouts_stripe_payout_id_key" UNIQUE ("stripe_payout_id");
-
-
 
 ALTER TABLE ONLY "public"."pending_customers"
     ADD CONSTRAINT "pending_customers_email_user_id_key" UNIQUE ("email", "user_id");
 
-
-
 ALTER TABLE ONLY "public"."pending_customers"
     ADD CONSTRAINT "pending_customers_pkey" PRIMARY KEY ("id");
-
-
 
 ALTER TABLE ONLY "public"."pending_payment_plans"
     ADD CONSTRAINT "pending_payment_plans_pkey" PRIMARY KEY ("id");
 
-
-
 ALTER TABLE ONLY "public"."pending_transactions"
     ADD CONSTRAINT "pending_transactions_pkey" PRIMARY KEY ("id");
-
-
 
 ALTER TABLE ONLY "public"."profiles"
     ADD CONSTRAINT "profiles_pkey" PRIMARY KEY ("id");
 
-
-
 ALTER TABLE ONLY "public"."stripe_accounts"
     ADD CONSTRAINT "stripe_accounts_pkey" PRIMARY KEY ("id");
-
-
 
 ALTER TABLE ONLY "public"."stripe_accounts"
     ADD CONSTRAINT "stripe_accounts_stripe_account_id_key" UNIQUE ("stripe_account_id");
 
-
-
 ALTER TABLE ONLY "public"."transactions"
     ADD CONSTRAINT "transactions_pkey" PRIMARY KEY ("id");
-
-
 
 ALTER TABLE ONLY "public"."customers"
     ADD CONSTRAINT "unique_email_user_id" UNIQUE ("email", "user_id");
 
-
-
 CREATE INDEX "idx_activity_logs_entity" ON "public"."activity_logs" USING "btree" ("entity_id", "entity_type");
-
-
 
 CREATE INDEX "idx_activity_logs_user_id" ON "public"."activity_logs" USING "btree" ("user_id");
 
-
-
 CREATE INDEX "idx_activity_logs_user_id_created_at" ON "public"."activity_logs" USING "btree" ("user_id", "created_at" DESC);
-
-
 
 CREATE INDEX "idx_customers_email" ON "public"."customers" USING "btree" ("email");
 
-
-
 CREATE INDEX "idx_customers_stripe_customer_id" ON "public"."customers" USING "btree" ("stripe_customer_id");
-
-
 
 CREATE INDEX "idx_customers_user_id_email" ON "public"."customers" USING "btree" ("user_id", "email");
 
-
-
 CREATE INDEX "idx_email_logs_recipient" ON "public"."email_logs" USING "btree" ("recipient_email");
-
-
 
 CREATE INDEX "idx_email_logs_related" ON "public"."email_logs" USING "btree" ("related_id", "related_type");
 
-
-
 CREATE INDEX "idx_email_logs_sent" ON "public"."email_logs" USING "btree" ("sent_at");
-
-
 
 CREATE INDEX "idx_email_logs_user_sent" ON "public"."email_logs" USING "btree" ("user_id", "sent_at");
 
-
-
 CREATE INDEX "idx_payment_plans_customer_id" ON "public"."payment_plans" USING "btree" ("customer_id");
-
-
 
 CREATE INDEX "idx_payment_plans_payment_link_token" ON "public"."payment_plans" USING "btree" ("payment_link_token");
 
-
-
 CREATE INDEX "idx_payment_plans_status_user_id" ON "public"."payment_plans" USING "btree" ("status", "user_id");
-
-
 
 CREATE INDEX "idx_payment_processing_logs_created" ON "public"."payment_processing_logs" USING "btree" ("created_at");
 
-
-
 CREATE INDEX "idx_payment_processing_logs_idempotency_key" ON "public"."payment_processing_logs" USING "btree" ("idempotency_key");
-
-
 
 CREATE INDEX "idx_payment_processing_logs_payment_plan" ON "public"."payment_processing_logs" USING "btree" ("payment_plan_id");
 
-
-
 CREATE INDEX "idx_payment_processing_logs_transaction" ON "public"."payment_processing_logs" USING "btree" ("transaction_id");
-
-
 
 CREATE INDEX "idx_payment_processing_logs_transaction_id" ON "public"."payment_processing_logs" USING "btree" ("transaction_id");
 
-
-
 CREATE INDEX "idx_payment_processing_logs_user_created" ON "public"."payment_processing_logs" USING "btree" ("user_id", "created_at");
-
-
 
 CREATE INDEX "idx_payouts_arrival" ON "public"."payouts" USING "btree" ("arrival_date");
 
-
-
 CREATE INDEX "idx_payouts_stripe_id" ON "public"."payouts" USING "btree" ("stripe_payout_id");
-
-
 
 CREATE INDEX "idx_payouts_user_status" ON "public"."payouts" USING "btree" ("user_id", "status");
 
-
-
 CREATE INDEX "idx_pending_customers_email" ON "public"."pending_customers" USING "btree" ("email");
-
-
 
 CREATE INDEX "idx_pending_customers_stripe_customer_id" ON "public"."pending_customers" USING "btree" ("stripe_customer_id");
 
-
-
 CREATE INDEX "idx_pending_customers_user_id_email" ON "public"."pending_customers" USING "btree" ("user_id", "email");
-
-
 
 CREATE INDEX "idx_pending_payment_plans_customer_id" ON "public"."pending_payment_plans" USING "btree" ("customer_id");
 
-
-
 CREATE INDEX "idx_pending_payment_plans_payment_link_token" ON "public"."pending_payment_plans" USING "btree" ("payment_link_token");
-
-
 
 CREATE INDEX "idx_pending_payment_plans_status_user_id" ON "public"."pending_payment_plans" USING "btree" ("status", "user_id");
 
-
-
 CREATE INDEX "idx_pending_transactions_payment_plan_status" ON "public"."pending_transactions" USING "btree" ("payment_plan_id", "status");
-
-
 
 CREATE INDEX "idx_pending_transactions_plan_type" ON "public"."pending_transactions" USING "btree" ("payment_plan_id", "transaction_type");
 
-
-
 CREATE INDEX "idx_pending_transactions_stripe_payment_intent" ON "public"."pending_transactions" USING "btree" ("stripe_payment_intent_id");
-
-
 
 CREATE INDEX "idx_profiles_stripe_account" ON "public"."profiles" USING "btree" ("stripe_account_id");
 
-
-
 CREATE INDEX "idx_profiles_stripe_account_id" ON "public"."profiles" USING "btree" ("stripe_account_id");
-
-
 
 CREATE INDEX "idx_stripe_accounts_user_id" ON "public"."stripe_accounts" USING "btree" ("user_id");
 
-
-
 CREATE INDEX "idx_transactions_payment_plan_id" ON "public"."transactions" USING "btree" ("payment_plan_id");
-
-
 
 CREATE INDEX "idx_transactions_payment_plan_status" ON "public"."transactions" USING "btree" ("payment_plan_id", "status");
 
-
-
 CREATE INDEX "idx_transactions_plan_type" ON "public"."transactions" USING "btree" ("payment_plan_id", "transaction_type");
-
-
 
 CREATE INDEX "idx_transactions_stripe_payment_intent" ON "public"."transactions" USING "btree" ("stripe_payment_intent_id");
 
-
-
 CREATE OR REPLACE TRIGGER "convert_activity_type" BEFORE INSERT OR UPDATE ON "public"."activity_logs" FOR EACH ROW EXECUTE FUNCTION "public"."convert_activity_type_trigger"();
-
-
 
 CREATE OR REPLACE TRIGGER "email_activity_trigger" AFTER INSERT ON "public"."email_logs" FOR EACH ROW EXECUTE FUNCTION "public"."log_email_activity"();
 
-
-
 CREATE OR REPLACE TRIGGER "payment_plan_activity_trigger" AFTER INSERT OR UPDATE ON "public"."payment_plans" FOR EACH ROW EXECUTE FUNCTION "public"."log_payment_plan_activity"();
-
-
 
 CREATE OR REPLACE TRIGGER "payout_activity_trigger" AFTER INSERT OR UPDATE ON "public"."payouts" FOR EACH ROW EXECUTE FUNCTION "public"."log_payout_activity"();
 
-
-
 CREATE OR REPLACE TRIGGER "set_reminder_email_date_trigger" BEFORE INSERT OR UPDATE ON "public"."transactions" FOR EACH ROW EXECUTE FUNCTION "public"."set_reminder_email_date"();
-
-
 
 CREATE OR REPLACE TRIGGER "set_updated_at" BEFORE UPDATE ON "public"."profiles" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at"();
 
-
-
-CREATE OR REPLACE TRIGGER "set_updated_at" BEFORE UPDATE ON "public"."stripe_accounts" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
-
-
+CREATE OR REPLACE TRIGGER "set_updated_at" BEFORE UPDATE ON "public"."stripe_accounts" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at"();
 
 CREATE OR REPLACE TRIGGER "transaction_activity_trigger" AFTER UPDATE ON "public"."transactions" FOR EACH ROW EXECUTE FUNCTION "public"."log_transaction_activity"();
 
-
-
 CREATE OR REPLACE TRIGGER "update_customers_updated_at" BEFORE UPDATE ON "public"."customers" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
-
-
 
 CREATE OR REPLACE TRIGGER "update_payment_plans_updated_at" BEFORE UPDATE ON "public"."payment_plans" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
 
-
-
 CREATE OR REPLACE TRIGGER "update_pending_customers_updated_at" BEFORE UPDATE ON "public"."pending_customers" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
-
-
 
 CREATE OR REPLACE TRIGGER "update_pending_payment_plans_updated_at" BEFORE UPDATE ON "public"."pending_payment_plans" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
 
-
-
 CREATE OR REPLACE TRIGGER "update_profiles_modtime" BEFORE UPDATE ON "public"."profiles" FOR EACH ROW EXECUTE FUNCTION "public"."update_modified_column"();
-
-
 
 CREATE OR REPLACE TRIGGER "update_profiles_updated_at" BEFORE UPDATE ON "public"."profiles" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
 
-
-
 CREATE OR REPLACE TRIGGER "update_stripe_accounts_updated_at" BEFORE UPDATE ON "public"."stripe_accounts" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
-
-
-
-ALTER TABLE ONLY "public"."activity_logs"
-    ADD CONSTRAINT "activity_logs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
-
-
-
-ALTER TABLE ONLY "public"."customers"
-    ADD CONSTRAINT "customers_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
-
-
-
-ALTER TABLE ONLY "public"."email_logs"
-    ADD CONSTRAINT "email_logs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
-
-
-
-ALTER TABLE ONLY "public"."transactions"
-    ADD CONSTRAINT "fk_payment_plan" FOREIGN KEY ("payment_plan_id") REFERENCES "public"."payment_plans"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."payment_plans"
-    ADD CONSTRAINT "fk_payment_plan_customer" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE RESTRICT;
-
-
-
-ALTER TABLE ONLY "public"."pending_payment_plans"
-    ADD CONSTRAINT "fk_pending_payment_plan_customer" FOREIGN KEY ("customer_id") REFERENCES "public"."pending_customers"("id") ON DELETE RESTRICT;
-
-
-
-ALTER TABLE ONLY "public"."payment_plans"
-    ADD CONSTRAINT "payment_plans_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
-
-
-
-ALTER TABLE ONLY "public"."payment_processing_logs"
-    ADD CONSTRAINT "payment_processing_logs_transaction_id_fkey" FOREIGN KEY ("transaction_id") REFERENCES "public"."transactions"("id");
-
-
-
-ALTER TABLE ONLY "public"."payment_processing_logs"
-    ADD CONSTRAINT "payment_processing_logs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
-
-
-
-ALTER TABLE ONLY "public"."payouts"
-    ADD CONSTRAINT "payouts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
-
-
-
-ALTER TABLE ONLY "public"."pending_customers"
-    ADD CONSTRAINT "pending_customers_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
-
-
-
-ALTER TABLE ONLY "public"."pending_payment_plans"
-    ADD CONSTRAINT "pending_payment_plans_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
-
-
-
-ALTER TABLE ONLY "public"."pending_transactions"
-    ADD CONSTRAINT "pending_transactions_payment_plan_id_fkey" FOREIGN KEY ("payment_plan_id") REFERENCES "public"."pending_payment_plans"("id");
-
-
-
-ALTER TABLE ONLY "public"."profiles"
-    ADD CONSTRAINT "profiles_id_fkey" FOREIGN KEY ("id") REFERENCES "auth"."users"("id");
-
-
-
-ALTER TABLE ONLY "public"."stripe_accounts"
-    ADD CONSTRAINT "stripe_accounts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."transactions"
-    ADD CONSTRAINT "transactions_last_reminder_email_log_id_fkey" FOREIGN KEY ("last_reminder_email_log_id") REFERENCES "public"."email_logs"("id");
-
-
-
-ALTER TABLE ONLY "public"."transactions"
-    ADD CONSTRAINT "transactions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
-
-
-
-CREATE POLICY "Authenticated users manage own customers" ON "public"."customers" TO "authenticated" USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
-
-
-
-CREATE POLICY "Enable read access for authenticated users" ON "public"."activity_logs" FOR SELECT TO "authenticated" USING ((("user_id" = "auth"."uid"()) OR (EXISTS ( SELECT 1
-   FROM "public"."payment_plans"
-  WHERE (("payment_plans"."id" = "activity_logs"."entity_id") AND ("activity_logs"."entity_type" = 'payment_plan'::"text") AND ("payment_plans"."user_id" = "auth"."uid"()))))));
-
-
-
-CREATE POLICY "Public read active customers" ON "public"."customers" FOR SELECT USING (("id" IN ( SELECT "payment_plans"."customer_id"
-   FROM "public"."payment_plans"
-  WHERE ("payment_plans"."status" = ANY (ARRAY['active'::"public"."payment_status_type", 'pending_payment'::"public"."payment_status_type"])))));
-
-
-
-CREATE POLICY "Public read active plan transactions" ON "public"."transactions" FOR SELECT USING (("payment_plan_id" IN ( SELECT "payment_plans"."id"
-   FROM "public"."payment_plans"
-  WHERE ("payment_plans"."status" = ANY (ARRAY['active'::"public"."payment_status_type", 'pending_payment'::"public"."payment_status_type"])))));
-
-
-
-CREATE POLICY "Public read active/pending plans" ON "public"."payment_plans" FOR SELECT USING (("status" = ANY (ARRAY['active'::"public"."payment_status_type", 'pending_payment'::"public"."payment_status_type"])));
-
-
-
-CREATE POLICY "Public read pending customers" ON "public"."pending_customers" FOR SELECT USING (("id" IN ( SELECT "pending_payment_plans"."customer_id"
-   FROM "public"."pending_payment_plans"
-  WHERE ("pending_payment_plans"."status" = 'pending_payment'::"public"."payment_status_type"))));
-
-
-
-CREATE POLICY "Public read pending payment stripe accounts" ON "public"."stripe_accounts" FOR SELECT USING (("user_id" IN ( SELECT "pending_payment_plans"."user_id"
-   FROM "public"."pending_payment_plans"
-  WHERE ("pending_payment_plans"."status" = 'pending_payment'::"public"."payment_status_type"))));
-
-
-
-CREATE POLICY "Public read pending plans" ON "public"."pending_payment_plans" FOR SELECT USING (("status" = 'pending_payment'::"public"."payment_status_type"));
-
-
-
-CREATE POLICY "Public read pending transactions" ON "public"."pending_transactions" FOR SELECT USING (("payment_plan_id" IN ( SELECT "pending_payment_plans"."id"
-   FROM "public"."pending_payment_plans"
-  WHERE ("pending_payment_plans"."status" = 'pending_payment'::"public"."payment_status_type"))));
-
-
-
-CREATE POLICY "Public read processing logs for active plans" ON "public"."payment_processing_logs" FOR SELECT USING (("payment_plan_id" IN ( SELECT "payment_plans"."id"
-   FROM "public"."payment_plans"
-  WHERE ("payment_plans"."status" = ANY (ARRAY['active'::"public"."payment_status_type", 'pending_payment'::"public"."payment_status_type"])))));
-
-
-
-CREATE POLICY "Service role can manage email logs" ON "public"."email_logs" USING (("auth"."role"() = 'service_role'::"text"));
-
-
-
-CREATE POLICY "Service role manage all payouts" ON "public"."payouts" USING (("auth"."role"() = 'service_role'::"text"));
-
-
-
-CREATE POLICY "Service role manage all stripe accounts" ON "public"."stripe_accounts" USING (("auth"."role"() = 'service_role'::"text"));
-
-
-
-CREATE POLICY "Users can create activity logs for their plans" ON "public"."activity_logs" FOR INSERT TO "authenticated" WITH CHECK (("auth"."uid"() = "user_id"));
-
-
-
-CREATE POLICY "Users can view their own activity logs" ON "public"."activity_logs" FOR SELECT TO "authenticated" USING (("auth"."uid"() = "user_id"));
-
-
-
-CREATE POLICY "Users manage own email logs" ON "public"."email_logs" TO "authenticated" USING (("user_id" = "auth"."uid"())) WITH CHECK (("user_id" = "auth"."uid"()));
-
-
-
-CREATE POLICY "Users manage own payment plans" ON "public"."payment_plans" TO "authenticated" USING (("user_id" = "auth"."uid"())) WITH CHECK (("user_id" = "auth"."uid"()));
-
-
-
-CREATE POLICY "Users manage own payouts" ON "public"."payouts" TO "authenticated" USING (("user_id" = "auth"."uid"())) WITH CHECK (("user_id" = "auth"."uid"()));
-
-
-
-CREATE POLICY "Users manage own pending customers" ON "public"."pending_customers" TO "authenticated" USING (("user_id" = "auth"."uid"())) WITH CHECK (("user_id" = "auth"."uid"()));
-
-
-
-CREATE POLICY "Users manage own pending plans" ON "public"."pending_payment_plans" TO "authenticated" USING (("user_id" = "auth"."uid"())) WITH CHECK (("user_id" = "auth"."uid"()));
-
-
-
-CREATE POLICY "Users manage own pending transactions" ON "public"."pending_transactions" TO "authenticated" USING (("payment_plan_id" IN ( SELECT "pending_payment_plans"."id"
-   FROM "public"."pending_payment_plans"
-  WHERE ("pending_payment_plans"."user_id" = "auth"."uid"())))) WITH CHECK (("payment_plan_id" IN ( SELECT "pending_payment_plans"."id"
-   FROM "public"."pending_payment_plans"
-  WHERE ("pending_payment_plans"."user_id" = "auth"."uid"()))));
-
-
-
-CREATE POLICY "Users manage own processing logs" ON "public"."payment_processing_logs" TO "authenticated" USING (("user_id" = "auth"."uid"())) WITH CHECK (("user_id" = "auth"."uid"()));
-
-
-
-CREATE POLICY "Users manage own profile" ON "public"."profiles" TO "authenticated" USING (("id" = "auth"."uid"())) WITH CHECK (("id" = "auth"."uid"()));
-
-
-
-CREATE POLICY "Users manage own stripe accounts" ON "public"."stripe_accounts" TO "authenticated" USING (("user_id" = "auth"."uid"())) WITH CHECK (("user_id" = "auth"."uid"()));
-
-
-
-CREATE POLICY "Users manage own transactions" ON "public"."transactions" TO "authenticated" USING (("user_id" = "auth"."uid"())) WITH CHECK (("user_id" = "auth"."uid"()));
-
-
 
 ALTER TABLE "public"."activity_logs" ENABLE ROW LEVEL SECURITY;
 
-
 ALTER TABLE "public"."customers" ENABLE ROW LEVEL SECURITY;
-
 
 ALTER TABLE "public"."email_logs" ENABLE ROW LEVEL SECURITY;
 
-
 ALTER TABLE "public"."payment_plans" ENABLE ROW LEVEL SECURITY;
-
 
 ALTER TABLE "public"."payment_processing_logs" ENABLE ROW LEVEL SECURITY;
 
-
 ALTER TABLE "public"."payouts" ENABLE ROW LEVEL SECURITY;
-
 
 ALTER TABLE "public"."pending_customers" ENABLE ROW LEVEL SECURITY;
 
-
 ALTER TABLE "public"."pending_payment_plans" ENABLE ROW LEVEL SECURITY;
-
 
 ALTER TABLE "public"."pending_transactions" ENABLE ROW LEVEL SECURITY;
 
-
 ALTER TABLE "public"."profiles" ENABLE ROW LEVEL SECURITY;
-
 
 ALTER TABLE "public"."stripe_accounts" ENABLE ROW LEVEL SECURITY;
 
-
 ALTER TABLE "public"."transactions" ENABLE ROW LEVEL SECURITY;
-
-
-
 
 ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
 
-
 ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."activity_logs";
-
-
 
 SET SESSION AUTHORIZATION "postgres";
 RESET SESSION AUTHORIZATION;
-
-
 
 GRANT USAGE ON SCHEMA "public" TO "postgres";
 GRANT USAGE ON SCHEMA "public" TO "anon";
 GRANT USAGE ON SCHEMA "public" TO "authenticated";
 GRANT USAGE ON SCHEMA "public" TO "service_role";
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 GRANT ALL ON FUNCTION "public"."cleanup_pending_payment_records"("p_pending_plan_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."cleanup_pending_payment_records"("p_pending_plan_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."cleanup_pending_payment_records"("p_pending_plan_id" "uuid") TO "service_role";
-
-
 
 GRANT ALL ON FUNCTION "public"."cleanup_pending_plans"("older_than" timestamp without time zone) TO "anon";
 GRANT ALL ON FUNCTION "public"."cleanup_pending_plans"("older_than" timestamp without time zone) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."cleanup_pending_plans"("older_than" timestamp without time zone) TO "service_role";
 
-
-
 GRANT ALL ON FUNCTION "public"."complete_payment_plan_creation"("p_payment_plan_id" "uuid", "p_transaction_id" "uuid", "p_idempotency_key" "uuid", "p_card_last_four" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."complete_payment_plan_creation"("p_payment_plan_id" "uuid", "p_transaction_id" "uuid", "p_idempotency_key" "uuid", "p_card_last_four" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."complete_payment_plan_creation"("p_payment_plan_id" "uuid", "p_transaction_id" "uuid", "p_idempotency_key" "uuid", "p_card_last_four" "text") TO "service_role";
-
-
 
 GRANT ALL ON FUNCTION "public"."convert_activity_type_trigger"() TO "anon";
 GRANT ALL ON FUNCTION "public"."convert_activity_type_trigger"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."convert_activity_type_trigger"() TO "service_role";
 
-
-
 GRANT ALL ON FUNCTION "public"."create_payment_plan"("p_customer_id" "uuid", "p_user_id" "uuid", "p_total_amount" integer, "p_number_of_payments" integer, "p_payment_interval" "text", "p_downpayment_amount" integer, "p_payment_schedule" "jsonb") TO "anon";
 GRANT ALL ON FUNCTION "public"."create_payment_plan"("p_customer_id" "uuid", "p_user_id" "uuid", "p_total_amount" integer, "p_number_of_payments" integer, "p_payment_interval" "text", "p_downpayment_amount" integer, "p_payment_schedule" "jsonb") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."create_payment_plan"("p_customer_id" "uuid", "p_user_id" "uuid", "p_total_amount" integer, "p_number_of_payments" integer, "p_payment_interval" "text", "p_downpayment_amount" integer, "p_payment_schedule" "jsonb") TO "service_role";
-
-
 
 GRANT ALL ON FUNCTION "public"."create_payment_plan_step1"("p_customer_name" "text", "p_customer_email" "text", "p_user_id" "uuid", "p_total_amount" integer, "p_number_of_payments" integer, "p_payment_interval" "text", "p_downpayment_amount" integer, "p_payment_schedule" "jsonb", "p_stripe_customer_id" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."create_payment_plan_step1"("p_customer_name" "text", "p_customer_email" "text", "p_user_id" "uuid", "p_total_amount" integer, "p_number_of_payments" integer, "p_payment_interval" "text", "p_downpayment_amount" integer, "p_payment_schedule" "jsonb", "p_stripe_customer_id" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."create_payment_plan_step1"("p_customer_name" "text", "p_customer_email" "text", "p_user_id" "uuid", "p_total_amount" integer, "p_number_of_payments" integer, "p_payment_interval" "text", "p_downpayment_amount" integer, "p_payment_schedule" "jsonb", "p_stripe_customer_id" "text") TO "service_role";
 
-
-
 GRANT ALL ON FUNCTION "public"."create_payment_plan_step1"("p_customer_name" "text", "p_customer_email" "text", "p_user_id" "uuid", "p_total_amount" integer, "p_number_of_payments" integer, "p_payment_interval" "text", "p_downpayment_amount" integer, "p_payment_schedule" "jsonb", "p_stripe_customer_id" "text", "p_idempotency_key" "uuid", "p_notes" "jsonb") TO "anon";
 GRANT ALL ON FUNCTION "public"."create_payment_plan_step1"("p_customer_name" "text", "p_customer_email" "text", "p_user_id" "uuid", "p_total_amount" integer, "p_number_of_payments" integer, "p_payment_interval" "text", "p_downpayment_amount" integer, "p_payment_schedule" "jsonb", "p_stripe_customer_id" "text", "p_idempotency_key" "uuid", "p_notes" "jsonb") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."create_payment_plan_step1"("p_customer_name" "text", "p_customer_email" "text", "p_user_id" "uuid", "p_total_amount" integer, "p_number_of_payments" integer, "p_payment_interval" "text", "p_downpayment_amount" integer, "p_payment_schedule" "jsonb", "p_stripe_customer_id" "text", "p_idempotency_key" "uuid", "p_notes" "jsonb") TO "service_role";
-
-
 
 GRANT ALL ON FUNCTION "public"."create_pending_payment_records"("payment_data" "jsonb") TO "anon";
 GRANT ALL ON FUNCTION "public"."create_pending_payment_records"("payment_data" "jsonb") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."create_pending_payment_records"("payment_data" "jsonb") TO "service_role";
 
-
-
 GRANT ALL ON FUNCTION "public"."create_pending_payment_records"("p_customer_id" "uuid", "p_payment_plan_id" "uuid", "p_transaction_id" "uuid", "p_customer_name" "text", "p_customer_email" "text", "p_user_id" "uuid", "p_total_amount" integer, "p_number_of_payments" integer, "p_payment_interval" "text", "p_downpayment_amount" integer, "p_payment_schedule" "jsonb", "p_stripe_customer_id" "text", "p_idempotency_key" "uuid", "p_notes" "jsonb") TO "anon";
 GRANT ALL ON FUNCTION "public"."create_pending_payment_records"("p_customer_id" "uuid", "p_payment_plan_id" "uuid", "p_transaction_id" "uuid", "p_customer_name" "text", "p_customer_email" "text", "p_user_id" "uuid", "p_total_amount" integer, "p_number_of_payments" integer, "p_payment_interval" "text", "p_downpayment_amount" integer, "p_payment_schedule" "jsonb", "p_stripe_customer_id" "text", "p_idempotency_key" "uuid", "p_notes" "jsonb") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."create_pending_payment_records"("p_customer_id" "uuid", "p_payment_plan_id" "uuid", "p_transaction_id" "uuid", "p_customer_name" "text", "p_customer_email" "text", "p_user_id" "uuid", "p_total_amount" integer, "p_number_of_payments" integer, "p_payment_interval" "text", "p_downpayment_amount" integer, "p_payment_schedule" "jsonb", "p_stripe_customer_id" "text", "p_idempotency_key" "uuid", "p_notes" "jsonb") TO "service_role";
-
-
 
 GRANT ALL ON FUNCTION "public"."handle_payment_confirmation"("p_pending_plan_id" "uuid", "p_payment_intent_id" "text", "p_idempotency_key" "uuid", "p_card_last_four" "text", "p_card_expiration_month" integer, "p_card_expiration_year" integer) TO "anon";
 GRANT ALL ON FUNCTION "public"."handle_payment_confirmation"("p_pending_plan_id" "uuid", "p_payment_intent_id" "text", "p_idempotency_key" "uuid", "p_card_last_four" "text", "p_card_expiration_month" integer, "p_card_expiration_year" integer) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."handle_payment_confirmation"("p_pending_plan_id" "uuid", "p_payment_intent_id" "text", "p_idempotency_key" "uuid", "p_card_last_four" "text", "p_card_expiration_month" integer, "p_card_expiration_year" integer) TO "service_role";
 
-
-
 GRANT ALL ON FUNCTION "public"."handle_successful_payment"("p_transaction_id" "uuid", "p_paid_at" timestamp with time zone) TO "anon";
 GRANT ALL ON FUNCTION "public"."handle_successful_payment"("p_transaction_id" "uuid", "p_paid_at" timestamp with time zone) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."handle_successful_payment"("p_transaction_id" "uuid", "p_paid_at" timestamp with time zone) TO "service_role";
-
-
 
 GRANT ALL ON FUNCTION "public"."log_email_activity"() TO "anon";
 GRANT ALL ON FUNCTION "public"."log_email_activity"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."log_email_activity"() TO "service_role";
 
-
-
 GRANT ALL ON FUNCTION "public"."log_payment_plan_activity"() TO "anon";
 GRANT ALL ON FUNCTION "public"."log_payment_plan_activity"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."log_payment_plan_activity"() TO "service_role";
-
-
 
 GRANT ALL ON FUNCTION "public"."log_payout_activity"() TO "anon";
 GRANT ALL ON FUNCTION "public"."log_payout_activity"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."log_payout_activity"() TO "service_role";
 
-
-
 GRANT ALL ON FUNCTION "public"."log_transaction_activity"() TO "anon";
 GRANT ALL ON FUNCTION "public"."log_transaction_activity"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."log_transaction_activity"() TO "service_role";
-
-
 
 GRANT ALL ON FUNCTION "public"."migrate_pending_payment_plan"("p_pending_plan_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."migrate_pending_payment_plan"("p_pending_plan_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."migrate_pending_payment_plan"("p_pending_plan_id" "uuid") TO "service_role";
 
-
-
 GRANT ALL ON FUNCTION "public"."set_reminder_email_date"() TO "anon";
 GRANT ALL ON FUNCTION "public"."set_reminder_email_date"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."set_reminder_email_date"() TO "service_role";
-
-
 
 GRANT ALL ON FUNCTION "public"."set_updated_at"() TO "anon";
 GRANT ALL ON FUNCTION "public"."set_updated_at"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."set_updated_at"() TO "service_role";
 
-
-
 GRANT ALL ON FUNCTION "public"."text_to_activity_type"("p_text" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."text_to_activity_type"("p_text" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."text_to_activity_type"("p_text" "text") TO "service_role";
-
-
 
 GRANT ALL ON FUNCTION "public"."update_modified_column"() TO "anon";
 GRANT ALL ON FUNCTION "public"."update_modified_column"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."update_modified_column"() TO "service_role";
 
-
-
 GRANT ALL ON FUNCTION "public"."update_updated_at"() TO "anon";
 GRANT ALL ON FUNCTION "public"."update_updated_at"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."update_updated_at"() TO "service_role";
-
-
 
 GRANT ALL ON FUNCTION "public"."update_updated_at_column"() TO "anon";
 GRANT ALL ON FUNCTION "public"."update_updated_at_column"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."update_updated_at_column"() TO "service_role";
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 GRANT ALL ON TABLE "public"."activity_logs" TO "anon";
 GRANT ALL ON TABLE "public"."activity_logs" TO "authenticated";
 GRANT ALL ON TABLE "public"."activity_logs" TO "service_role";
-
-
 
 GRANT ALL ON TABLE "public"."customers" TO "anon";
 GRANT ALL ON TABLE "public"."customers" TO "authenticated";
 GRANT ALL ON TABLE "public"."customers" TO "service_role";
 
-
-
 GRANT ALL ON TABLE "public"."customers_backup" TO "anon";
 GRANT ALL ON TABLE "public"."customers_backup" TO "authenticated";
 GRANT ALL ON TABLE "public"."customers_backup" TO "service_role";
-
-
 
 GRANT ALL ON TABLE "public"."email_logs" TO "anon";
 GRANT ALL ON TABLE "public"."email_logs" TO "authenticated";
 GRANT ALL ON TABLE "public"."email_logs" TO "service_role";
 
-
-
 GRANT ALL ON TABLE "public"."migration_20240415000000_completed" TO "anon";
 GRANT ALL ON TABLE "public"."migration_20240415000000_completed" TO "authenticated";
 GRANT ALL ON TABLE "public"."migration_20240415000000_completed" TO "service_role";
-
-
 
 GRANT ALL ON TABLE "public"."payment_plans" TO "anon";
 GRANT ALL ON TABLE "public"."payment_plans" TO "authenticated";
 GRANT ALL ON TABLE "public"."payment_plans" TO "service_role";
 
-
-
 GRANT ALL ON TABLE "public"."payment_plans_backup" TO "anon";
 GRANT ALL ON TABLE "public"."payment_plans_backup" TO "authenticated";
 GRANT ALL ON TABLE "public"."payment_plans_backup" TO "service_role";
-
-
 
 GRANT ALL ON TABLE "public"."payment_processing_logs" TO "anon";
 GRANT ALL ON TABLE "public"."payment_processing_logs" TO "authenticated";
 GRANT ALL ON TABLE "public"."payment_processing_logs" TO "service_role";
 
-
-
 GRANT ALL ON TABLE "public"."payouts" TO "anon";
 GRANT ALL ON TABLE "public"."payouts" TO "authenticated";
 GRANT ALL ON TABLE "public"."payouts" TO "service_role";
-
-
 
 GRANT ALL ON SEQUENCE "public"."payouts_id_seq" TO "anon";
 GRANT ALL ON SEQUENCE "public"."payouts_id_seq" TO "authenticated";
 GRANT ALL ON SEQUENCE "public"."payouts_id_seq" TO "service_role";
 
-
-
 GRANT ALL ON TABLE "public"."pending_customers" TO "anon";
 GRANT ALL ON TABLE "public"."pending_customers" TO "authenticated";
 GRANT ALL ON TABLE "public"."pending_customers" TO "service_role";
-
-
 
 GRANT ALL ON TABLE "public"."pending_payment_plans" TO "anon";
 GRANT ALL ON TABLE "public"."pending_payment_plans" TO "authenticated";
 GRANT ALL ON TABLE "public"."pending_payment_plans" TO "service_role";
 
-
-
 GRANT ALL ON TABLE "public"."pending_transactions" TO "anon";
 GRANT ALL ON TABLE "public"."pending_transactions" TO "authenticated";
 GRANT ALL ON TABLE "public"."pending_transactions" TO "service_role";
-
-
 
 GRANT ALL ON TABLE "public"."profiles" TO "anon";
 GRANT ALL ON TABLE "public"."profiles" TO "authenticated";
 GRANT ALL ON TABLE "public"."profiles" TO "service_role";
 
-
-
 GRANT ALL ON TABLE "public"."profiles_backup" TO "anon";
 GRANT ALL ON TABLE "public"."profiles_backup" TO "authenticated";
 GRANT ALL ON TABLE "public"."profiles_backup" TO "service_role";
-
-
 
 GRANT ALL ON TABLE "public"."stripe_accounts" TO "anon";
 GRANT ALL ON TABLE "public"."stripe_accounts" TO "authenticated";
 GRANT ALL ON TABLE "public"."stripe_accounts" TO "service_role";
 
-
-
 GRANT ALL ON TABLE "public"."stripe_accounts_backup" TO "anon";
 GRANT ALL ON TABLE "public"."stripe_accounts_backup" TO "authenticated";
 GRANT ALL ON TABLE "public"."stripe_accounts_backup" TO "service_role";
-
-
 
 GRANT ALL ON TABLE "public"."transactions" TO "anon";
 GRANT ALL ON TABLE "public"."transactions" TO "authenticated";
 GRANT ALL ON TABLE "public"."transactions" TO "service_role";
 
-
-
 GRANT ALL ON TABLE "public"."transactions_backup" TO "anon";
 GRANT ALL ON TABLE "public"."transactions_backup" TO "authenticated";
 GRANT ALL ON TABLE "public"."transactions_backup" TO "service_role";
-
-
 
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES  TO "postgres";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES  TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES  TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES  TO "service_role";
 
-
-
-
-
-
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS  TO "postgres";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS  TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS  TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS  TO "service_role";
 
-
-
-
-
-
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES  TO "postgres";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES  TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES  TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES  TO "service_role";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 RESET ALL;

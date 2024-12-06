@@ -496,6 +496,262 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
+-- Log Email Activity Function
+DROP FUNCTION IF EXISTS public.log_email_activity();
+CREATE OR REPLACE FUNCTION public.log_email_activity()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+begin
+  if (TG_OP = 'INSERT') then
+    -- Get the customer name from the related payment plan
+    WITH customer_info AS (
+      SELECT c.name as customer_name
+      FROM payment_plans p
+      JOIN customers c ON c.id = p.customer_id
+      WHERE p.id = NEW.related_id
+      AND NEW.related_type = 'payment_plan'
+    )
+    insert into activity_logs (
+      user_id,
+      activity_type,
+      entity_type,
+      entity_id,
+      metadata,
+      customer_name
+    )
+    select
+      NEW.user_id,
+      case NEW.email_type
+        when 'customer_payment_link_sent' then 'plan_payment_link_sent'
+        when 'customer_payment_reminder' then 'plan_payment_reminder_sent'
+        when 'customer_payment_confirmation' then 'plan_payment_confirmation_sent'
+        else 'email_sent'
+      end,
+      'email',
+      NEW.id,
+      jsonb_build_object(
+        'email_type', NEW.email_type,
+        'recipient', NEW.recipient_email,
+        'status', NEW.status,
+        'related_id', NEW.related_id,
+        'related_type', NEW.related_type
+      ),
+      ci.customer_name
+    from customer_info ci;
+  end if;
+  return NEW;
+end;
+$$;
+
+-- Create trigger for email activity logging
+DROP TRIGGER IF EXISTS email_activity_trigger ON emails;
+CREATE TRIGGER email_activity_trigger
+  AFTER INSERT
+  ON emails
+  FOR EACH ROW
+  EXECUTE FUNCTION log_email_activity();
+
+GRANT EXECUTE ON FUNCTION public.log_email_activity() TO anon, authenticated, service_role;
+
+-- Log Payment Plan Activity Function
+DROP FUNCTION IF EXISTS public.log_payment_plan_activity();
+CREATE OR REPLACE FUNCTION public.log_payment_plan_activity()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+begin
+  if (TG_OP = 'INSERT') then
+    -- Log plan creation
+    insert into activity_logs (
+      user_id,
+      activity_type,
+      entity_type,
+      entity_id,
+      amount,
+      metadata,
+      customer_name
+    )
+    values (
+      NEW.user_id,
+      'plan_created',
+      'payment_plan',
+      NEW.id,
+      NEW.total_amount,
+      jsonb_build_object(
+        'number_of_payments', NEW.number_of_payments,
+        'payment_interval', NEW.payment_interval,
+        'downpayment_amount', NEW.downpayment_amount
+      ),
+      (select name from customers where id = NEW.customer_id)
+    );
+  elsif (TG_OP = 'UPDATE') then
+    -- Log status changes
+    if NEW.status != OLD.status then
+      insert into activity_logs (
+        user_id,
+        activity_type,
+        entity_type,
+        entity_id,
+        amount,
+        metadata,
+        customer_name
+      )
+      values (
+        NEW.user_id,
+        case
+          when NEW.status = 'active' then 'plan_activated'
+          when NEW.status = 'completed' then 'plan_completed'
+          when NEW.status = 'cancelled' then 'plan_cancelled'
+          else 'plan_updated'
+        end,
+        'payment_plan',
+        NEW.id,
+        NEW.total_amount,
+        jsonb_build_object(
+          'old_status', OLD.status,
+          'new_status', NEW.status
+        ),
+        (select name from customers where id = NEW.customer_id)
+      );
+    -- Log other changes
+    elsif NEW.total_amount != OLD.total_amount 
+      or NEW.number_of_payments != OLD.number_of_payments 
+      or NEW.payment_interval != OLD.payment_interval 
+      or NEW.downpayment_amount != OLD.downpayment_amount then
+      insert into activity_logs (
+        user_id,
+        activity_type,
+        entity_type,
+        entity_id,
+        amount,
+        metadata,
+        customer_name
+      )
+      values (
+        NEW.user_id,
+        'plan_updated',
+        'payment_plan',
+        NEW.id,
+        NEW.total_amount,
+        jsonb_build_object(
+          'old_total_amount', OLD.total_amount,
+          'new_total_amount', NEW.total_amount,
+          'old_number_of_payments', OLD.number_of_payments,
+          'new_number_of_payments', NEW.number_of_payments,
+          'old_payment_interval', OLD.payment_interval,
+          'new_payment_interval', NEW.payment_interval,
+          'old_downpayment_amount', OLD.downpayment_amount,
+          'new_downpayment_amount', NEW.downpayment_amount
+        ),
+        (select name from customers where id = NEW.customer_id)
+      );
+    end if;
+  end if;
+  return NEW;
+end;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.log_payment_plan_activity() TO anon, authenticated, service_role;
+
+-- Enable the pgcrypto extension for UUID generation if not already enabled
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Create an events table to track all system events
+CREATE TABLE IF NOT EXISTS events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  event_type TEXT NOT NULL,
+  entity_type TEXT NOT NULL,
+  entity_id UUID NOT NULL,
+  user_id UUID NOT NULL REFERENCES auth.users(id),
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  customer_id UUID REFERENCES customers(id)
+);
+
+-- Enable row level security
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+
+-- Create policy to allow users to view their own events
+CREATE POLICY "Users can view their own events"
+  ON events FOR SELECT
+  TO authenticated
+  USING (user_id = auth.uid());
+
+-- Create policy to allow system to insert events
+CREATE POLICY "System can insert events"
+  ON events FOR INSERT
+  TO authenticated
+  WITH CHECK (true);
+
+-- Add indices for events table
+CREATE INDEX IF NOT EXISTS events_user_created_idx ON events (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS events_customer_created_idx ON events (customer_id, created_at DESC) WHERE customer_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS events_entity_idx ON events (entity_type, entity_id);
+
+-- Function to publish an activity event
+CREATE OR REPLACE FUNCTION publish_activity(
+  p_event_type TEXT,
+  p_entity_type TEXT,
+  p_entity_id UUID,
+  p_user_id UUID,
+  p_metadata JSONB DEFAULT '{}'::jsonb,
+  p_customer_id UUID DEFAULT NULL
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_event_id UUID;
+BEGIN
+  -- Insert the event
+  INSERT INTO events (
+    event_type,
+    entity_type,
+    entity_id,
+    user_id,
+    metadata,
+    customer_id
+  ) VALUES (
+    p_event_type,
+    p_entity_type,
+    p_entity_id,
+    p_user_id,
+    p_metadata,
+    p_customer_id
+  )
+  RETURNING id INTO v_event_id;
+
+  -- Insert into activity_logs for backward compatibility
+  INSERT INTO activity_logs (
+    user_id,
+    activity_type,
+    entity_type,
+    entity_id,
+    metadata,
+    customer_name
+  )
+  SELECT
+    p_user_id,
+    p_event_type,
+    p_entity_type,
+    p_entity_id,
+    p_metadata,
+    c.name
+  FROM customers c
+  WHERE c.id = p_customer_id;
+
+  RETURN v_event_id;
+END;
+$$;
+
+-- Grant execute permission on the function
+GRANT EXECUTE ON FUNCTION publish_activity TO authenticated;
+
+-- Enable realtime for the events table
+ALTER PUBLICATION supabase_realtime ADD TABLE events;
+
 -- Add grants for all functions
 GRANT EXECUTE ON FUNCTION public.cleanup_pending_payment_records(uuid) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.cleanup_pending_plans(timestamp without time zone) TO anon, authenticated, service_role;

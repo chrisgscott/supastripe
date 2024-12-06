@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { Database } from "@/types/supabase";
 import crypto from "crypto";
 import { PostgrestError } from '@supabase/supabase-js';
+import { PaymentEvents } from '@/utils/events';
 
 type TransactionStatusType = Database['public']['Enums']['transaction_status_type'];
 type PaymentStatusType = Database['public']['Enums']['payment_status_type'];
@@ -131,7 +132,9 @@ export async function GET(request: Request) {
       .from('payment_plans')
       .select(`
         id,
-        customers (
+        customer_id,
+        customers!inner (
+          id,
           name,
           email
         ),
@@ -150,32 +153,23 @@ export async function GET(request: Request) {
       throw new Error('Failed to verify migrated payment plan');
     }
 
-    // Log the successful payment
-    const activityLog = {
-      activity_type: 'payment_success',
-      entity_id: result.migrated_plan_id,
-      entity_type: 'payment_plan',
-      amount: pendingPlan.total_amount,
-      customer_name: pendingPlan.pending_customers.name,
-      user_id: pendingPlan.user_id,
+    // Publish payment confirmation event
+    await PaymentEvents.confirmed(supabase, {
+      paymentId: stripePaymentIntent.id,
+      userId: newPlan.customers[0].id,
+      customerId: newPlan.customer_id,
+      amount: stripePaymentIntent.amount / 100, // Convert from cents to dollars
       metadata: {
-        payment_intent_id: paymentIntentId,
-        customer_email: pendingPlan.pending_customers.email
+        plan_id: newPlan.id,
+        payment_method: 'card',
+        ...cardDetails
       }
-    };
+    });
 
-    const { error: logError } = await supabase
-      .from('activity_logs')
-      .insert(activityLog);
-
-    if (logError) {
-      console.error('Error logging payment activity:', logError);
-    }
-
-    console.log('handle-payment-confirmation: Successfully completed migration');
+    console.log('handle-payment-confirmation: Success, redirecting to:', newPlan.id);
     return NextResponse.json({
       success: true,
-      redirectUrl: `/plan/${result.migrated_plan_id}`
+      redirectUrl: `/plan/${newPlan.id}`
     });
 
   } catch (error) {
