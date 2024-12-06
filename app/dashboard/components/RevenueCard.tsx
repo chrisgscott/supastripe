@@ -64,7 +64,7 @@ export function RevenueCard() {
           <div className="text-sm text-red-500">{error}</div>
         ) : (
           <div className="text-2xl font-bold">
-            {formatCurrency(Money.fromDollars(revenue || 0))}
+            {formatCurrency(Money.fromCents(revenue || 0))}
           </div>
         )}
       </CardContent>
