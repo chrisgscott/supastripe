@@ -57,17 +57,18 @@ const formatEventMessage = (event: Event): string => {
   return formatter(event);
 };
 
-type PlanActivityFeedProps = {
+interface PlanActivityFeedProps {
   planId: string;
-  user: User;
-};
+  user: User | null;
+}
 
 export function PlanActivityFeed({ planId, user }: PlanActivityFeedProps) {
   const [events, setEvents] = useState<Event[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
   useEffect(() => {
+    if (!user) return;
     const fetchEvents = async () => {
       const { data, error } = await supabase
         .from('events')
@@ -79,7 +80,7 @@ export function PlanActivityFeed({ planId, user }: PlanActivityFeedProps) {
       if (!error && data) {
         setEvents(data);
       }
-      setIsLoading(false);
+      setLoading(false);
     };
 
     fetchEvents();
@@ -107,9 +108,9 @@ export function PlanActivityFeed({ planId, user }: PlanActivityFeedProps) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [user.id, planId]);
+  }, [user?.id, planId]);
 
-  if (isLoading) {
+  if (loading) {
     return (
       <Card>
         <CardHeader>

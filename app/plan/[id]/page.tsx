@@ -1,7 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { notFound } from 'next/navigation'
 import { Database } from '@/types/supabase'
-import { PlanDetails } from './PlanDetails'
+import PlanDetails from './PlanDetails'
 
 type PaymentPlan = Database['public']['Tables']['payment_plans']['Row'];
 type PendingPaymentPlan = Database['public']['Tables']['pending_payment_plans']['Row'];

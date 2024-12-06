@@ -34,6 +34,7 @@ type TransactionForEmail = Pick<Transaction,
 
 type PaymentPlanWithRelations = PaymentPlan & {
   customer: {
+    id: string;
     name: string;
     email: string;
   };

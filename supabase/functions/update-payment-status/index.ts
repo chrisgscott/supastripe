@@ -315,37 +315,26 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
     console.error(`Error fetching transaction details for logging:`, fetchError);
   } else {
     // Log the activity
-    const activityLogData = {
-      activity_type: 'payment_success' as ActivityType,
-      entity_id: transaction.payment_plans.id,
-      entity_type: 'payment_plan',
-      user_id: transaction.payment_plans.user_id,
-      customer_name: transaction.payment_plans.customers.name,
-      amount: transaction.amount,
-      metadata: {
+    const { error: eventError } = await supabase.rpc('publish_activity', {
+      p_event_type: 'payment_success',
+      p_entity_type: 'payment_plan',
+      p_entity_id: transaction.payment_plan_id,
+      p_user_id: transaction.payment_plans.user_id,
+      p_metadata: {
         payment_intent_id: paymentIntent.id,
-        transaction_id: transactionId
+        transaction_id: transactionId,
+        amount: transaction.amount,
+        customer_name: transaction.payment_plans.customers.name
       }
-    };
-
-    console.log('Activity log data:', {
-      rawData: activityLogData,
-      activityTypeValue: activityLogData.activity_type,
-      activityTypeType: typeof activityLogData.activity_type
     });
 
-    const { error: activityLogError } = await supabase
-      .from('activity_logs')
-      .insert(activityLogData);
-
-    if (activityLogError) {
-      console.error('Error logging payment success activity:', activityLogError);
-      // Log the SQL query if possible
-      console.log('Activity log error details:', {
-        code: activityLogError.code,
-        message: activityLogError.message,
-        details: activityLogError.details,
-        hint: activityLogError.hint
+    if (eventError) {
+      console.error('Error publishing payment success event:', eventError);
+      console.log('Event error details:', {
+        code: eventError.code,
+        message: eventError.message,
+        details: eventError.details,
+        hint: eventError.hint
       });
     }
   }
@@ -397,24 +386,27 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent, su
     console.error(`Error fetching transaction details for logging:`, fetchError);
   } else {
     // Log the activity
-    const { error: logError } = await supabase
-      .from('activity_logs')
-      .insert({
-        activity_type: 'payment_failed' as ActivityType,
-        entity_id: transaction.payment_plan_id,
-        entity_type: 'payment_plan',
-        user_id: transaction.payment_plans.user_id,
-        customer_name: transaction.payment_plans.customers.name,
+    const { error: eventError } = await supabase.rpc('publish_activity', {
+      p_event_type: 'payment_failed',
+      p_entity_type: 'payment_plan',
+      p_entity_id: transaction.payment_plan_id,
+      p_user_id: transaction.payment_plans.user_id,
+      p_metadata: {
+        payment_intent_id: paymentIntent.id,
+        transaction_id: transactionId,
         amount: transaction.amount,
-        metadata: {
-          payment_intent_id: paymentIntent.id,
-          transaction_id: transactionId,
-          failure_message: paymentIntent.last_payment_error?.message
-        }
-      });
+        customer_name: transaction.payment_plans.customers.name
+      }
+    });
 
-    if (logError) {
-      console.error('Error logging payment failure activity:', logError);
+    if (eventError) {
+      console.error('Error publishing payment failed event:', eventError);
+      console.log('Event error details:', {
+        code: eventError.code,
+        message: eventError.message,
+        details: eventError.details,
+        hint: eventError.hint
+      });
     }
   }
 

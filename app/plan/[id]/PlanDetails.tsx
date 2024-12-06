@@ -35,6 +35,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { CreditCard } from 'lucide-react'
 import { UpdateCardDialog } from './UpdateCardDialog'
 import { PlanActivityFeed } from './components/PlanActivityFeed'
+import { useUser } from "@/hooks/useUser"
 
 interface PlanDetailsProps {
   planDetails: {
@@ -64,11 +65,12 @@ interface PlanDetailsProps {
   };
 }
 
-export function PlanDetails({ planDetails }: PlanDetailsProps) {
+export default function PlanDetails({ planDetails }: PlanDetailsProps) {
   const [isSending, setIsSending] = useState(false)
   const [isPausing, setIsPausing] = useState(false)
   const { toast } = useToast()
   const [isUpdateCardDialogOpen, setIsUpdateCardDialogOpen] = useState(false)
+  const { user } = useUser()
 
   const handleSendEmail = async () => {
     setIsSending(true)
@@ -296,7 +298,7 @@ export function PlanDetails({ planDetails }: PlanDetailsProps) {
         {/* Sidebar Column */}
         <div className="space-y-6">
           {/* Plan Activity Feed */}
-          <PlanActivityFeed planId={planDetails.paymentPlanId} />
+          <PlanActivityFeed planId={planDetails.paymentPlanId} user={user} />
 
           {/* Plan Actions Card */}
           <Card>
