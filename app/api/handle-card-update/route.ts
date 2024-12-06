@@ -75,23 +75,24 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/error?message=Failed to update card details`);
       }
 
-      // Log the activity with user_id and customer_name
-      const { error: logError } = await supabase
-        .from('activity_logs')
-        .insert({
-          activity_type: 'payment_method_updated',
-          entity_id: planId,
-          entity_type: 'payment_plan',
-          user_id: plan.user_id,
-          customer_name: plan.customer.name,
-          metadata: {
-            card_last_four: paymentMethod.card?.last4,
-            card_brand: paymentMethod.card?.brand
-          }
-        });
+      // Log the card update
+      const { error: eventError } = await supabase.rpc('publish_activity', {
+        p_event_type: 'payment_method_updated',
+        p_entity_type: 'payment_plan',
+        p_entity_id: planId,
+        p_user_id: plan.user_id,
+        p_metadata: {
+          card_brand: paymentMethod.card?.brand,
+          card_last_four: paymentMethod.card?.last4,
+          card_expiration_month: paymentMethod.card?.exp_month,
+          card_expiration_year: paymentMethod.card?.exp_year
+        },
+        p_customer_id: plan.customer.stripe_customer_id
+      });
 
-      if (logError) {
-        console.error('Error logging card update activity:', logError);
+      if (eventError) {
+        console.error('Error publishing event:', eventError);
+        return NextResponse.json({ error: 'Failed to log card update' }, { status: 500 });
       }
 
       return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/plan/${planId}`);

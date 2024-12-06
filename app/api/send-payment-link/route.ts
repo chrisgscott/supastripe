@@ -262,23 +262,23 @@ async function handleEmailSend(
     console.error('Error logging email:', emailLogError);
   }
 
-  // Create activity log entry
-  const { error: activityLogError } = await supabase
-    .from('activity_logs')
-    .insert({
-      activity_type: 'email_sent',
-      entity_id: plan.id,
-      entity_type: isPendingPlan ? 'pending_payment_plan' : 'payment_plan',
-      user_id: userId,
-      customer_name: customerName,
-      metadata: {
-        email_type: 'payment_link',
-        recipient: customerEmail
-      }
-    });
+  // Publish event
+  const customerId = isPendingPlan ? plan.pending_customers.id : plan.customer.id;
+  const { error: eventError } = await supabase.rpc('publish_activity', {
+    p_event_type: 'plan_payment_link_sent',
+    p_entity_type: 'payment_plan',
+    p_entity_id: plan.id,
+    p_user_id: userId,
+    p_metadata: {
+      recipient: customerEmail,
+      email_type: 'payment_link'
+    },
+    p_customer_id: customerId
+  });
 
-  if (activityLogError) {
-    console.error('Error logging activity:', activityLogError);
+  if (eventError) {
+    console.error('Error publishing event:', eventError);
+    return NextResponse.json({ error: 'Failed to log email activity' }, { status: 500 });
   }
 
   if (success) {
