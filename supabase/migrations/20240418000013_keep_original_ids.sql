@@ -81,7 +81,7 @@ BEGIN
     FROM pending_payment_plans
     WHERE id = p_pending_plan_id;
 
-    -- Finally, migrate the transactions (already keeping original IDs)
+    -- Finally, migrate the transactions (keeping original status)
     WITH inserted_transactions AS (
         INSERT INTO transactions (
             id,
@@ -102,18 +102,12 @@ BEGIN
             v_user_id,
             pt.amount,
             pt.due_date,
-            CASE 
-                WHEN pt.transaction_type = 'downpayment' THEN 'completed'::transaction_status_type
-                ELSE 'pending'::transaction_status_type
-            END,
+            pt.status,  -- Keep original status
             pt.transaction_type,
             pt.stripe_payment_intent_id,
             CURRENT_TIMESTAMP,
             CURRENT_TIMESTAMP,
-            CASE 
-                WHEN pt.transaction_type = 'downpayment' THEN CURRENT_TIMESTAMP
-                ELSE NULL
-            END
+            pt.paid_at  -- Keep original paid_at timestamp
         FROM pending_transactions pt
         WHERE pt.payment_plan_id = p_pending_plan_id
         RETURNING payment_plan_id

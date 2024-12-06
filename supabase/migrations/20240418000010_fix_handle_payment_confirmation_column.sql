@@ -38,23 +38,22 @@ BEGIN
         );
     END IF;
 
-    -- Create the first transaction record
-    INSERT INTO pending_transactions (
-        payment_plan_id,
-        amount,
-        stripe_payment_intent_id,
-        status,
-        transaction_type,
-        due_date
-    ) VALUES (
-        p_pending_plan_id,
-        v_amount,
-        p_payment_intent_id,
-        'completed'::transaction_status_type,
-        'downpayment'::transaction_type,
-        NOW()
-    )
+    -- Update the existing downpayment transaction instead of creating a new one
+    UPDATE pending_transactions 
+    SET status = 'completed'::transaction_status_type,
+        stripe_payment_intent_id = p_payment_intent_id,
+        paid_at = NOW()
+    WHERE payment_plan_id = p_pending_plan_id 
+    AND transaction_type = 'downpayment'
     RETURNING id INTO v_first_transaction_id;
+
+    IF v_first_transaction_id IS NULL THEN
+        RAISE NOTICE 'No downpayment transaction found for plan: %', p_pending_plan_id;
+        RETURN jsonb_build_object(
+            'success', false,
+            'error', 'Downpayment transaction not found'
+        );
+    END IF;
 
     -- Publish payment confirmation event
     PERFORM publish_activity(
