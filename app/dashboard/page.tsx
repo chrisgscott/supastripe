@@ -15,6 +15,7 @@ import { createClient } from '@/utils/supabase/server';
 import OnboardingProgress from '@/components/OnboardingProgress';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { ActivePlansCard } from './components/ActivePlansCard';
 
 export default async function Dashboard() {
   // Call cookies() to opt out of caching
@@ -43,16 +44,8 @@ export default async function Dashboard() {
       {!profile?.is_onboarded && <OnboardingProgress user={user} />}
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Plans</CardTitle>
-            <UserIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">Loading...</div>
-          </CardContent>
-        </Card>
-
+        <ActivePlansCard />
+        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Revenue</CardTitle>
