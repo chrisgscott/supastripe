@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { User } from '@supabase/supabase-js'
-import { CalendarIcon, CreditCardIcon, DocumentIcon, EnvelopeIcon } from '@heroicons/react/24/outline'
+import { Calendar, CreditCard, FileText, Mail } from 'lucide-react'
 
 // Event type definitions
 type Event = {
@@ -16,12 +16,12 @@ type Event = {
 
 // Icon mapping - similar to before, but more extensible
 const EVENT_ICONS: Record<string, React.ComponentType<any>> = {
-  'payment_confirmed': CreditCardIcon,
-  'payment_link_sent': EnvelopeIcon,
-  'plan_created': DocumentIcon,
-  'plan_updated': DocumentIcon,
+  'payment_confirmed': CreditCard,
+  'payment_link_sent': Mail,
+  'plan_created': FileText,
+  'plan_updated': FileText,
   // Add more icons as needed, with a default
-  'default': CalendarIcon,
+  'default': Calendar,
 }
 
 // Message formatting - similar to before, but more data-driven

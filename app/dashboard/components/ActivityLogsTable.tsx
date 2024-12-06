@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { createClient } from '@/utils/supabase/client';
 
 type ActivityLog = Database['public']['Tables']['activity_logs']['Row'];
+type ActivityType = Database['public']['Enums']['activity_type'] | 'plan_updated' | 'plan_payment_link_sent' | 'plan_payment_reminder_sent' | 'plan_payment_confirmation_sent';
 
 interface ActivityResponse {
   activities: ActivityLog[];
@@ -32,7 +33,7 @@ interface ActivityResponse {
 const formatActivityMessage = (activity: ActivityLog) => {
   const amount = activity.amount ? Money.fromCents(activity.amount) : Money.fromCents(0);
   
-  switch (activity.activity_type) {
+  switch (activity.activity_type as ActivityType) {
     case 'payment_success':
       return `${activity.customer_name}'s payment of ${formatCurrency(amount)} was successful.`;
     case 'payment_failed':
