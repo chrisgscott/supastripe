@@ -1,4 +1,4 @@
--- Update handle_payment_confirmation function to use events instead of activity_logs
+-- Fix handle_payment_confirmation function to use correct column names
 CREATE OR REPLACE FUNCTION public.handle_payment_confirmation(
     p_pending_plan_id uuid,
     p_payment_intent_id text,
@@ -42,15 +42,17 @@ BEGIN
     INSERT INTO pending_transactions (
         payment_plan_id,
         amount,
-        payment_intent_id,
-        idempotency_key,
-        user_id
+        stripe_payment_intent_id,
+        status,
+        transaction_type,
+        due_date
     ) VALUES (
         p_pending_plan_id,
         v_amount,
         p_payment_intent_id,
-        p_idempotency_key,
-        v_user_id
+        'completed'::transaction_status_type,
+        'downpayment'::transaction_type,
+        NOW()
     )
     RETURNING id INTO v_first_transaction_id;
 
@@ -102,55 +104,16 @@ BEGIN
         v_user_id,
         jsonb_build_object(
             'amount', v_amount,
-            'payment_method', 'card',
-            'card_last_four', p_card_last_four,
-            'card_expiration_month', p_card_expiration_month,
-            'card_expiration_year', p_card_expiration_year,
-            'plan_id', v_migrated_plan_id
+            'customer_email', v_customer_email,
+            'payment_intent_id', p_payment_intent_id
         ),
         v_customer_id
     );
 
     RETURN jsonb_build_object(
         'success', true,
-        'migrated_plan_id', v_migrated_plan_id
+        'migrated_plan_id', v_migrated_plan_id,
+        'transaction_id', v_first_transaction_id
     );
-END;
-$$;
-
--- Update the publish_activity function to remove activity_logs references
-CREATE OR REPLACE FUNCTION public.publish_activity(
-    p_event_type text,
-    p_entity_type text,
-    p_entity_id uuid,
-    p_user_id uuid,
-    p_metadata jsonb DEFAULT '{}'::jsonb,
-    p_customer_id uuid DEFAULT NULL
-) RETURNS uuid
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-    v_event_id uuid;
-BEGIN
-    -- Insert into events table
-    INSERT INTO events (
-        event_type,
-        entity_type,
-        entity_id,
-        user_id,
-        metadata,
-        customer_id
-    ) VALUES (
-        p_event_type,
-        p_entity_type,
-        p_entity_id,
-        p_user_id,
-        p_metadata,
-        p_customer_id
-    )
-    RETURNING id INTO v_event_id;
-
-    RETURN v_event_id;
 END;
 $$;
