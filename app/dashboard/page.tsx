@@ -17,6 +17,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { ActivePlansCard } from './components/ActivePlansCard';
 import { RevenueCard } from './components/RevenueCard';
+import { ScheduledRevenueCard } from './components/ScheduledRevenueCard';
 
 export default async function Dashboard() {
   // Call cookies() to opt out of caching
@@ -49,25 +50,8 @@ export default async function Dashboard() {
         
         <RevenueCard />
         
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Scheduled Revenue</CardTitle>
-            <Select defaultValue="30">
-              <SelectTrigger className="w-[70px] h-8">
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7">7d</SelectItem>
-                <SelectItem value="30">30d</SelectItem>
-                <SelectItem value="90">90d</SelectItem>
-              </SelectContent>
-            </Select>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">Loading...</div>
-          </CardContent>
-        </Card>
-
+        <ScheduledRevenueCard />
+        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Next Payout</CardTitle>
