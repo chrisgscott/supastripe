@@ -10,7 +10,7 @@ import { PaymentChart } from './components/PaymentChart';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { DashboardCardSkeleton } from "./components/DashboardCardSkeleton"
 import { Money } from '@/utils/currencyUtils';
-import { ActivityLogsTable } from './components/ActivityLogsTable';
+import { EventFeed } from './components/EventFeed';
 import { createClient } from '@/utils/supabase/server';
 import OnboardingProgress from '@/components/OnboardingProgress';
 import { cookies } from 'next/headers';
@@ -64,7 +64,7 @@ export default async function Dashboard() {
         </div>
 
         <div className="lg:col-span-4">
-          <ActivityLogsTable />
+          <EventFeed user={user} limit={10} />
         </div>
       </div>
     </div>
