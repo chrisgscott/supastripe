@@ -16,10 +16,14 @@ type Event = {
 
 // Icon mapping - similar to before, but more extensible
 const EVENT_ICONS: Record<string, React.ComponentType<any>> = {
-  'payment_confirmed': CreditCard,
-  'payment_link_sent': Mail,
+  'payment_confirmation': CreditCard,
+  'payment_confirmation_sent': Mail,
+  'payment_success': CreditCard,
+  'payment_failed': CreditCard,
   'plan_created': FileText,
   'plan_updated': FileText,
+  'plan_payment_link_sent': Mail,
+  'plan_payment_reminder_sent': Mail,
   // Add more icons as needed, with a default
   'default': Calendar,
 }
@@ -27,12 +31,16 @@ const EVENT_ICONS: Record<string, React.ComponentType<any>> = {
 // Message formatting - similar to before, but more data-driven
 const formatEventMessage = (event: Event): string => {
   const messages: Record<string, (event: Event) => string> = {
-    'payment_confirmed': (e) => `Payment of $${e.metadata.amount} confirmed`,
-    'payment_link_sent': (e) => `Payment link sent to ${e.metadata.recipient}`,
-    'plan_created': (e) => `Payment plan created for ${e.metadata.customer_name}`,
-    'plan_updated': (e) => `Payment plan updated: ${e.metadata.change_description}`,
+    'payment_confirmation': (e) => `Payment confirmation received`,
+    'payment_confirmation_sent': (e) => `Payment confirmation sent to ${e.metadata.recipient}`,
+    'payment_success': (e) => `Payment of ${e.metadata.amount} successful`,
+    'payment_failed': (e) => `Payment of ${e.metadata.amount} failed`,
+    'plan_created': (e) => `Payment plan created${e.metadata.customer_name ? ` for ${e.metadata.customer_name}` : ''}`,
+    'plan_updated': (e) => `Payment plan updated${e.metadata.change_description ? `: ${e.metadata.change_description}` : ''}`,
+    'plan_payment_link_sent': (e) => `Payment link sent${e.metadata.recipient ? ` to ${e.metadata.recipient}` : ''}`,
+    'plan_payment_reminder_sent': (e) => `Payment reminder sent${e.metadata.recipient ? ` to ${e.metadata.recipient}` : ''}`,
     // Add more message formatters as needed
-    'default': (e) => `${e.event_type.replace(/_/g, ' ')}`,
+    'default': (e) => `${e.event_type.replace(/_/g, ' ')}`
   }
 
   const formatter = messages[event.event_type] || messages.default
