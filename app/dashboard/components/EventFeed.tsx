@@ -92,15 +92,16 @@ export function EventFeed({ user, customerId, limit = 10 }: EventFeedProps) {
           event: 'INSERT',
           schema: 'public',
           table: 'events',
-          filter: customerId 
-            ? `user_id=eq.${user.id}&customer_id=eq.${customerId}`
-            : `user_id=eq.${user.id}`
+          filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          setEvents(current => {
-            const newEvent = payload.new as Event
-            return [newEvent, ...current].slice(0, limit)
-          })
+          // Only update if the event matches our customer filter
+          if (!customerId || payload.new.customer_id === customerId) {
+            setEvents(current => {
+              const newEvent = payload.new as Event;
+              return [newEvent, ...current].slice(0, limit);
+            });
+          }
         }
       )
       .subscribe()

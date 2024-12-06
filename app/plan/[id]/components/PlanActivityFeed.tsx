@@ -94,13 +94,16 @@ export function PlanActivityFeed({ planId, user }: PlanActivityFeedProps) {
           event: 'INSERT',
           schema: 'public',
           table: 'events',
-          filter: `user_id=eq.${user.id}&entity_id=eq.${planId}`
+          filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          setEvents(current => {
-            const newEvent = payload.new as Event;
-            return [newEvent, ...current];
-          });
+          // Only update if the event is for this plan
+          if (payload.new.entity_id === planId) {
+            setEvents(current => {
+              const newEvent = payload.new as Event;
+              return [newEvent, ...current];
+            });
+          }
         }
       )
       .subscribe();
