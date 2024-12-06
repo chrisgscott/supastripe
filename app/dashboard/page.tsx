@@ -18,6 +18,7 @@ import { redirect } from 'next/navigation';
 import { ActivePlansCard } from './components/ActivePlansCard';
 import { RevenueCard } from './components/RevenueCard';
 import { ScheduledRevenueCard } from './components/ScheduledRevenueCard';
+import { NextPayoutCard } from './components/NextPayoutCard';
 
 export default async function Dashboard() {
   // Call cookies() to opt out of caching
@@ -52,15 +53,7 @@ export default async function Dashboard() {
         
         <ScheduledRevenueCard />
         
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Next Payout</CardTitle>
-            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">Loading...</div>
-          </CardContent>
-        </Card>
+        <NextPayoutCard />
       </div>
 
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-12">
