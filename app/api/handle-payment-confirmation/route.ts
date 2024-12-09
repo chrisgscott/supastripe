@@ -27,7 +27,10 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const paymentIntentId = searchParams.get('payment_intent');
 
-  console.log('handle-payment-confirmation: Starting with payment_intent:', paymentIntentId);
+  console.log('[Payment Confirmation] Starting payment confirmation:', {
+    paymentIntentId,
+    timestamp: new Date().toISOString()
+  });
 
   if (!paymentIntentId) {
     console.log('handle-payment-confirmation: No payment_intent provided');
@@ -41,9 +44,16 @@ export async function GET(request: Request) {
     // First, check if this payment intent has already been processed
     const { data: existingTransaction, error: existingTransactionError } = await supabase
       .from('transactions')
-      .select('payment_plan_id')
+      .select('payment_plan_id, stripe_payment_intent_id')
       .eq('stripe_payment_intent_id', paymentIntentId)
       .maybeSingle();
+
+    console.log('[Payment Confirmation] Existing transaction check:', {
+      paymentIntentId,
+      found: !!existingTransaction,
+      transactionDetails: existingTransaction,
+      timestamp: new Date().toISOString()
+    });
 
     if (existingTransaction) {
       console.log('handle-payment-confirmation: Payment already processed, redirecting to:', existingTransaction.payment_plan_id);

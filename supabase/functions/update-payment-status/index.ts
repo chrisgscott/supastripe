@@ -238,23 +238,43 @@ serve(async (req) => {
 });
 
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent, supabase: any) {
-  console.log('Handling successful PaymentIntent:', paymentIntent);
+  console.log('[Webhook] Starting payment intent processing:', {
+    paymentIntentId: paymentIntent.id,
+    metadata: paymentIntent.metadata,
+    timestamp: new Date().toISOString()
+  });
 
   const transactionId = paymentIntent.metadata.transaction_id || 
                        paymentIntent.metadata.pending_transaction_id;
-  const paymentPlanId = paymentIntent.metadata.payment_plan_id;
 
-  if (!transactionId && !paymentPlanId) {
+  // Add logging for transaction lookup
+  const { data: existingTransaction, error: lookupError } = await supabase
+    .from('transactions')
+    .select('id, stripe_payment_intent_id')
+    .eq('stripe_payment_intent_id', paymentIntent.id)
+    .maybeSingle();
+
+  console.log('[Webhook] Transaction lookup result:', {
+    paymentIntentId: paymentIntent.id,
+    existingTransaction: existingTransaction?.id,
+    hasPaymentIntent: !!existingTransaction?.stripe_payment_intent_id,
+    error: lookupError?.message,
+    timestamp: new Date().toISOString()
+  });
+
+  console.log('Handling successful PaymentIntent:', paymentIntent);
+
+  if (!transactionId && !paymentIntent.metadata.payment_plan_id) {
     console.error('No transaction ID or payment plan ID found in metadata:', paymentIntent.metadata);
     throw new Error('No transaction ID or payment plan ID found in metadata');
   }
 
   // If we have a payment plan ID but no transaction ID, we need to look up the transaction
-  if (!transactionId && paymentPlanId) {
+  if (!transactionId && paymentIntent.metadata.payment_plan_id) {
     const { data: transaction, error: fetchError } = await supabase
       .from('transactions')
       .select('id')
-      .eq('payment_plan_id', paymentPlanId)
+      .eq('payment_plan_id', paymentIntent.metadata.payment_plan_id)
       .eq('status', 'pending')
       .single();
 

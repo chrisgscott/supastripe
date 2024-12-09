@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION migrate_pending_payment_plan(p_pending_plan_id UUID)
+CREATE OR REPLACE FUNCTION migrate_pending_payment_plan(p_pending_plan_id UUID, p_payment_intent_id TEXT DEFAULT NULL)
 RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -11,14 +11,27 @@ DECLARE
     v_transaction_count INT;
     v_payment_intent_id TEXT;
 BEGIN
+    RAISE NOTICE 'Starting migration for pending plan % with payment intent %', 
+        p_pending_plan_id, 
+        COALESCE(p_payment_intent_id, 'NULL');
+
     -- Get the user_id and payment_intent_id first
+    IF p_payment_intent_id IS NULL THEN
+        SELECT stripe_payment_intent_id INTO v_payment_intent_id
+        FROM pending_transactions
+        WHERE payment_plan_id = p_pending_plan_id
+        AND transaction_type = 'downpayment';
+        
+        RAISE NOTICE 'Found payment intent % from pending transactions', 
+            COALESCE(v_payment_intent_id, 'NULL');
+    ELSE
+        v_payment_intent_id := p_payment_intent_id;
+    END IF;
+
     SELECT 
-        ppp.user_id,
-        pt.stripe_payment_intent_id INTO v_user_id, v_payment_intent_id
+        ppp.user_id INTO v_user_id
     FROM pending_payment_plans ppp
-    JOIN pending_transactions pt ON pt.payment_plan_id = ppp.id
-    WHERE ppp.id = p_pending_plan_id
-    AND pt.transaction_type = 'downpayment';
+    WHERE ppp.id = p_pending_plan_id;
 
     IF v_user_id IS NULL THEN
         RAISE EXCEPTION 'Pending payment plan not found: %', p_pending_plan_id;
