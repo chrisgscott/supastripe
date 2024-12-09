@@ -168,28 +168,42 @@ serve(async (req) => {
 
     switch (event.type) {
       case 'payment_intent.succeeded':
+        console.log('Webhook: Processing payment_intent.succeeded', {
+          payment_intent_id: paymentIntent.id,
+          metadata: paymentIntent.metadata,
+          created_at: new Date(paymentIntent.created * 1000).toISOString()
+        });
+
         // First call handle_payment_confirmation to update status and prepare for migration
         const { data: confirmationData, error: confirmationError } = await supabase
           .rpc('handle_payment_confirmation', {
-            p_pending_plan_id: transaction.payment_plan.id,
+            p_pending_plan_id: paymentIntent.metadata.pending_payment_plan_id,
             p_payment_intent_id: paymentIntent.id,
             p_idempotency_key: crypto.randomUUID(),
-            p_card_last_four: paymentIntent.payment_method_details?.card?.last4 || null,
-            p_card_expiration_month: paymentIntent.payment_method_details?.card?.exp_month || null,
-            p_card_expiration_year: paymentIntent.payment_method_details?.card?.exp_year || null
+            p_card_last_four: paymentIntent.payment_method?.card?.last4,
+            p_card_expiration_month: paymentIntent.payment_method?.card?.exp_month,
+            p_card_expiration_year: paymentIntent.payment_method?.card?.exp_year
           });
 
         if (confirmationError) {
-          console.error('Error handling payment confirmation:', confirmationError);
-          return new Response(
-            JSON.stringify({ error: 'Error processing webhook', details: confirmationError.message }), 
-            { 
-              status: 400,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            }
-          );
+          console.error('Webhook: Error in handle_payment_confirmation:', {
+            error: confirmationError,
+            payment_intent_id: paymentIntent.id,
+            pending_plan_id: paymentIntent.metadata.pending_payment_plan_id
+          });
+          throw confirmationError;
         }
-        break;
+
+        console.log('Webhook: Successfully processed payment', {
+          payment_intent_id: paymentIntent.id,
+          result: confirmationData,
+          processing_time_ms: Date.now() - paymentIntent.created * 1000
+        });
+
+        return new Response(
+          JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
 
       case 'payment_intent.payment_failed':
         // Update the pending transaction status to failed

@@ -64,124 +64,77 @@ export async function GET(request: Request) {
     }
 
     console.log('handle-payment-confirmation: Fetching Stripe payment intent');
-    const stripePaymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
       expand: ['payment_method']
     });
     console.log('handle-payment-confirmation: Retrieved payment intent:', {
-      id: stripePaymentIntent.id,
-      status: stripePaymentIntent.status,
-      metadata: stripePaymentIntent.metadata
+      id: paymentIntent.id,
+      status: paymentIntent.status,
+      metadata: paymentIntent.metadata
     });
 
-    const pendingPlanId = stripePaymentIntent.metadata?.pending_payment_plan_id;
-    console.log('handle-payment-confirmation: Extracted pending_plan_id:', pendingPlanId);
-
-    if (!pendingPlanId) {
-      throw new Error('Pending payment plan ID not found in payment intent metadata');
+    if (!paymentIntent) {
+      console.error('Payment confirmation: Payment intent not found:', paymentIntentId);
+      return NextResponse.json({ error: 'Payment intent not found' }, { status: 404 });
     }
 
-    console.log('handle-payment-confirmation: Fetching pending plan');
-    const { data: pendingPlan, error: planError } = await supabase
-      .from('pending_payment_plans')
-      .select(`
-        *,
-        pending_customers!customer_id (
-          name,
-          email,
-          stripe_customer_id
-        )
-      `)
-      .eq('id', pendingPlanId)
-      .maybeSingle();
+    console.log('Payment confirmation: Retrieved payment intent', {
+      id: paymentIntentId,
+      status: paymentIntent.status,
+      metadata: paymentIntent.metadata,
+      created_at: new Date(paymentIntent.created * 1000).toISOString()
+    });
 
-    if (!pendingPlan) {
-      console.error('handle-payment-confirmation: Pending plan not found:', pendingPlanId);
-      throw new Error('Pending payment plan not found');
-    }
+    // Only check status, don't migrate - migration will be handled by webhook
+    if (paymentIntent.status === 'succeeded') {
+      console.log('Payment confirmation: Payment succeeded, checking for completed transaction');
+      
+      // Look for a transaction with this payment intent ID
+      const { data: transaction, error: transactionError } = await supabase
+        .from('transactions')
+        .select(`
+          payment_plan_id,
+          created_at,
+          updated_at,
+          status,
+          transaction_type
+        `)
+        .eq('stripe_payment_intent_id', paymentIntentId)
+        .maybeSingle();
 
-    if (planError) {
-      console.error('handle-payment-confirmation: Error fetching pending plan:', planError);
-      throw planError;
-    }
-    console.log('handle-payment-confirmation: Retrieved pending plan:', pendingPlan);
-
-    // Get card details from the payment method
-    const paymentMethod = stripePaymentIntent.payment_method as Stripe.PaymentMethod;
-    const cardDetails = {
-      card_last_four: paymentMethod.card?.last4,
-      card_expiration_month: paymentMethod.card?.exp_month,
-      card_expiration_year: paymentMethod.card?.exp_year
-    };
-
-    console.log('handle-payment-confirmation: Calling handle_payment_confirmation RPC');
-    const { data: result, error: migrationError } = await supabase
-      .rpc('handle_payment_confirmation', {
-        p_pending_plan_id: pendingPlanId,
-        p_payment_intent_id: paymentIntentId,
-        p_idempotency_key: crypto.randomUUID(),
-        p_card_last_four: cardDetails.card_last_four,
-        p_card_expiration_month: cardDetails.card_expiration_month,
-        p_card_expiration_year: cardDetails.card_expiration_year
-      });
-
-    console.log('handle-payment-confirmation: RPC result:', result);
-    console.log('handle-payment-confirmation: RPC error:', migrationError);
-
-    if (migrationError) {
-      console.error('Migration error:', migrationError);
-      throw migrationError;
-    }
-
-    if (!result || !result.success) {
-      console.error('handle-payment-confirmation: Migration failed:', result);
-      throw new Error(result?.error || 'Migration failed');
-    }
-
-    console.log('handle-payment-confirmation: Verifying migrated plan');
-    const { data: newPlan, error: verificationError } = await supabase
-      .from('payment_plans')
-      .select(`
-        id,
-        customer_id,
-        customers!inner (
-          id,
-          name,
-          email
-        ),
-        transactions (*)
-      `)
-      .eq('id', result.migrated_plan_id)
-      .maybeSingle();
-
-    if (!newPlan) {
-      console.error('handle-payment-confirmation: Migrated plan not found:', result.migrated_plan_id);
-      throw new Error('Failed to verify migrated payment plan - plan not found');
-    }
-
-    if (verificationError) {
-      console.error('handle-payment-confirmation: Verification failed:', { verificationError, newPlan });
-      throw new Error('Failed to verify migrated payment plan');
-    }
-
-    // Publish payment confirmation event
-    await PaymentEvents.confirmed(supabase, {
-      paymentId: stripePaymentIntent.id,
-      userId: newPlan.customers[0].id,
-      customerId: newPlan.customer_id,
-      amount: stripePaymentIntent.amount / 100, // Convert from cents to dollars
-      metadata: {
-        plan_id: newPlan.id,
-        payment_method: 'card',
-        ...cardDetails
+      if (transactionError) {
+        console.error('Payment confirmation: Error checking transaction:', transactionError);
+        return NextResponse.json({ error: 'Error checking payment status' }, { status: 500 });
       }
-    });
 
-    console.log('handle-payment-confirmation: Success, redirecting to:', newPlan.id);
-    return NextResponse.json({
-      success: true,
-      redirectUrl: `/plan/${newPlan.id}`
-    });
+      // If we found a transaction, the webhook has already processed this payment
+      if (transaction?.payment_plan_id) {
+        console.log('Payment confirmation: Found completed transaction', {
+          payment_plan_id: transaction.payment_plan_id,
+          transaction_created_at: transaction.created_at,
+          transaction_updated_at: transaction.updated_at,
+          status: transaction.status,
+          type: transaction.transaction_type,
+          webhook_processing_time_ms: transaction.updated_at ? 
+            new Date(transaction.updated_at).getTime() - new Date(paymentIntent.created * 1000).getTime() : 
+            null
+        });
 
+        return NextResponse.json({
+          success: true,
+          redirectUrl: `/plan/${transaction.payment_plan_id}`
+        });
+      }
+
+      // If no transaction yet, the webhook hasn't processed it - return success but keep polling
+      console.log('Payment confirmation: No transaction found yet, webhook processing in progress');
+      return NextResponse.json({ success: true });
+    }
+
+    console.log('Payment confirmation: Payment not completed', { 
+      status: paymentIntent.status 
+    });
+    return NextResponse.json({ error: 'Payment not completed' }, { status: 400 });
   } catch (error) {
     console.error('Error in handle-payment-confirmation:', error);
 
@@ -190,35 +143,6 @@ export async function GET(request: Request) {
       typeof err === 'object' &&
       'code' in err &&
       'details' in err;
-
-    // If it's a "no rows returned" error and we've already processed this payment
-    if (isPgError(error) && error.code === 'PGRST116') {
-      console.log('handle-payment-confirmation: Pending plan not found, checking for existing processed payment');
-
-      try {
-        // Try to find the processed payment plan using transactions
-        const { data: processedPlan, error: lookupError } = await supabase
-          .from('transactions')
-          .select('payment_plan_id')
-          .eq('stripe_payment_intent_id', paymentIntentId)
-          .maybeSingle();
-
-        if (lookupError) {
-          console.error('Error looking up processed payment:', lookupError);
-          throw lookupError;
-        }
-
-        if (processedPlan) {
-          console.log('handle-payment-confirmation: Found existing processed payment:', processedPlan.payment_plan_id);
-          return NextResponse.json({
-            success: true,
-            redirectUrl: `/payment-success/${processedPlan.payment_plan_id}`
-          });
-        }
-      } catch (lookupError) {
-        console.error('Error checking for processed payment:', lookupError);
-      }
-    }
 
     const errorDetails = {
       message: error instanceof Error ? error.message : String(error),
