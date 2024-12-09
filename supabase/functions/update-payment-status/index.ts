@@ -177,19 +177,24 @@ serve(async (req) => {
         // First call handle_payment_confirmation to update status and prepare for migration
         const { data: confirmationData, error: confirmationError } = await supabase
           .rpc('handle_payment_confirmation', {
-            p_pending_plan_id: paymentIntent.metadata.pending_payment_plan_id,
+            p_pending_plan_id: metadata.pending_payment_plan_id,
             p_payment_intent_id: paymentIntent.id,
             p_idempotency_key: crypto.randomUUID(),
-            p_card_last_four: paymentIntent.payment_method?.card?.last4,
-            p_card_expiration_month: paymentIntent.payment_method?.card?.exp_month,
-            p_card_expiration_year: paymentIntent.payment_method?.card?.exp_year
+            p_card_last_four: paymentIntent.payment_method_details?.card?.last4 || null,
+            p_card_expiration_month: paymentIntent.payment_method_details?.card?.exp_month || null,
+            p_card_expiration_year: paymentIntent.payment_method_details?.card?.exp_year || null
           });
 
         if (confirmationError) {
           console.error('Webhook: Error in handle_payment_confirmation:', {
             error: confirmationError,
             payment_intent_id: paymentIntent.id,
-            pending_plan_id: paymentIntent.metadata.pending_payment_plan_id
+            pending_plan_id: metadata.pending_payment_plan_id,
+            card_details: {
+              last4: paymentIntent.payment_method_details?.card?.last4,
+              exp_month: paymentIntent.payment_method_details?.card?.exp_month,
+              exp_year: paymentIntent.payment_method_details?.card?.exp_year
+            }
           });
           throw confirmationError;
         }
