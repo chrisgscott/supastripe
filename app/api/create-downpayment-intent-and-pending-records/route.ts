@@ -140,7 +140,8 @@ export async function POST(request: Request) {
       pending_payment_plan_id: pendingPaymentPlanId,    // Use the same UUID
       pending_transaction_id: pendingTransactionId,      // Use the same UUID
       pending_customer_id: pendingCustomerId,            // Use the same UUID
-      transaction_type: 'downpayment'
+      transaction_type: 'downpayment',
+      idempotency_key: idempotencyKey                   // Add idempotency key to metadata
     };
 
     // Create Stripe payment intent with our IDs in metadata
