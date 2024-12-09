@@ -9,6 +9,14 @@ import * as crypto from 'https://deno.land/std@0.168.0/crypto/mod.ts';
 type TransactionStatusType = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
 type TransactionType = 'downpayment' | 'installment';
 
+type EventType = 
+  | 'payment_confirmed'
+  | 'payment_failed'
+  | 'payment_refunded'
+  | 'plan_activated'
+  | 'plan_completed'
+  | 'plan_cancelled';
+
 type ActivityType = 
   | 'payment_method_updated'
   | 'payment_success'
@@ -96,141 +104,37 @@ serve(async (req) => {
 
     const paymentIntent = event.data.object;
     const metadata = paymentIntent.metadata || {};
-    
-    // Log all metadata for debugging
-    console.log('handle-payment-confirmation: Payment intent metadata:', metadata);
 
-    // Use the pending_transaction_id from metadata
-    const transactionId = metadata.pending_transaction_id;
-    const pendingPlanId = metadata.pending_payment_plan_id;
-
-    if (!transactionId || !pendingPlanId) {
-      console.error('Missing required metadata:', { transactionId, pendingPlanId });
-      return new Response(
-        JSON.stringify({ error: 'Missing required metadata' }), 
-        { 
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
-    // Look up the pending transaction
-    const { data: transaction, error: transactionError } = await supabase
-      .from('pending_transactions')
-      .select(`
-        *,
-        payment_plan:pending_payment_plans!inner (
-          id,
-          user_id,
-          customer_id
-        )
-      `)
-      .eq('id', transactionId)
-      .eq('payment_plan_id', pendingPlanId)
-      .single();
-
-    if (transactionError || !transaction) {
-      console.error('Error fetching transaction:', {
-        error: transactionError,
-        transactionId,
-        pendingPlanId
+    async function publishEvent(
+      eventType: EventType,
+      entityType: 'payment_plan' | 'payment',
+      entityId: string,
+      userId: string,
+      metadata: any = {},
+      customerId?: string
+    ) {
+      const { error } = await supabase.rpc('publish_activity', {
+        p_event_type: eventType,
+        p_entity_type: entityType,
+        p_entity_id: entityId,
+        p_user_id: userId,
+        p_metadata: metadata,
+        p_customer_id: customerId
       });
-      
-      // Check if this payment has already been processed
-      const { data: existingTransaction } = await supabase
-        .from('transactions')
-        .select('id')
-        .eq('stripe_payment_intent_id', paymentIntent.id)
-        .single();
 
-      if (existingTransaction) {
-        console.log('Payment already processed:', existingTransaction.id);
-        return new Response(
-          JSON.stringify({ received: true, already_processed: true }), 
-          { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200,
-          }
-        );
+      if (error) {
+        console.error('Failed to publish event:', error);
+        throw error;
       }
-
-      return new Response(
-        JSON.stringify({ 
-          error: 'Error processing webhook', 
-          details: `Transaction not found: ${transactionId}` 
-        }), 
-        { 
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
     }
 
     switch (event.type) {
       case 'payment_intent.succeeded':
-        console.log('Webhook: Processing payment_intent.succeeded', {
-          payment_intent_id: paymentIntent.id,
-          metadata: paymentIntent.metadata,
-          created_at: new Date(paymentIntent.created * 1000).toISOString()
-        });
-
-        // First call handle_payment_confirmation to update status and prepare for migration
-        const { data: confirmationData, error: confirmationError } = await supabase
-          .rpc('handle_payment_confirmation', {
-            p_pending_plan_id: metadata.pending_payment_plan_id,
-            p_payment_intent_id: paymentIntent.id,
-            p_idempotency_key: metadata.idempotency_key, // Use the idempotency key from metadata
-            p_card_last_four: paymentIntent.payment_method_details?.card?.last4 || null,
-            p_card_expiration_month: paymentIntent.payment_method_details?.card?.exp_month || null,
-            p_card_expiration_year: paymentIntent.payment_method_details?.card?.exp_year || null
-          });
-
-        if (confirmationError) {
-          console.error('Webhook: Error in handle_payment_confirmation:', {
-            error: confirmationError,
-            payment_intent_id: paymentIntent.id,
-            pending_plan_id: metadata.pending_payment_plan_id,
-            card_details: {
-              last4: paymentIntent.payment_method_details?.card?.last4,
-              exp_month: paymentIntent.payment_method_details?.card?.exp_month,
-              exp_year: paymentIntent.payment_method_details?.card?.exp_year
-            }
-          });
-          throw confirmationError;
-        }
-
-        console.log('Webhook: Successfully processed payment', {
-          payment_intent_id: paymentIntent.id,
-          result: confirmationData,
-          processing_time_ms: Date.now() - paymentIntent.created * 1000
-        });
-
-        return new Response(
-          JSON.stringify({ success: true }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        await handlePaymentIntentSucceeded(paymentIntent, supabase);
+        break;
 
       case 'payment_intent.payment_failed':
-        // Update the pending transaction status to failed
-        const { data: failedData, error: failedError } = await supabase
-          .from('pending_transactions')
-          .update({ 
-            status: 'failed',
-            error_message: paymentIntent.last_payment_error?.message || 'Payment failed'
-          })
-          .eq('id', transactionId);
-
-        if (failedError) {
-          console.error('Error handling failed payment:', failedError);
-          return new Response(
-            JSON.stringify({ error: 'Error processing webhook', details: failedError.message }), 
-            { 
-              status: 400,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            }
-          );
-        }
+        await handlePaymentIntentFailed(paymentIntent, supabase);
         break;
 
       default:
@@ -258,199 +162,96 @@ serve(async (req) => {
 });
 
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent, supabase: any) {
-  console.log('[Webhook] Starting payment intent processing:', {
-    paymentIntentId: paymentIntent.id,
-    metadata: paymentIntent.metadata,
-    timestamp: new Date().toISOString()
-  });
+  const metadata = paymentIntent.metadata || {};
+  const { transaction_id, pending_transaction_id, user_id, customer_id } = metadata;
 
-  const transactionId = paymentIntent.metadata.transaction_id || 
-                       paymentIntent.metadata.pending_transaction_id;
-
-  // Add logging for transaction lookup
-  const { data: existingTransaction, error: lookupError } = await supabase
+  // Check if this payment has already been processed
+  const { data: existingTransaction } = await supabase
     .from('transactions')
-    .select('id, stripe_payment_intent_id')
+    .select('id, payment_plan_id')
     .eq('stripe_payment_intent_id', paymentIntent.id)
     .maybeSingle();
 
-  console.log('[Webhook] Transaction lookup result:', {
-    paymentIntentId: paymentIntent.id,
-    existingTransaction: existingTransaction?.id,
-    hasPaymentIntent: !!existingTransaction?.stripe_payment_intent_id,
-    error: lookupError?.message,
-    timestamp: new Date().toISOString()
+  if (existingTransaction) {
+    console.log('Payment already processed:', paymentIntent.id);
+    return;
+  }
+
+  // Use a database transaction to ensure atomicity
+  const { data: result, error: transactionError } = await supabase.rpc('handle_payment_confirmation', {
+    p_payment_intent_id: paymentIntent.id,
+    p_transaction_id: transaction_id,
+    p_pending_transaction_id: pending_transaction_id
   });
 
-  console.log('Handling successful PaymentIntent:', paymentIntent);
-
-  if (!transactionId && !paymentIntent.metadata.payment_plan_id) {
-    console.error('No transaction ID or payment plan ID found in metadata:', paymentIntent.metadata);
-    throw new Error('No transaction ID or payment plan ID found in metadata');
+  if (transactionError) {
+    console.error('Error handling payment confirmation:', transactionError);
+    throw transactionError;
   }
 
-  // If we have a payment plan ID but no transaction ID, we need to look up the transaction
-  if (!transactionId && paymentIntent.metadata.payment_plan_id) {
-    const { data: transaction, error: fetchError } = await supabase
-      .from('transactions')
-      .select('id')
-      .eq('payment_plan_id', paymentIntent.metadata.payment_plan_id)
-      .eq('status', 'pending')
-      .single();
-
-    if (fetchError || !transaction) {
-      console.error('Error fetching transaction for payment plan:', fetchError);
-      throw new Error('Could not find pending transaction for payment plan');
-    }
-
-    transactionId = transaction.id;
-  }
-
-  console.log(`Processing successful payment for transaction ${transactionId}`);
-
-  // Remove p_status parameter since it's not part of the stored procedure
-  const { data, error } = await supabase.rpc('handle_successful_payment', {
-    p_transaction_id: transactionId,
-    p_paid_at: new Date().toISOString()
-  });
-
-  if (error) {
-    console.error(`Error processing successful payment for transaction ${transactionId}:`, error);
-    throw error;
-  }
-
-  // Now that the transaction exists, we can log to payment_processing_logs
-  const { error: logError } = await supabase
-    .from('payment_processing_logs')
-    .upsert({
-      transaction_id: transactionId,
-      status: 'payment_succeeded',
-      stripe_payment_intent_id: paymentIntent.id,
-      idempotency_key: `payment_succeeded_${transactionId}_${paymentIntent.id}`
-    });
-
-  if (logError) {
-    console.error(`Error logging successful payment for transaction ${transactionId}:`, logError);
-    // Note: We're not throwing here to avoid breaking the main flow if logging fails
-  }
-
-  // After transaction is created/updated, fetch its details for activity logging
-  const { data: transaction, error: fetchError } = await supabase
-    .from('transactions')
-    .select(`
-      amount,
-      payment_plan_id,
-      payment_plans!inner (
-        id,
-        user_id,
-        customers!inner (
-          name
-        )
-      )
-    `)
-    .eq('id', transactionId)
-    .single();
-
-  if (fetchError) {
-    console.error(`Error fetching transaction details for logging:`, fetchError);
-  } else {
-    // Log the activity
-    const { error: eventError } = await supabase.rpc('publish_activity', {
-      p_event_type: 'payment_success',
-      p_entity_type: 'payment_plan',
-      p_entity_id: transaction.payment_plan_id,
-      p_user_id: transaction.payment_plans.user_id,
-      p_metadata: {
+  // Publish payment confirmation event
+  if (result?.payment_plan_id) {
+    await publishEvent(
+      supabase,
+      'payment_confirmed',
+      'payment',
+      transaction_id || pending_transaction_id,
+      user_id,
+      {
+        amount: paymentIntent.amount,
         payment_intent_id: paymentIntent.id,
-        transaction_id: transactionId,
-        amount: transaction.amount,
-        customer_name: transaction.payment_plans.customers.name
-      }
-    });
+        payment_plan_id: result.payment_plan_id
+      },
+      customer_id
+    );
 
-    if (eventError) {
-      console.error('Error publishing payment success event:', eventError);
-      console.log('Event error details:', {
-        code: eventError.code,
-        message: eventError.message,
-        details: eventError.details,
-        hint: eventError.hint
-      });
+    // If this was a downpayment, also publish plan activation
+    if (result.activated_plan) {
+      await publishEvent(
+        supabase,
+        'plan_activated',
+        'payment_plan',
+        result.payment_plan_id,
+        user_id,
+        {
+          activation_date: new Date().toISOString()
+        },
+        customer_id
+      );
     }
   }
-
-  console.log(`Successfully processed payment for transaction ${transactionId}`, data);
 }
 
 async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent, supabase: any) {
-  const transactionId = paymentIntent.metadata.transaction_id || paymentIntent.metadata.pending_transaction_id;
+  const metadata = paymentIntent.metadata || {};
+  const { transaction_id, pending_transaction_id, user_id, customer_id } = metadata;
 
-  if (!transactionId) {
-    throw new Error('No transaction ID found in metadata');
-  }
+  // Update transaction status
+  if (transaction_id || pending_transaction_id) {
+    const { error: updateError } = await supabase
+      .from('transactions')
+      .update({ status: 'failed' as TransactionStatusType })
+      .eq('id', transaction_id || pending_transaction_id);
 
-  console.log(`Processing failed payment for transaction ${transactionId}`);
-
-  const { error: updateError } = await supabase
-    .from('transactions')
-    .update({ 
-      status: 'failed',
-      next_attempt_date: paymentIntent.next_payment_attempt 
-        ? new Date(paymentIntent.next_payment_attempt * 1000).toISOString() 
-        : null
-    })
-    .eq('id', transactionId)
-
-  if (updateError) {
-    console.error(`Error updating transaction ${transactionId}:`, updateError)
-    throw updateError
-  }
-
-  const { data: transaction, error: fetchError } = await supabase
-    .from('transactions')
-    .select(`
-      id,
-      amount,
-      payment_plan_id,
-      payment_plans!inner (
-        user_id,
-        customers!inner (
-          name
-        )
-      )
-    `)
-    .eq('id', transactionId)
-    .single();
-
-  if (fetchError) {
-    console.error(`Error fetching transaction details for logging:`, fetchError);
-  } else {
-    // Log the activity
-    const { error: eventError } = await supabase.rpc('publish_activity', {
-      p_event_type: 'payment_failed',
-      p_entity_type: 'payment_plan',
-      p_entity_id: transaction.payment_plan_id,
-      p_user_id: transaction.payment_plans.user_id,
-      p_metadata: {
-        payment_intent_id: paymentIntent.id,
-        transaction_id: transactionId,
-        amount: transaction.amount,
-        customer_name: transaction.payment_plans.customers.name
-      }
-    });
-
-    if (eventError) {
-      console.error('Error publishing payment failed event:', eventError);
-      console.log('Event error details:', {
-        code: eventError.code,
-        message: eventError.message,
-        details: eventError.details,
-        hint: eventError.hint
-      });
+    if (updateError) {
+      console.error('Error updating transaction status:', updateError);
+      throw updateError;
     }
-  }
 
-  console.log(`Successfully processed failed payment for transaction ${transactionId}`)
+    // Publish payment failed event
+    await publishEvent(
+      supabase,
+      'payment_failed',
+      'payment',
+      transaction_id || pending_transaction_id,
+      user_id,
+      {
+        payment_intent_id: paymentIntent.id,
+        error: paymentIntent.last_payment_error?.message
+      },
+      customer_id
+    );
+  }
 }
 
 async function handleAccountUpdated(account: Stripe.Account, supabase: any) {
