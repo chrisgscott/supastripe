@@ -179,7 +179,7 @@ serve(async (req) => {
           .rpc('handle_payment_confirmation', {
             p_pending_plan_id: metadata.pending_payment_plan_id,
             p_payment_intent_id: paymentIntent.id,
-            p_idempotency_key: crypto.randomUUID(),
+            p_idempotency_key: paymentIntent.id, // Use payment intent ID as idempotency key
             p_card_last_four: paymentIntent.payment_method_details?.card?.last4 || null,
             p_card_expiration_month: paymentIntent.payment_method_details?.card?.exp_month || null,
             p_card_expiration_year: paymentIntent.payment_method_details?.card?.exp_year || null
